@@ -1564,8 +1564,38 @@ function animeEye(g, ex, ey, s, o) {
   g.lineWidth = 1; g.strokeStyle = rgba(line, 0.55); g.beginPath(); g.moveTo(ex + s * w * 0.3, loY - h * 0.08); g.quadraticCurveTo(ex + s * w * 0.75, loY - h * 0.25, ox - s * 0.4, ey - h * 0.05); g.stroke();
   g.strokeStyle = rgba(line, 0.35); g.beginPath(); g.moveTo(ex - s * w * 0.2, upY - 2.6); g.quadraticCurveTo(ex + s * w * 0.4, upY - 3.4, ox - s * 0.4, ey - h * 0.55); g.stroke();
 }
+// Portraits are live renders of the person's own 3D body (the drawn 2D version is only a fallback).
+const P3 = { r: null, scene: null, cam: null, cache: new Map(), fail: false, last: '', lastT: 0, cur: null };
+function portrait3DReady() {
+  if (P3.fail || !window.THREE || !R3) return false; if (P3.r) return true;
+  try {
+    const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(320, 320, false);
+    const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight('#fff7ea', '#5d4a3a', 0.8)); const d = new THREE.DirectionalLight('#fff0d8', 0.55); d.position.set(1.2, 2.2, 2.5); sc.add(d);
+    const rim = new THREE.DirectionalLight('#c9d8ff', 0.25); rim.position.set(-2, 1.5, -1.5); sc.add(rim);
+    Object.assign(P3, { r, scene: sc, cam: new THREE.PerspectiveCamera(26, 1, 0.05, 20) }); return true;
+  } catch (e) { P3.fail = true; return false; }
+}
+function portraitHuman(c) {
+  const key = (c.name || '') + '|' + (c.seed || 0) + '|' + (c.idKey || ''); let h = P3.cache.get(key);
+  if (!h) { const look = c.look || (c.look = lookFor(c)); h = buildHuman(specFor(look, c.body)); P3.cache.set(key, h);
+    if (P3.cache.size > 16) { const [k0, h0] = P3.cache.entries().next().value; if (h0 !== P3.cur) { disposeHuman(h0); P3.cache.delete(k0); } } }
+  return h;
+}
+function drawPortrait3D(c, expr, t, talking) {
+  const h = portraitHuman(c), H = h.H, blink = blinkAmt(t, c.seed || 0) > 0.3, key = `${c.name}|${c.seed}|${expr}|${blink}|${talking ? Math.round(t * 8) % 2 : 0}`;
+  if (key === P3.last && t - P3.lastT < 0.25 && P3.cur === h) return; P3.last = key; P3.lastT = t;
+  if (P3.cur !== h) { if (P3.cur) P3.scene.remove(P3.cur.root); P3.scene.add(h.root); P3.cur = h; }
+  P3.scene.background = new THREE.Color((c.bg && c.bg[0]) || '#2f3a4a');
+  h.root.position.set(0, 0, 0); h.root.rotation.set(0, -0.32, 0);
+  poseHuman(h, { breath: 0.012 * (0.5 - 0.5 * Math.cos(t * 1.6)), look: 0.22 + Math.sin(t * 0.4 + (c.seed || 0)) * 0.08, tilt: 0.04 });
+  h.faceT = -1; h.lastExpr = ''; redrawFace(h, expr || 'happy', t, !!talking); setHumanEmote(h, '');
+  P3.cam.position.set(0.14, H * 0.93, 1.18); P3.cam.lookAt(0, H * 0.885, 0);
+  P3.r.render(P3.scene, P3.cam);
+  pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.clearRect(0, 0, pcv.width, pcv.height); pctx.drawImage(P3.r.domElement, 0, 0, pcv.width, pcv.height);
+}
 function drawPortrait(c, expr, t, talking) {
   t = t === undefined ? time : t;
+  if (c && c.body && portrait3DReady()) { try { drawPortrait3D(c, expr, t, talking); return; } catch (e) { console.warn('3D portrait failed, using the drawn one', e); P3.fail = true; } }
   const g = pctx, b = c.body, sk = b.skin.base, m = b.masc, st = b.hair, seed = c.seed || 0;
   const skS = celOf(sk), skL = shade(sk, -0.5), hc = b.hairColor, hS = mixHex(shade(hc, -0.32), '#3a2a6a', 0.15), hL = shade(hc, 0.45), hO = shade(hc, -0.6);
   g.setTransform(2, 0, 0, 2, 0, 0); g.clearRect(0, 0, 160, 160);
@@ -5152,6 +5182,12 @@ function frame(t) {
 resize(); refreshScents(); refreshUI(true);
 S.me = S.me || ME_DEFAULT();
 if (init3D()) { document.body.classList.add('fp3d'); resize(); }
+else (function retry3D() { // the first CDN didn't deliver three.js: try another before settling for the 2D map
+  const sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js';
+  sc.onload = () => { if (init3D()) { document.body.classList.add('fp3d'); resize(); if (S.owned) { applyUpgradeSolids(); buildUpgrades3D(); } toast('🎮 3D graphics loaded.'); } else note2D(); };
+  sc.onerror = note2D; document.head.appendChild(sc);
+})();
+function note2D() { window.__no3D = true; setTimeout(() => toast('⚠️ 3D graphics couldn\'t start on this device, so you\'re seeing the 2D map version. Try Chrome or Safari with hardware acceleration on.'), 1500); }
 if (ageOk()) showTitle(); else showAgeGate(showTitle);
 requestAnimationFrame(frame);
 </script>
