@@ -7,7 +7,8 @@ A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `inde
 **Running the spa:**
 - **Check in and payment:** clients pay at the front desk before their session.
 - **Massage:** lead a client to Treatment Room 1. Then use your hands, oil (pick a scent), hot stones, pressure (1/2/3), reposition, turn over, tension view, talk, and end session.
-- **Staff (P):** hire a receptionist, therapists, a cleaner and a manager. You can give bonuses or let people go.
+- **Staff (P):** every employee does everything: front desk, payment and massages. Each one needs a treatment room (Rooms 2–6; buy 3–6 in Upgrades). They level up fast while massaging and can reach level 100 in a day.
+- **Money:** you start with $20,000. Clients pay at check-in and payments are final, with no refunds.
 - **Your office and cameras (O):** your office is off the hallway, past the tea lounge.
   - Watch every room live and click a feed to enlarge it.
   - When an employee is slacking (on their phone, napping, rude to clients, or skimming the register), warn them, dock their pay or fire them.

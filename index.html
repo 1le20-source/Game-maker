@@ -131,20 +131,28 @@ body.m3d #minimap,body.m3d #prompt3d,body.m3d #lookHint,body.m3d #cross{display:
 .quote{font-style:italic;text-align:center;color:#d6e2df;margin:8px 0}
 @media (max-width:820px){
   #main{flex-direction:column}
-  #side{width:100%;max-height:150px;display:grid;grid-template-columns:90px 1fr;gap:4px 10px;border-right:none;border-bottom:1px solid var(--line);padding:8px}
-  #portrait{grid-row:span 6;width:90px;margin:0}
+  #side{width:100%;max-height:132px;display:block;border-right:none;border-bottom:1px solid var(--line);padding:6px 10px;overflow-y:auto}
+  #portrait{display:none}
+  .meter{margin:3px 0}.meter .lbl{font-size:12px}.bar{height:7px}
   .cname{text-align:left;font-size:16px}.tags{justify-content:flex-start}
   #side h4,#focusList,#knowList,#queueList,.ctl{display:none}
   #worldPanel{grid-column:1/-1}
   .req{margin:2px 0;font-size:12px}
   button{padding:7px 9px;font-size:13px;min-height:38px} kbd{display:none}
   .brand{display:none}
-  #toolbar{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:6px 8px}
-  #toolbar>*{flex-shrink:0}
+  #toolbar{flex-wrap:wrap;justify-content:center;gap:5px;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  #toolbar .grp{padding:3px;gap:3px;flex-wrap:wrap;justify-content:center}.grp .gl{display:none}
+  #toolbar button{padding:6px 8px;font-size:12.5px;min-height:38px}
   #topbar{gap:6px;padding:6px 8px}.stat{font-size:12.5px;padding:3px 8px}
   .modal{padding:16px 14px 0}
 }
-@media (max-height:520px) and (min-width:821px){#side{width:220px;padding:8px}#portrait{max-width:120px}#toolbar{padding:4px 8px}button{padding:6px 10px}}
+@media (max-height:520px){#side{width:190px;max-height:none;display:block;padding:8px}#main{flex-direction:row}#portrait{display:none}#side h4,#focusList,#knowList,#queueList,.ctl,.brand,kbd,.grp .gl{display:none}
+  #toolbar{gap:4px;padding:4px 6px}#toolbar .grp{padding:2px;gap:2px}#toolbar button{padding:5px 8px;font-size:12px;min-height:34px}#topbar{padding:4px 8px}.stat{font-size:12px;padding:2px 8px}
+  .modal{max-height:96dvh;padding:12px 14px 0}.intro canvas{width:96px;height:96px}}
+@media (pointer:coarse){kbd{display:none}}
+#fabUse{position:absolute;right:14px;bottom:16px;width:76px;height:76px;border-radius:50%;font-size:15px;pointer-events:auto;display:none;box-shadow:0 6px 18px rgba(0,0,0,.45);line-height:1.1;padding:0}
+body.touch.world.fp3d:not(.cams) #fabUse{display:block}
+body.touch #lookHint{display:none!important}
 </style>
 </head>
 <body class="world">
@@ -190,7 +198,7 @@ window.addEventListener('error', function (e) {
       <div id="knowList"></div>
       </div>
     </aside>
-    <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="camsUI" hidden><div id="camTiles"></div><div id="camTop"><b>📹 Security cameras</b><span style="flex:1"></span><button id="camBack">✕ Leave office</button></div><div id="camStatus"></div></div><div id="toast"></div></div>
+    <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><button id="fabUse" class="primary">✋<br>Use</button><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="camsUI" hidden><div id="camTiles"></div><div id="camTop"><b>📹 Security cameras</b><span style="flex:1"></span><button id="camBack">✕ Leave office</button></div><div id="camStatus"></div></div><div id="toast"></div></div>
   </div>
   <div id="toolbar">
     <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bCams">📹 Cameras<kbd>O</kbd></button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
@@ -211,7 +219,7 @@ window.addEventListener('error', function (e) {
       <button id="bHeat" class="sessOnly">🔥 Tension view<kbd>T</kbd></button>
       <button id="bTalk" class="sessOnly">💬 Talk<kbd>C</kbd></button>
       <button id="bMusic">🎵 Music<kbd>M</kbd></button>
-      <button id="bPause">⏸<kbd>Esc</kbd></button>
+      <button id="bPause">⏸ Menu<kbd>Esc</kbd></button>
     </div>
     <button id="bEnd" class="primary sessOnly">✔ End Session<kbd>Enter</kbd></button>
   </div>
@@ -255,7 +263,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 
 // ---------- Save data ----------
 const SAVE_KEY = 'serenityHands_v1';
-const DEFAULT_SAVE = () => ({ money: 120, day: 1, clientNo: 0, ratings: [], owned: {}, music: true,
+const DEFAULT_SAVE = () => ({ got20k: true, money: 20000, day: 1, clientNo: 0, ratings: [], owned: {}, music: true,
   stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 5, staff: [], cands: null, candDay: 0, people: {}, gifts: {}, lastDateDay: 0 });
 let S = DEFAULT_SAVE();
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
@@ -285,7 +293,10 @@ const SHOP = [
   { id: 'robes', name: '🥋 Luxury Robes & Slippers', price: 250, desc: 'Plush robes for every client. +15% tips.' },
   { id: 'sign', name: '💡 Neon Storefront Sign', price: 350, desc: 'Draws people in off the street. +1 client per day.' },
   { id: 'aquarium', name: '🐠 Lobby Aquarium', price: 400, desc: 'Tropical fish to watch while waiting. +10% patience.' },
-  { id: 'room3', name: '🚪 Treatment Room 3', price: 900, desc: 'Opens the second suite table so you can employ a second therapist.' },
+  { id: 'room3', name: '🚪 Treatment Room 3', price: 900, desc: 'Another table in the suite: room for one more therapist.' },
+  { id: 'room4', name: '🚪 Treatment Room 4', price: 1500, desc: 'Opens the south-west suite table: room for one more therapist.' },
+  { id: 'room5', name: '🚪 Treatment Room 5', price: 2200, desc: 'Opens the south-east suite table: room for one more therapist.' },
+  { id: 'room6', name: '🚪 Treatment Room 6', price: 3000, desc: 'A second table in the big treatment room: room for one more therapist.' },
   { id: 'gold', name: '✨ VIP Gold Package', price: 1200, desc: 'Gold accents and a VIP menu. +25% session prices.' },
 ];
 const SCENTS = { unscented: 'Unscented', lavender: 'Lavender', citrus: 'Sweet Orange', eucalyptus: 'Eucalyptus' };
@@ -393,7 +404,7 @@ function makeClient() {
     chatty: Math.random() < 0.6, seed: rand(0, 10), bg: pick([['#3b4f6b', '#25303f'], ['#5b3b5f', '#2f2234'], ['#2f5a52', '#1d3330'], ['#6a4b35', '#3a2a1f'], ['#4d3f6e', '#28213a']]),
   };
   c.feel = genFeel(c);
-  c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1) * (S.owned.gold ? 1.25 : 1) * ((S.staff || []).some(s => s.role === 'manager') ? 1.1 : 1));
+  c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1) * (S.owned.gold ? 1.25 : 1) * ((S.staff || []).length >= 3 ? 1.1 : 1));
   return c;
 }
 
@@ -617,7 +628,7 @@ function startSession(c) {
     knots.push({ x, y, z, amt: 100, done: false });
   }
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
-    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff('cleaner') ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
     head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
@@ -888,15 +899,15 @@ function computeResult(walked) {
   if (ses.scentPraised) { score += 0.04; bonus.push('Favorite scent ✔'); }
   if (ses.released === ses.knots.length) { score += 0.03; bonus.push('All knots released ✔'); }
   let stars = walked ? 0.5 : clamp(Math.round(score * 5.3 * 2) / 2, 1, 5);
-  const pay = walked ? 0 : Math.round(c.price * (stars >= 2 ? 1 : 0.5));
+  const pay = walked ? 0 : c.price; // the price is the price, however the session goes
   const tip = stars >= 4 ? Math.round(c.price * (0.1 + (stars - 4) * 0.15 + (c.chatty && ses.talkCount ? 0.05 : 0)) * tipMult()) : 0;
   return { relax, comfortN, timeUse, stars, pay, tip, bonus, walked };
 }
 function personOfC(c) { return c && c.pid && S.people ? S.people[c.pid] : null; }
 function finishClient(res) {
   const c = ses.c, paid = c.paid || 0;
-  res.refund = Math.max(0, paid - res.pay);
-  S.money += (paid ? 0 : res.pay) - res.refund + res.tip; S.clientNo++;
+  res.refund = 0; if (paid) res.pay = paid; // payments are final
+  S.money += (paid ? 0 : res.pay) + res.tip; S.clientNo++;
   recordVisit(c, res.stars, ses.talkCount > 0, false);
   S.ratings.push(res.stars); if (S.ratings.length > 50) S.ratings.shift();
   S.stats.clients++; S.stats.earned += res.pay + res.tip; if (res.stars >= 5) S.stats.fiveStars++;
@@ -947,7 +958,7 @@ function showDayEnd() {
   state = 'dayEnd';
   if (view === 'cams') closeCams();
   const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + Math.max(0, b.wage - (b.docked || 0)), 0);
-  const insp = eventToday() === 'inspection' ? (hasStaff('cleaner') ? 80 : -60) : 0;
+  const insp = eventToday() === 'inspection' ? (hasStaff() ? 80 : -60) : 0;
   for (const st of S.staff) { st.docked = 0; st.morale = morale(st) + (0.75 - morale(st)) * 0.25; }
   S.money -= rent + wages - insp; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
   const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
@@ -956,7 +967,7 @@ function showDayEnd() {
     <div class="row"><span>Earnings</span><b>$${earned}</b></div>
     <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
     ${wages ? `<div class="row"><span>Staff wages</span><b>−$${wages}</b></div>` : ''}
-    ${insp ? `<div class="row"><span>${insp > 0 ? '🧾 Passed the health inspection (grant)' : '🧾 Failed the health inspection (hire a cleaner!)'}</span><b>${insp > 0 ? '+' : '−'}$${Math.abs(insp)}</b></div>` : ''}
+    ${insp ? `<div class="row"><span>${insp > 0 ? '🧾 Passed the health inspection (grant)' : '🧾 Failed the health inspection (hire staff to keep it tidy!)'}</span><b>${insp > 0 ? '+' : '−'}$${Math.abs(insp)}</b></div>` : ''}
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
     <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
     [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => startDayWorld(), 'primary']]);
@@ -975,7 +986,7 @@ function showShop(back) {
   $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     const it = SHOP.find(i => i.id === b.dataset.buy);
     if (!it || S.owned[it.id] || S.money < it.price) return;
-    S.money -= it.price; S.owned[it.id] = true; saveGame(); applyUpgradeSolids(); buildRoom(); buildWorld(); if (R3) buildUpgrades3D(); if (it.id === 'room3') spawnStaff(); refreshScents(); refreshUI(true); cashSound();
+    S.money -= it.price; S.owned[it.id] = true; saveGame(); applyUpgradeSolids(); buildRoom(); buildWorld(); if (R3) buildUpgrades3D(); if (it.id.startsWith('room')) spawnStaff(); refreshScents(); refreshUI(true); cashSound();
     showShop(back);
   });
 }
@@ -1822,7 +1833,8 @@ function showHelp(back) {
     <li><b>Hot stones (R):</b> place on shoulders/back to melt tension passively. Click a stone to remove it.</li>
     <li><b>Draping:</b> the towel area is off-limits — keep it professional.</li>
     <li><b>End session (E)</b> when you're done. Rating = relaxation + comfort + time used. 4★+ earns tips.</li>
-    <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients.</li>
+    <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients. Clients pay up front and payments are final.</li>
+    <li><b>Staff</b> do everything: front desk, payment and massages. Buy Treatment Rooms 3–6 so you can hire more. They level up fast while they work.</li>
     <li><b>Your office (📹 Cameras, O):</b> the room off the hallway past the tea lounge. Watch every room live, click a feed to enlarge it, and warn, dock or fire staff caught slacking.</li>
     <li><b>Relationships:</b> dating someone while you have a partner can get you caught. Partners react differently: some are fine with it, some forgive, some break up, and some come to the spa to make a scene.</li></ul>`,
     [['Got it', back, 'primary']]);
@@ -1839,7 +1851,8 @@ function showTitle() {
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
-  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {};
+  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; migrateStaff();
+  if (!S.got20k) { S.got20k = true; S.money = Math.max(S.money, 20000); saveGame(); }
   applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
   if (!S.todayTotal) S.todayTotal = clientsToday();
@@ -1938,6 +1951,9 @@ $('bMusic').onclick = () => { initAudio(); toggleMusic(); };
 $('bPause').onclick = () => state === 'paused' ? resume() : pause();
 $('bEnd').onclick = () => endSession(true);
 $('bInteract').onclick = () => { initAudio(); interact(); };
+$('fabUse').onclick = e => { e.stopPropagation(); initAudio(); interact(); };
+window.addEventListener('touchstart', () => document.body.classList.add('touch'), { passive: true, once: true });
+if (window.matchMedia && matchMedia('(pointer:coarse)').matches) document.body.classList.add('touch');
 $('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
 $('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
 $('bPeople').onclick = () => { if (state === 'world') openPeopleWorld(); };
@@ -1997,9 +2013,9 @@ SR(220, 560, 380, 20, 'wall'); SR(720, 560, 380, 20, 'wall');
 const F = {
   desk: SR(300, 826, 250, 58), sofa: SR(730, 626, 260, 66), coffee: SR(800, 756, 120, 40), cabinet: SR(222, 616, 46, 150),
   fountain: SR(600, 950, 84, 84), plantL1: SR(232, 1030, 40, 40), plantL2: SR(1050, 590, 36, 36),
-  table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1730, 540, 40, 44),
+  table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1128, 540, 40, 44), table6: SR(1550, 470, 220, 100),
   tea: SR(1130, 782, 172, 56), bossDesk: SR(1700, 850, 66, 150), bookcase: SR(1592, 800, 30, 130), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
-  lockers: SR(240, 122, 400, 42), lounger1: SR(900, 420, 74, 120), lounger2: SR(990, 420, 74, 120), table3: SR(760, 236, 220, 104), chair1: SR(1030, 775, 50, 50), chair2: SR(1030, 835, 50, 50), chair3: SR(1030, 895, 50, 50), bench: SR(300, 420, 180, 46), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
+  lockers: SR(240, 122, 400, 42), table5: SR(820, 440, 220, 96), table3: SR(760, 236, 220, 104), chair1: SR(1030, 775, 50, 50), chair2: SR(1030, 835, 50, 50), chair3: SR(1030, 895, 50, 50), table4: SR(300, 440, 220, 96), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
   pond: SR(300, 1190, 240, 140), tree1: SR(100, 1180, 44, 44), tree2: SR(1700, 1220, 44, 44), tree3: SR(1880, 300, 44, 44), tree4: SR(60, 400, 44, 44), tree5: SR(1300, 1300, 44, 44), tree6: SR(1880, 800, 44, 44),
   lantern1: SR(900, 1160, 26, 26), lantern2: SR(1074, 1160, 26, 26),
 };
@@ -2170,8 +2186,6 @@ function buildWorld() {
   g.fillStyle = '#9e9a92'; g.beginPath(); g.arc(fo.x + 42, fo.y + 42, 11, 0, 7); g.fill();
   // relaxation room: lockers, loungers, bench, window light
   const lk = F.lockers; for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#b89a76' : '#c4a581'; rr(g, lk.x + i * 40, lk.y, 38, lk.h, 3); g.fill(); g.fillStyle = '#5a4636'; g.fillRect(lk.x + i * 40 + 28, lk.y + 18, 4, 6); }
-  for (const k of ['lounger1', 'lounger2']) { const b = F[k]; g.fillStyle = 'rgba(0,0,0,.22)'; rr(g, b.x + 4, b.y + 6, b.w, b.h, 14); g.fill(); g.fillStyle = '#f0ebe1'; rr(g, b.x, b.y, b.w, b.h, 14); g.fill(); g.fillStyle = '#d8cfbf'; rr(g, b.x + 8, b.y + 6, b.w - 16, 34, 10); g.fill(); g.fillStyle = '#9fc2c9'; rr(g, b.x + 6, b.y + 90, b.w - 12, 50, 8); g.fill(); }
-  const bn = F.bench; g.fillStyle = '#7a5a40'; rr(g, bn.x, bn.y, bn.w, bn.h, 8); g.fill(); g.strokeStyle = 'rgba(0,0,0,.2)'; for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(bn.x + 4, bn.y + i * 8); g.lineTo(bn.x + bn.w - 4, bn.y + i * 8); g.stroke(); }
   // treatment room: rug, table, cart, towel shelf, candles
   g.fillStyle = '#d9c9ac'; rr(g, 1250, 180, 400, 260, 20); g.fill(); g.strokeStyle = '#b39a74'; g.lineWidth = 4; rr(g, 1264, 194, 372, 232, 14); g.stroke();
   const tb = F.table; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, tb.x + 6, tb.y + 8, tb.w, tb.h, 22); g.fill();
@@ -2182,6 +2196,10 @@ function buildWorld() {
     g.fillStyle = '#f6f3ee'; rr(g, t2.x + 40, t2.y + 8, t2.w - 50, t2.h - 16, 12); g.fill(); g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(t2.x + 22, t2.y + t2.h / 2, 18, 22, 0, 0, 7); g.fill(); }
   { const t3 = F.table3; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, t3.x + 6, t3.y + 8, t3.w, t3.h, 22); g.fill(); g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, t3.x, t3.y, t3.w, t3.h, 22); g.fill();
     g.fillStyle = '#f6f3ee'; rr(g, t3.x + 40, t3.y + 8, t3.w - 50, t3.h - 16, 12); g.fill(); if (!S.owned.room3) { g.strokeStyle = '#a3302f'; g.lineWidth = 4; g.beginPath(); g.moveTo(t3.x - 10, t3.y + t3.h + 30); g.lineTo(t3.x + t3.w + 10, t3.y + t3.h + 30); g.stroke(); } }
+  for (const r of STAFF_ROOMS.slice(2)) { const t = F[r.table]; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, t.x + 6, t.y + 8, t.w, t.h, 22); g.fill(); g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, t.x, t.y, t.w, t.h, 22); g.fill();
+    g.fillStyle = '#f6f3ee'; rr(g, t.x + 40, t.y + 8, t.w - 50, t.h - 16, 12); g.fill(); g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(t.x + 22, t.y + t.h / 2, 18, 22, 0, 0, 7); g.fill();
+    if (!r.own()) { g.strokeStyle = '#a3302f'; g.lineWidth = 4; g.beginPath(); g.moveTo(t.x - 10, t.y + (r.ang > 0 ? -20 : t.h + 20)); g.lineTo(t.x + t.w + 10, t.y + (r.ang > 0 ? -20 : t.h + 20)); g.stroke(); }
+    label(g, 'ROOM ' + r.room, t.x + t.w / 2, t.y + (r.ang > 0 ? t.h + 16 : -10)); }
   for (const k of ['chair1', 'chair2', 'chair3']) { const b = F[k]; g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, b.x + 3, b.y + 4, b.w, b.h, 8); g.fill(); g.fillStyle = '#6e5646'; rr(g, b.x, b.y, b.w, b.h, 8); g.fill(); g.fillStyle = '#c9b49a'; rr(g, b.x + 6, b.y + 6, b.w - 18, b.h - 12, 6); g.fill(); }
   if (F.coffeeBar) { const b = F.coffeeBar; g.fillStyle = '#4a3020'; rr(g, b.x, b.y, b.w, b.h, 6); g.fill(); g.fillStyle = '#b8bcc2'; g.fillRect(b.x + 8, b.y + 10, 30, 30); }
   if (F.aquarium) { const b = F.aquarium; g.fillStyle = '#3a2a1f'; rr(g, b.x, b.y, b.w, b.h, 6); g.fill(); g.fillStyle = '#5fb8d8'; rr(g, b.x + 4, b.y + 4, b.w - 8, b.h - 8, 4); g.fill(); }
@@ -2214,7 +2232,7 @@ function buildWorld() {
   for (const [x, y, r] of [[430, 760, 220], [860, 860, 260], [1450, 300, 280], [1450, 690, 200], [1450, 930, 240], [660, 340, 260], [1000, 1180, 160]]) {
     const lg = g.createRadialGradient(x, y, 10, x, y, r); lg.addColorStop(0, 'rgba(255,200,130,.16)'); lg.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1345, 800); label(g, 'OFFICE', 1685, 800); label(g, 'TREATMENT ROOMS 2 & 3', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
+  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1345, 800); label(g, 'OFFICE', 1685, 800); label(g, 'TREATMENT ROOMS 2–5', 660, 380); label(g, 'SERENITY HANDS SPA', 1000, 1118);
 }
 
 // ---------- World simulation ----------
@@ -2261,9 +2279,9 @@ function updateEnt(e, dt) {
     if (e.patience < e.maxPatience * 0.3 && !e.warned) { e.warned = true; setEmote(e, 'sweat', 3); toast(`⏳ ${e.c.name} is getting impatient`); }
     if (e.patience <= 0) {
       e.state = 'leaving'; e.seat = -1; setEmote(e, 'anger', 4); e.c.look.mood = 'angry'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null;
-      const refund = e.c.paid || 0; if (refund) { S.money -= refund; e.c.paid = 0; }
-      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); recordVisit(e.c, 1, false, true); saveGame();
-      toast(`😞 ${e.c.name} got tired of waiting and left${refund ? ` (refunded $${refund})` : ''}`);
+      const kept = e.c.paid || 0;
+      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: kept, left: true }); recordVisit(e.c, 1, false, true); saveGame();
+      toast(`😞 ${e.c.name} got tired of waiting and left${kept ? ' (no refunds)' : ''}`);
     }
   } else if (e.state === 'drama') {
     if (!e.path) e.path = findPath(e.x, e.y, e.target.x, e.target.y);
@@ -2399,7 +2417,7 @@ function updateWorld(dt) {
   updateStaff(dt);
   for (let i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'gone') ents.splice(i, 1);
   world.spawnT -= dt;
-  if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = hasStaff('reception') ? rand(3.5, 6) : rand(5, 9); else world.spawnT = 1; }
+  if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = hasStaff() ? rand(3, 5.5) : rand(5, 9); else world.spawnT = 1; }
   if (world.spawned >= todayTotal() && S.clientNo >= todayTotal() && !ents.length && staffEnts.every(st => !st.client) && state === 'world') { showDayEnd(); return; }
   const c = world.cam, tx = clamp(player.x - W / 2, 0, WW - W), ty = clamp(player.y - H / 2, 0, WH - H);
   c.x += (tx - c.x) * Math.min(1, dt * 6); c.y += (ty - c.y) * Math.min(1, dt * 6);
@@ -2414,7 +2432,7 @@ function refreshWorldUI() {
   const ci = ents.find(e => e.state === 'checkin');
   const dr = ents.find(e => e.state === 'drama'), inc = staffEnts.find(x => x.incident);
   if (dr) obj = `😡 <b>${esc(dr.c.name)}</b> is making a scene in the lobby. Walk up and press <b>E</b> to deal with it.`;
-  else if (ci && !hasStaff('reception') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
+  else if (ci && !staffEnts.some(x => x.state === 'desk' || x.state === 'toDesk') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
   else if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
   else if (free.length) obj = `<b>${esc(free[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (seated.length) obj = `<b>${esc(seated[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
@@ -2526,73 +2544,81 @@ function moodFor(e) {
 }
 
 // ---------- Staff ----------
+// Everyone on the team is an all-rounder: they work the front desk, take payment and give massages.
 const ROLES = {
-  reception: { label: 'Receptionist', desc: 'Checks clients in and takes their payment, brings them in sooner and keeps them patient (+60% patience).', wage: k => 28 + k * 34 },
-  therapist: { label: 'Massage therapist', desc: 'Treats waiting clients in Treatment Rooms 2 and 3 on their own, and gets better with every session.', wage: k => 50 + k * 90 },
-  cleaner: { label: 'Cleaner', desc: 'Keeps every room spotless, so clients start each session more comfortable (+6).', wage: k => 22 + k * 20 },
-  manager: { label: 'Spa manager', desc: 'Runs the floor: +10% session prices, and therapists improve faster.', wage: k => 70 + k * 60 },
+  therapist: { label: 'Spa therapist', desc: 'Does it all: checks clients in at the desk, takes payment, and gives massages in their own treatment room. Levels up fast while massaging.', wage: k => 45 + k * 70 },
 };
-function roleMax(r) { return r === 'therapist' ? (S.owned.room3 ? 2 : 1) : 1; }
-function staffCount(r) { return S.staff.filter(s => s.role === r).length; }
-const STAFF_SPOT = { desk: { x: 425, y: 796 }, room2: { x: 440, y: 398 }, room3: { x: 870, y: 398 }, manager: { x: 690, y: 830 } };
-const CLEAN_ROUTE = [{ x: 1450, y: 690 }, { x: 860, y: 880 }, { x: 660, y: 470 }, { x: 1450, y: 900 }, { x: 430, y: 700 }, { x: 1450, y: 440 }];
+const STAFF_ROOMS = [
+  { room: 2, table: 'table2', own: () => true, home: { x: 470, y: 385 }, ang: -Math.PI / 2 },
+  { room: 3, table: 'table3', own: () => !!S.owned.room3, home: { x: 900, y: 385 }, ang: -Math.PI / 2 },
+  { room: 4, table: 'table4', own: () => !!S.owned.room4, home: { x: 380, y: 415 }, ang: Math.PI / 2 },
+  { room: 5, table: 'table5', own: () => !!S.owned.room5, home: { x: 950, y: 415 }, ang: Math.PI / 2 },
+  { room: 6, table: 'table6', own: () => !!S.owned.room6, home: { x: 1660, y: 445 }, ang: Math.PI / 2 },
+];
+function roomInfo(n) { return STAFF_ROOMS.find(r => r.room === n); }
+function ownedRooms() { return STAFF_ROOMS.filter(r => r.own()); }
+function roleMax() { return ownedRooms().length; }
+function staffCount() { return S.staff.length; }
+const STAFF_SPOT = { desk: { x: 425, y: 796 }, lounge: { x: 690, y: 830 } };
 const staffEnts = [];
-function hasStaff(role) { return S.staff.some(s => s.role === role); }
+function hasStaff() { return S.staff.length > 0; }
+function levelOf(s) { return Math.max(1, Math.round(s.skill * 100)); }
+function migrateStaff() { // older saves had receptionists, cleaners and managers: they're all-rounders now
+  for (const s of S.staff || []) if (s.role !== 'therapist') s.role = 'therapist';
+  if ((S.cands || []).some(c => c.role !== 'therapist')) S.candDay = -1;
+}
 function genCandidates() {
   S.cands = []; S.candDay = S.day;
-  const roles = ['reception', 'therapist', 'therapist', 'cleaner', 'manager'].sort(() => Math.random() - 0.5).slice(0, 4);
-  for (const role of roles) {
-    const c = makeClient(), skill = +rand(0.45, 0.97).toFixed(2);
-    S.cands.push({ id: 's' + Math.random().toString(36).slice(2, 9), role, skill, wage: Math.round(ROLES[role].wage(skill)), c: { name: c.name, pron: c.pron, idLabel: c.idLabel, body: c.body, seed: c.seed, bg: c.bg } });
+  for (let i = 0; i < 4; i++) {
+    const c = makeClient(), skill = +rand(0.2, 0.75).toFixed(2);
+    S.cands.push({ id: 's' + Math.random().toString(36).slice(2, 9), role: 'therapist', skill, wage: Math.round(ROLES.therapist.wage(skill)), c: { name: c.name, pron: c.pron, idLabel: c.idLabel, body: c.body, seed: c.seed, bg: c.bg } });
   }
 }
 function staffLook(s) {
   const look = lookFor(s.c);
-  const uni = { reception: { top: '#7a5aa0', bottom: '#2c2c36' }, therapist: { top: '#2d6a6e', bottom: '#24494c' }, cleaner: { top: '#6b8f5a', bottom: '#3a3a3a' }, manager: { top: '#2c2f3a', bottom: '#2c2f3a' } }[s.role];
-  return Object.assign(look, uni, { skirt: false, neck: s.role === 'therapist' ? 'v' : 'round' });
+  return Object.assign(look, { top: '#2d6a6e', bottom: '#24494c' }, { skirt: false, neck: 'v' });
 }
 function spawnStaff() {
-  staffEnts.length = 0; let tn = 0;
-  for (const s of S.staff) {
-    const room = s.role === 'therapist' ? (tn++ === 0 ? 2 : 3) : 0;
-    if (s.role === 'therapist' && room === 3 && !S.owned.room3) continue;
-    const sp = s.role === 'reception' ? STAFF_SPOT.desk : s.role === 'therapist' ? (room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2) : s.role === 'manager' ? STAFF_SPOT.manager : CLEAN_ROUTE[0];
-    staffEnts.push({ s, room, look: staffLook(s), x: sp.x, y: sp.y, ang: Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN, route: 0 });
-  }
+  migrateStaff(); staffEnts.length = 0; const rooms = ownedRooms();
+  S.staff.forEach((s, i) => {
+    const r = rooms[i] || null, sp = r ? r.home : STAFF_SPOT.lounge;
+    staffEnts.push({ s, room: r ? r.room : 0, look: staffLook(s), x: sp.x, y: sp.y, ang: r ? r.ang : Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN, route: 0, lvl: Math.floor(levelOf(s) / 10) });
+  });
+}
+function staffHome(st) { const r = roomInfo(st.room); return r ? r.home : STAFF_SPOT.lounge; }
+function gainSkill(st, amt) {
+  const s = st.s; s.skill = Math.min(1, s.skill + amt);
+  const tier = Math.floor(levelOf(s) / 10);
+  if (tier > st.lvl) { st.lvl = tier; setEmote(st, 'sparkle', 2); toast(levelOf(s) >= 100 ? `🏆 ${s.c.name} hit level 100, a master therapist!` : `⬆️ ${s.c.name} reached level ${tier * 10}`); }
 }
 function updateStaff(dt) {
+  const deskBusy = () => staffEnts.some(o => o.state === 'toDesk' || o.state === 'desk');
   for (const st of staffEnts) {
     st.emoteT -= dt; if (st.emoteT <= 0) st.emote = st.incident ? INCIDENTS[st.incident.type].icon : null;
-    const role = st.s.role;
     maybeIncident(st, dt); if (!staffEnts.includes(st)) break;
     if (st.incident && (st.incident.type === 'phone' || st.incident.type === 'nap') && st.state !== 'work' && st.state !== 'lead') { st.moving = false; continue; }
-    if (role === 'reception') {
+    const home = staffHome(st), r = roomInfo(st.room);
+    if (st.state === 'idle') {
+      st.moving = false;
+      const atHome = dist(st.x, st.y, home.x, home.y) < 30;
+      if (atHome && r) st.ang = r.ang;
+      if (ents.some(e => e.state === 'checkin') && !deskBusy()) { st.state = 'toDesk'; st.path = findPath(st.x, st.y, STAFF_SPOT.desk.x, STAFF_SPOT.desk.y); continue; }
+      const target = r && ents.find(e => e.state === 'seated' && !e.claimed);
+      if (target) { target.claimed = st; st.client = target; st.state = 'fetch'; st.path = findPath(st.x, st.y, target.seatFront.x, target.seatFront.y); continue; }
+      if (!atHome) { st.state = 'return'; st.path = findPath(st.x, st.y, home.x, home.y); }
+    } else if (st.state === 'toDesk') {
+      if (walkEnt(st, dt, 170)) { st.state = 'desk'; st.timer = 1.2; }
+    } else if (st.state === 'desk') {
       st.moving = false;
       const a = ents.find(e => e.state === 'checkin');
       st.ang = a ? Math.atan2(a.y - st.y, a.x - st.x) : Math.PI / 2;
-      if (a) { a.deskT = (a.deskT || 0) + dt; if (a.deskT > 1.3) { checkIn(a, st); setEmote(st, 'note', 1.4); } }
-      continue;
-    }
-    if (role === 'cleaner') {
-      if (st.state === 'idle') { st.route = (st.route + 1) % CLEAN_ROUTE.length; const t = CLEAN_ROUTE[st.route]; st.path = findPath(st.x, st.y, t.x, t.y); st.state = 'walk'; }
-      else if (st.state === 'walk') { if (walkEnt(st, dt, 120)) { st.state = 'clean'; st.timer = 4; } }
-      else if (st.state === 'clean') { st.moving = false; st.ph += dt * 4; st.timer -= dt; if (Math.random() < dt * 0.4) setEmote(st, 'sparkle', 0.8); if (st.timer <= 0) st.state = 'idle'; }
-      continue;
-    }
-    if (role === 'manager') {
-      if (st.state === 'idle') { st.moving = false; st.ang = Math.PI / 2; st.timer -= dt; if (st.timer <= 0) { const t = pick([{ x: 1450, y: 680 }, { x: 660, y: 600 }, STAFF_SPOT.manager, { x: 900, y: 940 }]); st.path = findPath(st.x, st.y, t.x, t.y); st.state = 'walk'; } }
-      else if (st.state === 'walk') { if (walkEnt(st, dt, 125)) { st.state = 'idle'; st.timer = rand(6, 12); if (Math.random() < 0.4) setEmote(st, 'note', 1.5); } }
-      continue;
-    }
-    const home = st.room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2;
-    if (st.state === 'idle') {
-      st.moving = false; st.ang = Math.PI / 2;
-      const target = ents.find(e => e.state === 'seated' && !e.claimed);
-      if (target) { target.claimed = st; st.client = target; st.state = 'fetch'; st.path = findPath(st.x, st.y, target.seatFront.x, target.seatFront.y); }
+      st.timer -= dt;
+      if (a && st.timer <= 0) { checkIn(a, st); setEmote(st, 'note', 1.4); st.timer = 1.2; }
+      if (!a && st.timer <= -1.5) st.state = 'idle'; // nobody left at the desk: back to massaging
     } else if (st.state === 'fetch') {
       const e = st.client;
-      if (!e || e.state !== 'seated') { if (e) e.claimed = null; st.client = null; st.state = 'return'; st.path = findPath(st.x, st.y, home.x, home.y); continue; }
-      if (walkEnt(st, dt, 165)) {
+      if (!e || e.state !== 'seated') { if (e) e.claimed = null; st.client = null; st.state = 'idle'; continue; }
+      if (walkEnt(st, dt, 170)) {
         e.state = 'followStaff'; e.leader = st; e.seat = -1; e.path = null; setEmote(e, 'note', 2); setEmote(st, 'note', 1.5);
         st.state = 'lead'; st.path = findPath(st.x, st.y, home.x, home.y);
       }
@@ -2600,42 +2626,43 @@ function updateStaff(dt) {
       const e = st.client;
       if (dist(e.x, e.y, st.x, st.y) > 200) { st.moving = false; continue; }
       if (walkEnt(st, dt, 140) && dist(e.x, e.y, st.x, st.y) < 110) {
-        e.state = 'staffTable'; e.tableRoom = st.room; st.state = 'work'; st.total = st.timer = 26 + e.c.duration * 0.22; st.ang = -Math.PI / 2;
+        e.state = 'staffTable'; e.tableRoom = st.room; st.state = 'work'; st.total = st.timer = 26 + e.c.duration * 0.22; st.ang = r ? r.ang : -Math.PI / 2;
       }
     } else if (st.state === 'work') {
       st.timer -= dt; st.moving = false; st.ph += dt * 5;
+      gainSkill(st, dt * 0.006); // practice makes perfect, quickly
       if (Math.random() < dt * 0.25) setEmote(st, 'sparkle', 1);
       if (st.timer <= 0) finishStaffSession(st);
     } else if (st.state === 'return') { if (walkEnt(st, dt, 150)) st.state = 'idle'; }
   }
 }
 function finishStaffSession(st) {
-  const e = st.client, c = e.c, sk = st.s.skill, home = st.room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2;
-  const stars = clamp(Math.round((2.3 + sk * 2.7 + rand(-0.5, 0.5)) * 2) / 2, 1, 5);
-  const fee = c.paid || 0, refund = stars < 2 ? Math.round(fee / 2) : 0;
+  const e = st.client, c = e.c, sk = st.s.skill, home = staffHome(st);
+  const stars = clamp(Math.round((2.3 + sk * 2.7 + rand(-0.5, 0.5) * (1 - sk * 0.8)) * 2) / 2, 1, 5);
+  const fee = c.paid || 0; // paid at check-in, and payments are final
   const tip = stars >= 4 ? Math.round(c.price * (0.08 + (stars - 4) * 0.12) * tipMult()) : 0;
-  S.money += tip - refund; S.clientNo++; S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift();
-  S.stats.clients++; S.stats.earned += tip - refund;
-  S.dayLog.push({ name: c.name, stars, total: fee - refund + tip, by: st.s.c.name });
-  st.s.skill = Math.min(0.99, +(sk + 0.01 + (hasStaff('manager') ? 0.006 : 0)).toFixed(3));
+  S.money += tip; S.clientNo++; S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift();
+  S.stats.clients++; S.stats.earned += tip;
+  S.dayLog.push({ name: c.name, stars, total: fee + tip, by: st.s.c.name });
+  gainSkill(st, 0.03);
   recordVisit(c, stars, false, true);
   e.state = 'leaving'; e.x = home.x + 40; e.y = home.y; e.path = null;
   e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
   e.c.look.mood = stars >= 4 ? 'happy' : stars >= 3 ? '' : 'impatient'; setEmote(e, stars >= 4 ? 'heart' : stars >= 3 ? 'note' : 'dots', 3);
   st.client = null; st.state = 'idle'; if (tip) cashSound(); saveGame();
-  toast(`💆 ${st.s.c.name} finished with ${c.name}: ${stars}★${tip ? ` · tip +$${tip}` : ''}${refund ? ` · refunded $${refund}` : ''}`);
+  toast(`💆 ${st.s.c.name} (Lv ${levelOf(st.s)}) finished with ${c.name}: ${stars}★${tip ? ` · tip +$${tip}` : ''}`);
 }
 function showStaff(back) {
   if (S.candDay !== S.day || !S.cands) genCandidates();
   const card = (s, i, hired) => {
-    const full = !hired && staffCount(s.role) >= roleMax(s.role);
+    const full = !hired && staffCount() >= roleMax();
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pi="${hired ? 'h' : 'c'}${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
-      <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}%</div><div class="d">Wage $${s.wage}/day${hired ? ` · morale ${Math.round(morale(s) * 100)}%${s.warnings ? ` · ⚠️${s.warnings}/3` : ''}` : ''}</div></div></div>
+      <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · <b style="color:var(--gold)">Level ${levelOf(s)}</b></div><div class="d">Wage $${s.wage}/day${hired ? ` · morale ${Math.round(morale(s) * 100)}%${s.warnings ? ` · ⚠️${s.warnings}/3` : ''}` : ''}</div></div></div>
       <div class="d">${ROLES[s.role].desc}</div>
-      ${hired ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button data-bonus="${i}" ${s.bonusDay === S.day || S.money < 30 ? 'disabled' : ''}>🎁 Bonus $30</button><button data-fire="${i}" class="danger">Let go</button></div>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? (s.role === 'therapist' && !S.owned.room3 ? 'Needs Treatment Room 3' : 'Position filled') : 'Hire'}</button>`}</div>`;
+      ${hired ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button data-bonus="${i}" ${s.bonusDay === S.day || S.money < 30 ? 'disabled' : ''}>🎁 Bonus $30</button><button data-fire="${i}" class="danger">Let go</button></div>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? 'Buy another treatment room first' : 'Hire'}</button>`}</div>`;
   };
   showModal(`<h2>👥 Your team</h2>
-    <p>Staff are paid at the end of each day. Positions: 1 receptionist, ${roleMax('therapist')} therapist${roleMax('therapist') > 1 ? 's' : ''}${S.owned.room3 ? '' : ' (2 with Treatment Room 3)'}, 1 cleaner, 1 manager.</p>
+    <p>Everyone does everything: they check clients in at the desk, take payment and give massages. Each therapist needs their own treatment room (you have <b>${roleMax()}</b>, ${staffCount()} in use). Buy Rooms 3 to 6 in Upgrades. Therapists level up quickly while they massage and can reach level 100 in a day.</p>
     <div class="shop">${S.staff.length ? S.staff.map((s, i) => card(s, i, true)).join('') : '<div class="ctl">Nobody hired yet.</div>'}</div>
     <h2 style="margin-top:16px">Applicants today</h2><div class="shop">${S.cands.map((s, i) => card(s, i, false)).join('')}</div>`, [['← Back', back, '']]);
   $('modal').querySelectorAll('canvas[data-pi]').forEach(cv2 => {
@@ -2643,7 +2670,7 @@ function showStaff(back) {
     drawPortrait(s.c, 'happy', 1, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 120, 120);
   });
   $('modal').querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
-    const s = S.cands[+b.dataset.hire]; if (!s || staffCount(s.role) >= roleMax(s.role)) return;
+    const s = S.cands[+b.dataset.hire]; if (!s || staffCount() >= roleMax()) return;
     S.staff.push(s); S.cands.splice(+b.dataset.hire, 1); saveGame(); spawnStaff(); chime(); toast(`🤝 ${s.c.name} joined as your ${ROLES[s.role].label.toLowerCase()}`); showStaff(back);
   });
   $('modal').querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => {
@@ -2668,7 +2695,7 @@ function checkIn(e, byStaff) {
   const st = SPOT.seats[e.seat];
   e.state = 'arrive'; e.path = null; e.tasks = [{ to: { x: st.fx, y: st.fy }, then: 'sit' }]; saveGame();
 }
-function patienceMult() { return (eventToday() === 'rain' ? 1.3 : 1) * (hasStaff('reception') ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
+function patienceMult() { return (eventToday() === 'rain' ? 1.3 : 1) * (hasStaff() ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
 function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => p.status === 'partner' && !p.upset) ? 1.1 : 1); }
 
 // ---------- Regulars, friendship & dating ----------
@@ -2842,7 +2869,7 @@ function torsoGeom(sp, yFrom, yTo, yOrigin, infl, capBottom, capTop) {
 // ---------- Where things are ----------
 const ROOMS = [
   { id: 'room1', name: 'Treatment Room 1', x: 1120, y: 120, w: 660, h: 480 },
-  { id: 'suite', name: 'Treatment Rooms 2 & 3', x: 220, y: 120, w: 880, h: 440 },
+  { id: 'suite', name: 'Treatment Rooms 2–5', x: 220, y: 120, w: 880, h: 440 },
   { id: 'office', name: 'Your office', x: 1590, y: 780, w: 190, h: 300 },
   { id: 'tea', name: 'Tea lounge', x: 1120, y: 780, w: 450, h: 300 },
   { id: 'reception', name: 'Reception', x: 220, y: 580, w: 380, h: 500 },
@@ -2876,7 +2903,7 @@ function maybeIncident(st, dt) {
   st.incT = rand(50, 110);
   const chance = 0.18 + (1 - st.s.skill) * 0.35 + (1 - morale(st.s)) * 0.45;
   if (Math.random() > chance) return;
-  const role = st.s.role, opts = role === 'reception' ? ['phone', 'skim', 'rude'] : role === 'therapist' ? (st.state === 'work' ? ['rude', 'phone'] : ['phone', 'nap']) : ['phone', 'nap'];
+  const opts = st.state === 'desk' ? ['phone', 'skim', 'rude'] : st.state === 'work' ? ['rude', 'phone'] : ['phone', 'nap'];
   const type = pick(opts); st.incident = { type, t: rand(25, 40), seen: false };
   setEmote(st, INCIDENTS[type].icon, 6);
 }
@@ -2907,7 +2934,7 @@ function closeConfront() { hideModal(); state = 'world'; }
 // ---------- Security cameras (your office) ----------
 const CAMS = [
   { id: 'room1', name: 'Treatment Room 1', pos: [17.5, 2.62, 1.45], look: [14.5, 0.75, 3.1] },
-  { id: 'suite', name: 'Treatment Rooms 2 & 3', pos: [2.45, 2.62, 1.4], look: [6.6, 0.8, 3.1] },
+  { id: 'suite', name: 'Treatment Rooms 2–5', pos: [2.45, 2.62, 1.4], look: [6.6, 0.8, 3.1] },
   { id: 'lobby', name: 'Lobby & waiting area', pos: [10.85, 2.62, 6.05], look: [7.6, 0.8, 7.8] },
   { id: 'reception', name: 'Reception', pos: [2.4, 2.62, 6.05], look: [4.3, 0.9, 8.9] },
   { id: 'tea', name: 'Tea lounge', pos: [11.35, 2.62, 7.95], look: [14.4, 0.6, 9.6] },
@@ -2960,7 +2987,7 @@ function renderCams() {
     const html = list.map(s2 => `<div class="incident">${INCIDENTS[s2.incident.type].icon} <b>${esc(s2.s.c.name)}</b> is ${INCIDENTS[s2.incident.type].label}<div class="incBtns"><button data-inc="${staffEnts.indexOf(s2)}" data-act="warn">Warn</button><button data-inc="${staffEnts.indexOf(s2)}" data-act="dock">Dock pay</button><button class="danger" data-inc="${staffEnts.indexOf(s2)}" data-act="fire">Fire</button></div></div>`).join('');
     if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.querySelectorAll('button').forEach(b => b.onclick = () => { const s2 = staffEnts[+b.dataset.inc]; if (s2) handleIncident(s2, b.dataset.act); el.dataset.h = ''; }); }
   });
-  const busy = staffEnts.map(s2 => `${esc(s2.s.c.name)} (${ROLES[s2.s.role].label.toLowerCase()}): ${s2.incident ? '⚠ ' + INCIDENTS[s2.incident.type].label : { work: 'with a client', clean: 'cleaning', walk: 'walking the floor', fetch: 'fetching a client', lead: 'leading a client', idle: 'ready', return: 'heading back' }[s2.state] || s2.state}`).join(' · ');
+  const busy = staffEnts.map(s2 => `${esc(s2.s.c.name)} (Lv ${levelOf(s2.s)}${s2.room ? ', room ' + s2.room : ''}): ${s2.incident ? '⚠ ' + INCIDENTS[s2.incident.type].label : { work: 'massaging a client', desk: 'at the front desk', toDesk: 'heading to the desk', clean: 'cleaning', walk: 'walking the floor', fetch: 'fetching a client', lead: 'leading a client', idle: 'ready', return: 'heading back' }[s2.state] || s2.state}`).join(' · ');
   $('camStatus').innerHTML = staffEnts.length ? busy : 'No staff hired yet. Hire a team in the Staff screen and watch them work from here.';
 }
 function showStatusBoard() { // 2D fallback: a text board instead of video
@@ -3019,7 +3046,7 @@ function calmDrama(e) {
 // ---------- Daily events ----------
 const EVENTS = {
   vip: { name: '⭐ VIP visit', desc: 'A famous influencer booked today and pays triple. A great session boosts your reputation; a bad one hurts.' },
-  inspection: { name: '🧾 Health inspection', desc: 'An inspector checks the spa at closing. A cleaner on staff means a passing grade and a grant.' },
+  inspection: { name: '🧾 Health inspection', desc: 'An inspector checks the spa at closing. Having staff to keep it tidy means a passing grade and a grant.' },
   rush: { name: '🎉 Holiday rush', desc: 'Three extra clients are coming in today.' },
   rain: { name: '🌧️ Rainy day', desc: 'Fewer clients, but everyone who comes is in less of a hurry.' },
 };
@@ -3048,12 +3075,14 @@ function buildUpgrades3D() {
   const cyl = (x, y, r1, r2, y0, ht, mat) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1 * U, r2 * U, ht, 18), mat); m.position.set(x * U, y0 + ht / 2, y * U); return add(m); };
   const plane = (w, h, mat, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = ry || 0; return add(m); };
   const textTex = (txt, w, h, bg, fg, font) => canvasTex(w, h, (c, cw, ch) => { c.fillStyle = bg; c.fillRect(0, 0, cw, ch); c.fillStyle = fg; c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, cw / 2, ch / 2 + 2); });
-  const t3 = F.table3;
-  if (!S.owned.room3) { // roped off until you buy it
-    for (const x of [t3.x - 10, t3.x + t3.w + 10]) cyl(x, t3.y + t3.h + 30, 3, 4, 0, 0.95, lam('#c9a25c'));
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, (t3.w + 20) * U, 8), lam('#a3302f')); rope.rotation.z = Math.PI / 2; rope.position.set((t3.x + t3.w / 2) * U, 0.85, (t3.y + t3.h + 30) * U); add(rope);
-    plane(1.1, 0.26, new THREE.MeshBasicMaterial({ map: textTex('ROOM 3 · UNLOCK IN THE SHOP', 440, 104, '#3a2a1f', '#f1dca8', '800 30px Nunito, system-ui') }), (t3.x + t3.w / 2) * U, 1.05, (t3.y + t3.h + 31) * U, 0);
-  } else { cyl(t3.x + t3.w - 10, t3.y - 20, 5, 5, 0, 0.9, lam('#f5ecd9')); }
+  for (const r of STAFF_ROOMS.slice(1)) {
+    const t3 = F[r.table], ry = r.ang > 0 ? t3.y - 22 : t3.y + t3.h + 30;
+    if (!r.own()) { // roped off until you buy it
+      for (const x of [t3.x - 10, t3.x + t3.w + 10]) cyl(x, ry, 3, 4, 0, 0.95, lam('#c9a25c'));
+      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, (t3.w + 20) * U, 8), lam('#a3302f')); rope.rotation.z = Math.PI / 2; rope.position.set((t3.x + t3.w / 2) * U, 0.85, ry * U); add(rope);
+      plane(1.1, 0.26, new THREE.MeshBasicMaterial({ map: textTex(`ROOM ${r.room} · UNLOCK IN UPGRADES`, 440, 104, '#3a2a1f', '#f1dca8', '800 28px Nunito, system-ui'), side: THREE.DoubleSide }), (t3.x + t3.w / 2) * U, 1.05, (ry + 1) * U, 0);
+    } else { cyl(t3.x + t3.w - 10, r.ang > 0 ? t3.y + t3.h + 16 : t3.y - 20, 5, 5, 0, 0.9, lam('#f5ecd9')); }
+  }
   if (S.owned.coffee) {
     const b = F.coffeeBar; box(b.x, b.y, b.w, b.h, 0, 0.95, lam('#4a3020')); box(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 0.95, 0.04, lam('#e2d7c3'));
     box(b.x + 8, b.y + 10, 30, 34, 0.99, 0.36, lam('#b8bcc2')); for (let i = 0; i < 3; i++) cyl(b.x + 22, b.y + 60 + i * 12, 4, 3.5, 0.99, 0.08, lam('#f4efe6'));
@@ -3189,7 +3218,7 @@ function build3D() {
   // signs
   const sign = (text, x, y, w, rotY, y0, big) => { const t = canvasTex(w * 2, big ? 80 : 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = '#c9a25c'; g.lineWidth = 4; g.strokeRect(4, 4, cw - 8, ch - 8); g.fillStyle = '#f1dca8'; g.font = `800 ${big ? 40 : 30}px Nunito, system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w * U, (big ? 80 : 64) / 2 * U), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x * U, y0, y * U); m.rotation.y = rotY; add(m); };
-  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('OFFICE', 1680, 758.5, 100, Math.PI, 2.45); sign('TREATMENT ROOMS 2 & 3', 660, 581.5, 240, 0, 2.45);
+  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('OFFICE', 1680, 758.5, 100, Math.PI, 2.45); sign('TREATMENT ROOMS 2–5', 660, 581.5, 240, 0, 2.45);
   sign('SERENITY HANDS SPA', 1000, 1101.5, 300, 0, 2.45, true);
   { const t = canvasTex(320, 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.fillStyle = '#f1dca8'; g.font = '800 30px Nunito, system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RECEPTION', cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.32), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide })); m.position.set(4.25, 2.35, 7.6); add(m); }
@@ -3212,7 +3241,7 @@ function build3D() {
   const mtable = b => { for (const [dx, dy] of [[20, 14], [b.w - 26, 14], [20, b.h - 20], [b.w - 26, b.h - 20]]) box(b.x + dx, b.y + dy, 6, 6, 0, 0.62, woodD); box(b.x, b.y, b.w, b.h, 0.62, 0.12, leather); box(b.x + 40, b.y + 6, b.w - 46, b.h - 12, 0.74, 0.02, sheet);
     const tor = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.045, 10, 24), lam('#d9d2c8')); tor.rotation.x = -Math.PI / 2; tor.position.set((b.x + 20) * U, 0.77, (b.y + b.h / 2) * U); add(tor);
     box(b.x + 140, b.y + 14, 50, b.h - 28, 0.76, 0.06, lam('#e8e2d6')); };
-  mtable(F.table); mtable(F.table2); mtable(F.table3);
+  mtable(F.table); mtable(F.table2); mtable(F.table3); mtable(F.table4); mtable(F.table5); mtable(F.table6);
   for (const k of ['chair1', 'chair2', 'chair3']) { const b = F[k]; box(b.x + 6, b.y + 4, b.w - 10, b.h - 8, 0, 0.42, lam('#8a6e5a')); box(b.x + b.w - 12, b.y, 12, b.h, 0, 0.9, lam('#6e5646')); box(b.x + 4, b.y, b.w - 8, 8, 0, 0.62, lam('#6e5646')); box(b.x + 4, b.y + b.h - 8, b.w - 8, 8, 0, 0.62, lam('#6e5646')); box(b.x + 8, b.y + 8, b.w - 22, b.h - 16, 0.42, 0.08, lam('#c9b49a')); }
   const ca = F.cart; box(ca.x, ca.y, ca.w, ca.h, 0, 0.82, lam('#8a6b52')); for (let i = 0; i < 3; i++) { const m = cyl(ca.x + 22 + i * 26, ca.y + 29, 10, 10, 0.82, 0.4, lam('#f3efe6')); m.rotation.z = Math.PI / 2; m.position.y = 0.92; }
   for (const [x, y] of [[1700, 220], [1620, 560], [1290, 560]]) { cyl(x, y, 6, 6, x === 1700 ? 0.82 : 0, x === 1700 ? 0.12 : 0.9, lam('#f5ecd9')); const f = sph(x, y, 2.6, (x === 1700 ? 0.82 : 0) + (x === 1700 ? 0.15 : 0.93), new THREE.MeshBasicMaterial({ color: '#ffcf6e' }), 1, 1.8, 1); R3.flames.push(f); }
@@ -3221,8 +3250,6 @@ function build3D() {
   const lt = F.lowtable; box(lt.x, lt.y, lt.w, lt.h, 0, 0.34, lam('#3a2a1f')); for (const [cx, cy] of [[lt.x - 22, lt.y + 40], [lt.x + lt.w + 22, lt.y + 40], [lt.x + 40, lt.y - 22], [lt.x + 110, lt.y + lt.h + 22]]) box(cx - 18, cy - 18, 36, 36, 0, 0.1, lam('#8a3b3b'));
   const zn = F.zen; box(zn.x, zn.y, zn.w, zn.h, 0, 0.12, lam('#e7dfcc')); sph(zn.x + 40, zn.y + 40, 14, 0.14, lam('#6f6b64'), 1, 0.7, 1); sph(zn.x + 100, zn.y + 70, 10, 0.14, lam('#6f6b64'), 1, 0.7, 1);
   const lk = F.lockers; for (let i = 0; i < 10; i++) box(lk.x + i * 40, lk.y, 38, lk.h, 0, 1.9, lam(i % 2 ? '#b89a76' : '#c4a581'));
-  for (const k of ['lounger1', 'lounger2']) { const b = F[k]; box(b.x, b.y + 40, b.w, b.h - 40, 0, 0.42, lam('#f0ebe1')); const back = box(b.x, b.y, b.w, 46, 0.3, 0.12, lam('#d8cfbf')); back.rotation.x = -0.5; back.position.y = 0.6; box(b.x + 6, b.y + 90, b.w - 12, 50, 0.42, 0.04, lam('#9fc2c9')); }
-  const bn = F.bench; box(bn.x, bn.y, bn.w, bn.h, 0, 0.45, lam('#7a5a40'));
   if (S.owned.decor) for (const [x, y] of [[480, 600], [1080, 900], [1300, 140], [1760, 400]]) plant3(x, y, 1);
   { // a client lying face-down under a sheet on table 2 while the therapist works
     const t2 = F.table2, gp = new THREE.Group(), sheetM = lam('#f7f4ee');
@@ -3284,7 +3311,7 @@ function render3D() {
   updateHUD3D();
 }
 function objectiveTarget() {
-  const f = follower(), ci = !hasStaff('reception') && ents.find(e => e.state === 'checkin'), seated = ents.find(e => e.state === 'seated' && !e.claimed);
+  const f = follower(), ci = !staffEnts.some(x => x.state === 'desk' || x.state === 'toDesk') && ents.find(e => e.state === 'checkin'), seated = ents.find(e => e.state === 'seated' && !e.claimed);
   return f ? SPOT.table : ci ? { x: ci.x, y: ci.y } : seated ? { x: seated.x, y: seated.y } : null;
 }
 let lastMM = 0;
@@ -3679,7 +3706,7 @@ function syncHumans(third) {
     const h = humanFor('c' + e.uid, () => specFor(e.c.look, e.c.body));
     if (e.state === 'onTable') continue; // the massage view poses this one
     if (e.state === 'staffTable') {
-      const tb = e.tableRoom === 3 ? F.table3 : F.table2; setTableDress(h, true); placeOnTable(h, tb, false); tableSheet(h, tb, false);
+      const tb = F[(roomInfo(e.tableRoom) || STAFF_ROOMS[0]).table]; setTableDress(h, true); placeOnTable(h, tb, false); tableSheet(h, tb, false);
       poseHuman(h, { lie: 'prone', breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.2)) }); setHumanEmote(h, ''); continue;
     }
     if (h.sheet) h.sheet.visible = false; setTableDress(h, false);
