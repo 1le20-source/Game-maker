@@ -1,0 +1,29 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#222}canvas{display:block}</style></head><body>
+<script src="../lib/three.min.js"></script>
+<script src="../assets/body-data.js"></script>
+<script src="../js/params.js"></script>
+<script src="../js/core.js"></script>
+<script src="../js/human.js"></script>
+<script>
+(async()=>{
+ const t0=performance.now();
+ const D=await BS.loadData(); const t1=performance.now();
+ const h=new BS.Human(D); const t2=performance.now();
+ const q=new URLSearchParams(location.search);
+ const p=Object.assign(BS.defaultParams(), JSON.parse(q.get('p')||'{}'));
+ h.setParams(p); const t3=performance.now();
+ window.timing={load:t1-t0,build:t2-t1,morph:t3-t2};
+ const r=new THREE.WebGLRenderer({antialias:true}); r.setSize(900,900); document.body.appendChild(r.domElement);
+ r.toneMapping=THREE.ACESFilmicToneMapping; r.shadowMap.enabled=true;
+ const sc=new THREE.Scene(); sc.background=new THREE.Color(0x30343a);
+ sc.add(new THREE.HemisphereLight(0xffffff,0x444444,1.2)); const dl=new THREE.DirectionalLight(0xffffff,2.5); dl.position.set(1,2,3); sc.add(dl);
+ sc.add(h.group);
+ const view=q.get('view')||'front';
+ const cam=new THREE.PerspectiveCamera(30,1,0.05,50);
+ const H=1.75;
+ const views={front:[0,0.9,4.2,0,0.9,0],side:[4.2,0.9,0,0,0.9,0],back:[0,0.9,-4.2,0,0.9,0],face:[0,1.62,0.75,0,1.6,0],faceside:[0.6,1.62,0.45,0,1.6,0]};
+ const v=views[view]; cam.position.set(v[0],v[1],v[2]); cam.lookAt(v[3],v[4],v[5]);
+ r.render(sc,cam);
+ window.done=true;
+})().catch(e=>{document.body.innerText=e.stack; window.err=e.stack; window.done=true;});
+</script></body></html>
