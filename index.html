@@ -173,7 +173,7 @@ window.addEventListener('error', function (e) {
     <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="toast"></div></div>
   </div>
   <div id="toolbar">
-    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
+    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
     <div class="grp sessOnly"><span class="gl">Tool</span>
       <button id="tHands" class="on">✋ Hands<kbd>Z</kbd></button>
       <button id="tOil">💧 Oil<kbd>X</kbd></button>
@@ -236,7 +236,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // ---------- Save data ----------
 const SAVE_KEY = 'serenityHands_v1';
 const DEFAULT_SAVE = () => ({ money: 120, day: 1, clientNo: 0, ratings: [], owned: {}, music: true,
-  stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 4, staff: [], cands: null, candDay: 0 });
+  stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 5, staff: [], cands: null, candDay: 0, people: {}, gifts: {}, lastDateDay: 0 });
 let S = DEFAULT_SAVE();
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
 function loadGame() {
@@ -245,7 +245,7 @@ function loadGame() {
 }
 function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 function rep() { if (!S.ratings.length) return 3; const r = S.ratings.slice(-20); return r.reduce((a, b) => a + b, 0) / r.length; }
-function clientsToday() { const r = rep(); return 4 + (r >= 3.6 ? 1 : 0) + (r >= 4.4 ? 1 : 0) + (S.owned.decor ? 1 : 0); }
+function clientsToday() { const r = rep(); return Math.min(12, 5 + (r >= 3.6 ? 1 : 0) + (r >= 4.4 ? 1 : 0) + (S.owned.decor ? 1 : 0) + (S.owned.sign ? 1 : 0) + Math.min(2, (S.staff || []).filter(s => s.role === 'therapist').length)); }
 function todayTotal() { return S.todayTotal || clientsToday(); }
 function dailyRent() { return Math.min(90, 40 + 5 * Math.floor((S.day - 1) / 3)); }
 
@@ -259,6 +259,14 @@ const SHOP = [
   { id: 'table', name: '🛏️ Memory-Foam Table', price: 220, desc: '+12 starting comfort for every client.' },
   { id: 'decor', name: '🏮 Zen Room Decor', price: 300, desc: 'Lanterns, plants & bamboo. +15% session prices and +1 client per day.' },
   { id: 'cert', name: '🎓 Advanced Certification', price: 600, desc: 'Your hands work 25% more effectively. +20% session prices.' },
+  { id: 'diffuser', name: '🌫️ Aroma Diffusers', price: 160, desc: 'Soft scented mist in every room. +5 starting comfort.' },
+  { id: 'coffee', name: '☕ Coffee & Tea Bar', price: 180, desc: 'Free drinks in the lobby. Waiting clients are 25% more patient.' },
+  { id: 'tv', name: '📺 Lobby TV', price: 220, desc: 'A nature channel above the sofa. Waiting clients are 20% more patient.' },
+  { id: 'robes', name: '🥋 Luxury Robes & Slippers', price: 250, desc: 'Plush robes for every client. +15% tips.' },
+  { id: 'sign', name: '💡 Neon Storefront Sign', price: 350, desc: 'Draws people in off the street. +1 client per day.' },
+  { id: 'aquarium', name: '🐠 Lobby Aquarium', price: 400, desc: 'Tropical fish to watch while waiting. +10% patience.' },
+  { id: 'room3', name: '🚪 Treatment Room 3', price: 900, desc: 'Opens the second suite table so you can employ a second therapist.' },
+  { id: 'gold', name: '✨ VIP Gold Package', price: 1200, desc: 'Gold accents and a VIP menu. +25% session prices.' },
 ];
 const SCENTS = { unscented: 'Unscented', lavender: 'Lavender', citrus: 'Sweet Orange', eucalyptus: 'Eucalyptus' };
 const SCENT_COLOR = { unscented: '#e9d9a8', lavender: '#b79be6', citrus: '#f2a65a', eucalyptus: '#86c9a3' };
@@ -365,7 +373,7 @@ function makeClient() {
     chatty: Math.random() < 0.6, seed: rand(0, 10), bg: pick([['#3b4f6b', '#25303f'], ['#5b3b5f', '#2f2234'], ['#2f5a52', '#1d3330'], ['#6a4b35', '#3a2a1f'], ['#4d3f6e', '#28213a']]),
   };
   c.feel = genFeel(c);
-  c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1));
+  c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1) * (S.owned.gold ? 1.25 : 1) * ((S.staff || []).some(s => s.role === 'manager') ? 1.1 : 1));
   return c;
 }
 
@@ -589,7 +597,7 @@ function startSession(c) {
     knots.push({ x, y, z, amt: 100, done: false });
   }
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
-    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff('cleaner') ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
     head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
@@ -598,7 +606,8 @@ function startSession(c) {
   bubble = null; particles.length = 0; floaters.length = 0;
   tool = 'hands'; heatView = false;
   drawBodyBase(); refreshUI(true);
-  say(pick(LINES.greet), 'happy', true);
+  const per = personOfC(c);
+  say(per ? (per.status === 'partner' ? "Hey you~ I've been looking forward to this all day." : per.status === 'dating' ? "Hi! Seeing you is the best part of my week." : per.status === 'friend' ? "Hey, it's me again! Same magic as last time?" : 'Hi again! I had to come back.') : pick(LINES.greet), 'happy', true);
 }
 function zoneAtLayout(L, b, x, y) { const save = ses; ses = { L, c: { body: b } }; const z = zoneAt(x, y); ses = save; return z; }
 
@@ -860,12 +869,15 @@ function computeResult(walked) {
   if (ses.released === ses.knots.length) { score += 0.03; bonus.push('All knots released ✔'); }
   let stars = walked ? 0.5 : clamp(Math.round(score * 5.3 * 2) / 2, 1, 5);
   const pay = walked ? 0 : Math.round(c.price * (stars >= 2 ? 1 : 0.5));
-  const tip = stars >= 4 ? Math.round(c.price * (0.1 + (stars - 4) * 0.15 + (c.chatty && ses.talkCount ? 0.05 : 0))) : 0;
+  const tip = stars >= 4 ? Math.round(c.price * (0.1 + (stars - 4) * 0.15 + (c.chatty && ses.talkCount ? 0.05 : 0)) * tipMult()) : 0;
   return { relax, comfortN, timeUse, stars, pay, tip, bonus, walked };
 }
+function personOfC(c) { return c && c.pid && S.people ? S.people[c.pid] : null; }
 function finishClient(res) {
-  const c = ses.c;
-  S.money += res.pay + res.tip; S.clientNo++;
+  const c = ses.c, paid = c.paid || 0;
+  res.refund = Math.max(0, paid - res.pay);
+  S.money += (paid ? 0 : res.pay) - res.refund + res.tip; S.clientNo++;
+  recordVisit(c, res.stars, ses.talkCount > 0, false);
   S.ratings.push(res.stars); if (S.ratings.length > 50) S.ratings.shift();
   S.stats.clients++; S.stats.earned += res.pay + res.tip; if (res.stars >= 5) S.stats.fiveStars++;
   S.dayLog.push({ name: c.name, stars: res.stars, total: res.pay + res.tip });
@@ -904,7 +916,8 @@ function showResults(res, quote) {
       <div class="row"><span>Knots released</span><b>${ses.released} / ${ses.knots.length}</b></div>
       <div class="row"><span>Time used</span><b>${Math.round(Math.min(ses.minutes, c.duration))} / ${c.duration} min</b></div>
       ${res.bonus.map(b => `<div class="row"><span>${esc(b)}</span><span></span></div>`).join('')}
-      <div class="row"><span>Session fee</span><b>$${res.pay}</b></div>
+      <div class="row"><span>Session fee${c.paid ? ' (paid at check-in)' : ''}</span><b>$${res.pay}</b></div>
+      ${res.refund ? `<div class="row"><span>Refunded</span><b>−$${res.refund}</b></div>` : ''}
       <div class="row"><span>Tip</span><b>$${res.tip}</b></div>
       <div class="row total"><span>Earned</span><span>$${res.pay + res.tip}</span></div>
     </div>`,
@@ -938,7 +951,7 @@ function showShop(back) {
   $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     const it = SHOP.find(i => i.id === b.dataset.buy);
     if (!it || S.owned[it.id] || S.money < it.price) return;
-    S.money -= it.price; S.owned[it.id] = true; saveGame(); buildRoom(); buildWorld(); refreshScents(); refreshUI(true); cashSound();
+    S.money -= it.price; S.owned[it.id] = true; saveGame(); applyUpgradeSolids(); buildRoom(); buildWorld(); if (R3) buildUpgrades3D(); if (it.id === 'room3') spawnStaff(); refreshScents(); refreshUI(true); cashSound();
     showShop(back);
   });
 }
@@ -1798,7 +1811,8 @@ function showTitle() {
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
-  S.me = S.me || ME_DEFAULT();
+  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {};
+  applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
   if (!S.todayTotal) S.todayTotal = clientsToday();
   if (S.clientNo >= todayTotal()) { state = 'dayEnd'; showDayEndAgain(); } else startDayWorld();
@@ -1898,6 +1912,7 @@ $('bEnd').onclick = () => endSession(true);
 $('bInteract').onclick = () => { initAudio(); interact(); };
 $('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
 $('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
+$('bPeople').onclick = () => { if (state === 'world') openPeopleWorld(); };
 $('bView').onclick = () => { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); };
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'SELECT') return;
@@ -1949,17 +1964,19 @@ const F = {
   fountain: SR(600, 950, 84, 84), plantL1: SR(232, 1030, 40, 40), plantL2: SR(1050, 590, 36, 36),
   table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1730, 540, 40, 44),
   tea: SR(1600, 782, 172, 56), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
-  lockers: SR(240, 122, 400, 42), lounger1: SR(770, 230, 74, 160), lounger2: SR(900, 230, 74, 160), bench: SR(300, 420, 180, 46), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
+  lockers: SR(240, 122, 400, 42), lounger1: SR(900, 420, 74, 120), lounger2: SR(990, 420, 74, 120), table3: SR(760, 236, 220, 104), chair1: SR(1030, 775, 50, 50), chair2: SR(1030, 835, 50, 50), chair3: SR(1030, 895, 50, 50), bench: SR(300, 420, 180, 46), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
   pond: SR(300, 1190, 240, 140), tree1: SR(100, 1180, 44, 44), tree2: SR(1700, 1220, 44, 44), tree3: SR(1880, 300, 44, 44), tree4: SR(60, 400, 44, 44), tree5: SR(1300, 1300, 44, 44), tree6: SR(1880, 800, 44, 44),
   lantern1: SR(900, 1160, 26, 26), lantern2: SR(1074, 1160, 26, 26),
 };
 const SPOT = { door: { x: 1000, y: 1050 }, gate: { x: 1000, y: 1385 }, desk: { x: 425, y: 912 }, table: { x: 1450, y: 382 }, cabinet: { x: 292, y: 690 }, tea: { x: 1686, y: 872 },
-  seats: [{ x: 772, y: 704 }, { x: 860, y: 704 }, { x: 948, y: 704 }], seatFrontY: 738, start: { x: 1000, y: 980 } };
+  seats: [{ x: 772, y: 704, fx: 772, fy: 738, ang: Math.PI / 2 }, { x: 860, y: 704, fx: 860, fy: 738, ang: Math.PI / 2 }, { x: 948, y: 704, fx: 948, fy: 738, ang: Math.PI / 2 },
+    { x: 1019, y: 800, fx: 985, fy: 800, ang: Math.PI }, { x: 1019, y: 860, fx: 985, fy: 860, ang: Math.PI }, { x: 1019, y: 920, fx: 985, fy: 920, ang: Math.PI }], start: { x: 1000, y: 980 } };
 
 function circleRect(x, y, r, b) { const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); return (x - cx) ** 2 + (y - cy) ** 2 < r * r; }
 function isFree(x, y, r) { for (const b of solids) if (circleRect(x, y, r, b)) return false; return true; }
 const grid = new Uint8Array(GC * GR);
-for (let j = 0; j < GR; j++) for (let i = 0; i < GC; i++) grid[j * GC + i] = isFree(i * CELL + CELL / 2, j * CELL + CELL / 2, PR) ? 1 : 0;
+function rebuildGrid() { for (let j = 0; j < GR; j++) for (let i = 0; i < GC; i++) grid[j * GC + i] = isFree(i * CELL + CELL / 2, j * CELL + CELL / 2, PR) ? 1 : 0; }
+rebuildGrid();
 function cellOf(x, y) { return [clamp(Math.floor(x / CELL), 0, GC - 1), clamp(Math.floor(y / CELL), 0, GR - 1)]; }
 function nearestFree(i, j) {
   if (grid[j * GC + i]) return [i, j];
@@ -2127,6 +2144,11 @@ function buildWorld() {
   g.fillStyle = '#e8e2d6'; rr(g, tb.x + 120, tb.y + 10, 70, tb.h - 20, 8); g.fill();
   { const t2 = F.table2; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, t2.x + 6, t2.y + 8, t2.w, t2.h, 22); g.fill(); g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, t2.x, t2.y, t2.w, t2.h, 22); g.fill();
     g.fillStyle = '#f6f3ee'; rr(g, t2.x + 40, t2.y + 8, t2.w - 50, t2.h - 16, 12); g.fill(); g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(t2.x + 22, t2.y + t2.h / 2, 18, 22, 0, 0, 7); g.fill(); }
+  { const t3 = F.table3; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, t3.x + 6, t3.y + 8, t3.w, t3.h, 22); g.fill(); g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, t3.x, t3.y, t3.w, t3.h, 22); g.fill();
+    g.fillStyle = '#f6f3ee'; rr(g, t3.x + 40, t3.y + 8, t3.w - 50, t3.h - 16, 12); g.fill(); if (!S.owned.room3) { g.strokeStyle = '#a3302f'; g.lineWidth = 4; g.beginPath(); g.moveTo(t3.x - 10, t3.y + t3.h + 30); g.lineTo(t3.x + t3.w + 10, t3.y + t3.h + 30); g.stroke(); } }
+  for (const k of ['chair1', 'chair2', 'chair3']) { const b = F[k]; g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, b.x + 3, b.y + 4, b.w, b.h, 8); g.fill(); g.fillStyle = '#6e5646'; rr(g, b.x, b.y, b.w, b.h, 8); g.fill(); g.fillStyle = '#c9b49a'; rr(g, b.x + 6, b.y + 6, b.w - 18, b.h - 12, 6); g.fill(); }
+  if (F.coffeeBar) { const b = F.coffeeBar; g.fillStyle = '#4a3020'; rr(g, b.x, b.y, b.w, b.h, 6); g.fill(); g.fillStyle = '#b8bcc2'; g.fillRect(b.x + 8, b.y + 10, 30, 30); }
+  if (F.aquarium) { const b = F.aquarium; g.fillStyle = '#3a2a1f'; rr(g, b.x, b.y, b.w, b.h, 6); g.fill(); g.fillStyle = '#5fb8d8'; rr(g, b.x + 4, b.y + 4, b.w - 8, b.h - 8, 4); g.fill(); }
   const ca = F.cart; g.fillStyle = '#8a6b52'; rr(g, ca.x, ca.y, ca.w, ca.h, 10); g.fill();
   for (let i = 0; i < 3; i++) { g.fillStyle = '#f3efe6'; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 11, 0, 7); g.fill(); g.strokeStyle = '#d8d0c2'; g.lineWidth = 1.5; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 6, 0, 6); g.stroke(); }
   g.fillStyle = '#c9b06b'; g.beginPath(); g.arc(ca.x + 104, ca.y + 29, 9, 0, 7); g.fill();
@@ -2152,7 +2174,7 @@ function buildWorld() {
   for (const [x, y, r] of [[430, 760, 220], [860, 860, 260], [1450, 300, 280], [1450, 690, 200], [1450, 930, 240], [660, 340, 260], [1000, 1180, 160]]) {
     const lg = g.createRadialGradient(x, y, 10, x, y, r); lg.addColorStop(0, 'rgba(255,200,130,.16)'); lg.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'TREATMENT ROOM 2', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
+  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'TREATMENT ROOMS 2 & 3', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
 }
 
 // ---------- World simulation ----------
@@ -2161,11 +2183,16 @@ function follower() { return ents.find(e => e.state === 'follow'); }
 function freeSeat() { return SPOT.seats.findIndex((s, i) => !ents.some(e => e.seat === i && e.state !== 'gone' && e.state !== 'leaving')); }
 function spawnClient() {
   const seat = freeSeat(); if (seat < 0) return false;
-  const c = makeClient(); c.look = lookFor(c);
+  const known = Object.values(S.people || {}).filter(p => p.lastDay !== S.day && !ents.some(e => e.c.pid === p.id));
+  const partner = known.find(p => p.status === 'partner');
+  const back = known.length && Math.random() < (partner ? 0.45 : 0.32) ? (partner && Math.random() < 0.5 ? partner : pick(known)) : null;
+  const c = back ? clientFromPerson(back) : makeClient(); if (!c.look) c.look = lookFor(c);
+  const q = DESK_Q[Math.min(DESK_Q.length - 1, ents.filter(x => x.state === 'checkin' || (x.state === 'arrive' && !x.c.paid)).length)];
+  const pat = Math.round(140 * patienceMult());
   const e = { c, x: SPOT.door.x + rand(-10, 10), y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat, state: 'arrive', wait: 0,
-    patience: hasStaff('reception') ? 224 : 140, maxPatience: hasStaff('reception') ? 224 : 140, uid: ++uidN, ang: -Math.PI / 2, tasks: [{ to: SPOT.desk, wait: 0.5, say: 'checkin' }, { to: { x: SPOT.seats[seat].x, y: SPOT.seatFrontY }, then: 'sit' }], emote: null, emoteT: 0 };
+    patience: pat, maxPatience: pat, uid: ++uidN, ang: -Math.PI / 2, tasks: [{ to: q, then: 'checkin' }], emote: null, emoteT: 0 };
   ents.push(e); world.spawned++;
-  toast(`🔔 ${c.name} just arrived`); return true;
+  toast(back ? `🔔 ${c.name} is back${back.status === 'partner' ? ' 💖' : back.status === 'dating' ? ' 💕' : ''}!` : `🔔 ${c.name} just arrived`); return true;
 }
 function setEmote(e, em, t) { e.emote = em; e.emoteT = t || 2.5; }
 function walkEnt(e, dt, speed) {
@@ -2184,16 +2211,18 @@ function updateEnt(e, dt) {
     if (walkEnt(e, dt, 150)) {
       const t = e.tasks.shift(); e.path = null;
       if (t.wait) { e.wait = t.wait; e.dir = 'up'; e.ang = -Math.PI / 2; if (t.say === 'checkin') setEmote(e, '📋', 1.2); if (t.say === 'pay') setEmote(e, '💵', 1.4); }
-      if (t.then === 'sit') { e.state = 'seated'; e.x = SPOT.seats[e.seat].x; e.y = SPOT.seats[e.seat].y; e.dir = 'down'; setEmote(e, 'excl', 2.5); }
+      if (t.then === 'checkin') { e.state = 'checkin'; e.ang = -Math.PI / 2; e.dir = 'up'; setEmote(e, '📋', 2); }
+      if (t.then === 'sit') { const st = SPOT.seats[e.seat]; e.state = 'seated'; e.x = st.x; e.y = st.y; e.seatAng = st.ang; e.seatFront = { x: st.fx, y: st.fy }; e.dir = dirFromAng(st.ang); setEmote(e, 'excl', 2.5); }
       if (t.then === 'gone') e.state = 'gone';
     }
-  } else if (e.state === 'seated') {
+  } else if (e.state === 'seated' || e.state === 'checkin') {
     e.patience -= dt; e.moving = false;
     if (e.patience < e.maxPatience * 0.3 && !e.warned) { e.warned = true; setEmote(e, 'sweat', 3); toast(`⏳ ${e.c.name} is getting impatient`); }
     if (e.patience <= 0) {
       e.state = 'leaving'; e.seat = -1; setEmote(e, 'anger', 4); e.c.look.mood = 'angry'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null;
-      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); saveGame();
-      toast(`😞 ${e.c.name} got tired of waiting and left`);
+      const refund = e.c.paid || 0; if (refund) { S.money -= refund; e.c.paid = 0; }
+      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); recordVisit(e.c, 1, false, true); saveGame();
+      toast(`😞 ${e.c.name} got tired of waiting and left${refund ? ` (refunded $${refund})` : ''}`);
     }
   } else if (e.state === 'followStaff') {
     const L = e.leader, d = dist(e.x, e.y, L.x, L.y);
@@ -2230,7 +2259,10 @@ function playerMove(dt) {
 }
 function interactables() {
   const list = [], f = follower();
-  for (const e of ents) if ((e.state === 'seated' || e.state === 'arrive') && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? { x: e.x, y: SPOT.seatFrontY } : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
+  for (const e of ents) {
+    if (e.state === 'checkin') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Check in ${e.c.name} · collect $${e.c.price}`, act: () => checkIn(e), ent: e });
+    else if ((e.state === 'seated' || (e.state === 'arrive' && e.c.paid)) && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? e.seatFront : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
+  }
   list.push({ x: SPOT.table.x, y: 290, spot: SPOT.table, label: f ? `Start ${f.c.name}'s massage` : 'Bring a client here to start a massage', act: () => f ? beginMassage(f) : toast('Greet a client in the waiting area first.') });
   list.push({ x: F.desk.x + 125, y: F.desk.y + 28, spot: SPOT.desk, label: 'Manage staff (hire / let go)', act: () => openStaffWorld() });
   list.push({ x: F.cabinet.x + 23, y: F.cabinet.y + 75, spot: SPOT.cabinet, label: 'Supply cabinet (upgrades)', act: () => openShopWorld() });
@@ -2303,7 +2335,9 @@ function startDayWorld() {
   ents.length = 0; world.curEnt = null; world.spawned = S.clientNo; world.spawnT = 0.6; ses = null;
   player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = []; fp.yaw = -Math.PI / 2; fp.pitch = -0.04;
   spawnStaff(); buildWorld(); resize(); refreshUI(true);
-  toast(`☀️ Day ${S.day} — the spa is open!`);
+  const pt = Object.values(S.people || {}).find(p => p.status === 'partner');
+  if (pt && !S.teaBuff) { S.teaBuff = true; saveGame(); }
+  toast(pt ? `💖 ${pt.c.name} packed you lunch. Day ${S.day}: the spa is open!` : `☀️ Day ${S.day}: the spa is open!`);
 }
 function updateWorld(dt) {
   if (R3) playerMoveFP(dt); else playerMove(dt);
@@ -2323,7 +2357,9 @@ function refreshWorldUI() {
   const f = follower(), seated = ents.filter(e => e.state === 'seated');
   let obj;
   const free = seated.filter(e => !e.claimed);
-  if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
+  const ci = ents.find(e => e.state === 'checkin');
+  if (ci && !hasStaff('reception') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
+  else if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
   else if (free.length) obj = `<b>${esc(free[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (seated.length) obj = `<b>${esc(seated[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (ents.some(e => e.state === 'arrive')) obj = `<b>${esc(ents.find(e => e.state === 'arrive').c.name)}</b> just walked in. Go say hi (press <b>E</b> next to them).`;
@@ -2331,7 +2367,7 @@ function refreshWorldUI() {
   else obj = 'That was the last booking. Wait for everyone to leave to close up for the day.';
   $('objective').innerHTML = obj;
   $('queueList').innerHTML = ents.filter(e => e.state !== 'gone').map(e => {
-    const st = { arrive: 'Checking in', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
+    const st = { arrive: e.c.paid ? 'Going to sit' : 'Arriving', checkin: 'At reception', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
     const p = e.state === 'seated' ? clamp(e.patience / e.maxPatience, 0, 1) : 1;
     return `<div class="qi"><span class="dot" style="background:${e.c.look.top}"></span><span style="width:70px">${esc(e.c.name)}</span><span style="width:86px;color:var(--muted)">${st}</span>${e.state === 'seated' ? `<div class="bar"><div style="width:${p * 100}%"></div></div>` : ''}</div>`;
   }).join('') || '<div class="ctl">Nobody here yet.</div>';
@@ -2425,65 +2461,85 @@ let uidN = 0;
 function dirFromAng(a) { const c = Math.cos(a), s = Math.sin(a); return Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : (s > 0 ? 'down' : 'up'); }
 function limbFill(g, pts, col, out) { const p = limbPath(pts); g.fillStyle = col; g.fill(p); g.strokeStyle = out; g.lineWidth = 0.7; g.stroke(p); }
 function moodFor(e) {
-  const seatedNow = e.state === 'seated', imp = seatedNow && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
+  const seatedNow = e.state === 'seated', imp = (seatedNow || e.state === 'checkin') && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
   const mood = seatedNow ? (imp ? 'impatient' : near ? 'happy' : '') : (e.state === 'follow' || e.state === 'followStaff') ? 'happy' : e.state === 'leaving' ? (e.c.look.mood || '') : '';
   return { mood, opts: { look: near ? (player.x - e.x) / 120 : 0, phone: seatedNow && !imp && !near && ((time + e.c.seed * 7) % 14) > 8, cross: imp, tap: imp, bouncy: e.state === 'leaving' && e.c.look.mood === 'happy' } };
 }
 
-// ---------- Staff: receptionist & therapist ----------
+// ---------- Staff ----------
 const ROLES = {
-  reception: { label: 'Receptionist', desc: 'Checks clients in, brings them in sooner and keeps them patient (+60% patience).' },
-  therapist: { label: 'Massage therapist', desc: 'Treats waiting clients in Treatment Room 2 on their own. Higher skill means better ratings and tips.' },
+  reception: { label: 'Receptionist', desc: 'Checks clients in and takes their payment, brings them in sooner and keeps them patient (+60% patience).', wage: k => 28 + k * 34 },
+  therapist: { label: 'Massage therapist', desc: 'Treats waiting clients in Treatment Rooms 2 and 3 on their own, and gets better with every session.', wage: k => 50 + k * 90 },
+  cleaner: { label: 'Cleaner', desc: 'Keeps every room spotless, so clients start each session more comfortable (+6).', wage: k => 22 + k * 20 },
+  manager: { label: 'Spa manager', desc: 'Runs the floor: +10% session prices, and therapists improve faster.', wage: k => 70 + k * 60 },
 };
-const STAFF_SPOT = { desk: { x: 425, y: 796 }, room2: { x: 440, y: 398 } };
+function roleMax(r) { return r === 'therapist' ? (S.owned.room3 ? 2 : 1) : 1; }
+function staffCount(r) { return S.staff.filter(s => s.role === r).length; }
+const STAFF_SPOT = { desk: { x: 425, y: 796 }, room2: { x: 440, y: 398 }, room3: { x: 870, y: 398 }, manager: { x: 690, y: 830 } };
+const CLEAN_ROUTE = [{ x: 1450, y: 690 }, { x: 860, y: 880 }, { x: 660, y: 470 }, { x: 1450, y: 900 }, { x: 430, y: 700 }, { x: 1450, y: 440 }];
 const staffEnts = [];
 function hasStaff(role) { return S.staff.some(s => s.role === role); }
 function genCandidates() {
   S.cands = []; S.candDay = S.day;
-  for (const role of ['reception', 'therapist', pick(['reception', 'therapist'])]) {
+  const roles = ['reception', 'therapist', 'therapist', 'cleaner', 'manager'].sort(() => Math.random() - 0.5).slice(0, 4);
+  for (const role of roles) {
     const c = makeClient(), skill = +rand(0.45, 0.97).toFixed(2);
-    S.cands.push({ id: 's' + Math.random().toString(36).slice(2, 9), role, skill, wage: Math.round(role === 'reception' ? 28 + skill * 34 : 50 + skill * 90),
-      c: { name: c.name, pron: c.pron, idLabel: c.idLabel, body: c.body, seed: c.seed, bg: c.bg } });
+    S.cands.push({ id: 's' + Math.random().toString(36).slice(2, 9), role, skill, wage: Math.round(ROLES[role].wage(skill)), c: { name: c.name, pron: c.pron, idLabel: c.idLabel, body: c.body, seed: c.seed, bg: c.bg } });
   }
 }
 function staffLook(s) {
   const look = lookFor(s.c);
-  Object.assign(look, s.role === 'reception' ? { top: '#7a5aa0', bottom: '#2c2c36', skirt: false, neck: 'round' } : { top: '#2d6a6e', bottom: '#24494c', skirt: false, neck: 'v' });
-  return look;
+  const uni = { reception: { top: '#7a5aa0', bottom: '#2c2c36' }, therapist: { top: '#2d6a6e', bottom: '#24494c' }, cleaner: { top: '#6b8f5a', bottom: '#3a3a3a' }, manager: { top: '#2c2f3a', bottom: '#2c2f3a' } }[s.role];
+  return Object.assign(look, uni, { skirt: false, neck: s.role === 'therapist' ? 'v' : 'round' });
 }
 function spawnStaff() {
-  staffEnts.length = 0;
+  staffEnts.length = 0; let tn = 0;
   for (const s of S.staff) {
-    const sp = s.role === 'reception' ? STAFF_SPOT.desk : STAFF_SPOT.room2;
-    staffEnts.push({ s, look: staffLook(s), x: sp.x, y: sp.y, ang: Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN });
+    const room = s.role === 'therapist' ? (tn++ === 0 ? 2 : 3) : 0;
+    if (s.role === 'therapist' && room === 3 && !S.owned.room3) continue;
+    const sp = s.role === 'reception' ? STAFF_SPOT.desk : s.role === 'therapist' ? (room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2) : s.role === 'manager' ? STAFF_SPOT.manager : CLEAN_ROUTE[0];
+    staffEnts.push({ s, room, look: staffLook(s), x: sp.x, y: sp.y, ang: Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN, route: 0 });
   }
 }
 function updateStaff(dt) {
   for (const st of staffEnts) {
     st.emoteT -= dt; if (st.emoteT <= 0) st.emote = null;
-    if (st.s.role === 'reception') {
+    const role = st.s.role;
+    if (role === 'reception') {
       st.moving = false;
-      const a = ents.find(e => e.state === 'arrive' && dist(e.x, e.y, SPOT.desk.x, SPOT.desk.y) < 220);
+      const a = ents.find(e => e.state === 'checkin');
       st.ang = a ? Math.atan2(a.y - st.y, a.x - st.x) : Math.PI / 2;
-      if (a && !a.welcomed) { a.welcomed = true; setEmote(st, 'note', 1.6); }
+      if (a) { a.deskT = (a.deskT || 0) + dt; if (a.deskT > 1.3) { checkIn(a, st); setEmote(st, 'note', 1.4); } }
       continue;
     }
+    if (role === 'cleaner') {
+      if (st.state === 'idle') { st.route = (st.route + 1) % CLEAN_ROUTE.length; const t = CLEAN_ROUTE[st.route]; st.path = findPath(st.x, st.y, t.x, t.y); st.state = 'walk'; }
+      else if (st.state === 'walk') { if (walkEnt(st, dt, 120)) { st.state = 'clean'; st.timer = 4; } }
+      else if (st.state === 'clean') { st.moving = false; st.ph += dt * 4; st.timer -= dt; if (Math.random() < dt * 0.4) setEmote(st, 'sparkle', 0.8); if (st.timer <= 0) st.state = 'idle'; }
+      continue;
+    }
+    if (role === 'manager') {
+      if (st.state === 'idle') { st.moving = false; st.ang = Math.PI / 2; st.timer -= dt; if (st.timer <= 0) { const t = pick([{ x: 1450, y: 680 }, { x: 660, y: 600 }, STAFF_SPOT.manager, { x: 900, y: 940 }]); st.path = findPath(st.x, st.y, t.x, t.y); st.state = 'walk'; } }
+      else if (st.state === 'walk') { if (walkEnt(st, dt, 125)) { st.state = 'idle'; st.timer = rand(6, 12); if (Math.random() < 0.4) setEmote(st, 'note', 1.5); } }
+      continue;
+    }
+    const home = st.room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2;
     if (st.state === 'idle') {
       st.moving = false; st.ang = Math.PI / 2;
       const target = ents.find(e => e.state === 'seated' && !e.claimed);
-      if (target) { target.claimed = st; st.client = target; st.state = 'fetch'; st.path = findPath(st.x, st.y, target.x, SPOT.seatFrontY); }
+      if (target) { target.claimed = st; st.client = target; st.state = 'fetch'; st.path = findPath(st.x, st.y, target.seatFront.x, target.seatFront.y); }
     } else if (st.state === 'fetch') {
       const e = st.client;
-      if (!e || e.state !== 'seated') { if (e) e.claimed = null; st.client = null; st.state = 'return'; st.path = findPath(st.x, st.y, STAFF_SPOT.room2.x, STAFF_SPOT.room2.y); continue; }
+      if (!e || e.state !== 'seated') { if (e) e.claimed = null; st.client = null; st.state = 'return'; st.path = findPath(st.x, st.y, home.x, home.y); continue; }
       if (walkEnt(st, dt, 165)) {
         e.state = 'followStaff'; e.leader = st; e.seat = -1; e.path = null; setEmote(e, 'note', 2); setEmote(st, 'note', 1.5);
-        st.state = 'lead'; st.path = findPath(st.x, st.y, STAFF_SPOT.room2.x, STAFF_SPOT.room2.y);
+        st.state = 'lead'; st.path = findPath(st.x, st.y, home.x, home.y);
       }
     } else if (st.state === 'lead') {
       const e = st.client;
-      if (dist(e.x, e.y, st.x, st.y) > 200) { st.moving = false; continue; } // wait for the client to catch up
+      if (dist(e.x, e.y, st.x, st.y) > 200) { st.moving = false; continue; }
       if (walkEnt(st, dt, 140) && dist(e.x, e.y, st.x, st.y) < 110) {
-        e.state = 'staffTable'; st.state = 'work'; st.total = st.timer = 26 + e.c.duration * 0.22; st.ang = -Math.PI / 2;
+        e.state = 'staffTable'; e.tableRoom = st.room; st.state = 'work'; st.total = st.timer = 26 + e.c.duration * 0.22; st.ang = -Math.PI / 2;
       }
     } else if (st.state === 'work') {
       st.timer -= dt; st.moving = false; st.ph += dt * 5;
@@ -2493,29 +2549,32 @@ function updateStaff(dt) {
   }
 }
 function finishStaffSession(st) {
-  const e = st.client, c = e.c, sk = st.s.skill;
+  const e = st.client, c = e.c, sk = st.s.skill, home = st.room === 3 ? STAFF_SPOT.room3 : STAFF_SPOT.room2;
   const stars = clamp(Math.round((2.3 + sk * 2.7 + rand(-0.5, 0.5)) * 2) / 2, 1, 5);
-  const pay = c.price, tip = stars >= 4 ? Math.round(c.price * (0.08 + (stars - 4) * 0.12)) : 0;
-  S.money += pay + tip; S.clientNo++; S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift();
-  S.stats.clients++; S.stats.earned += pay + tip;
-  S.dayLog.push({ name: c.name, stars, total: pay + tip, by: st.s.c.name }); saveGame();
-  e.state = 'leaving'; e.x = STAFF_SPOT.room2.x + 40; e.y = STAFF_SPOT.room2.y; e.path = null;
-  e.tasks = [{ to: SPOT.desk, wait: 1, say: 'pay' }, { to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
+  const fee = c.paid || 0, refund = stars < 2 ? Math.round(fee / 2) : 0;
+  const tip = stars >= 4 ? Math.round(c.price * (0.08 + (stars - 4) * 0.12) * tipMult()) : 0;
+  S.money += tip - refund; S.clientNo++; S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift();
+  S.stats.clients++; S.stats.earned += tip - refund;
+  S.dayLog.push({ name: c.name, stars, total: fee - refund + tip, by: st.s.c.name });
+  st.s.skill = Math.min(0.99, +(sk + 0.01 + (hasStaff('manager') ? 0.006 : 0)).toFixed(3));
+  recordVisit(c, stars, false, true);
+  e.state = 'leaving'; e.x = home.x + 40; e.y = home.y; e.path = null;
+  e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
   e.c.look.mood = stars >= 4 ? 'happy' : stars >= 3 ? '' : 'impatient'; setEmote(e, stars >= 4 ? 'heart' : stars >= 3 ? 'note' : 'dots', 3);
-  st.client = null; st.state = 'idle'; cashSound();
-  toast(`💆 ${st.s.c.name} finished with ${c.name}: ${stars}★ · +$${pay + tip}`);
+  st.client = null; st.state = 'idle'; if (tip) cashSound(); saveGame();
+  toast(`💆 ${st.s.c.name} finished with ${c.name}: ${stars}★${tip ? ` · tip +$${tip}` : ''}${refund ? ` · refunded $${refund}` : ''}`);
 }
 function showStaff(back) {
   if (S.candDay !== S.day || !S.cands) genCandidates();
   const card = (s, i, hired) => {
-    const full = !hired && hasStaff(s.role);
+    const full = !hired && staffCount(s.role) >= roleMax(s.role);
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pi="${hired ? 'h' : 'c'}${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
       <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}%</div><div class="d">Wage $${s.wage}/day</div></div></div>
       <div class="d">${ROLES[s.role].desc}</div>
-      ${hired ? `<button data-fire="${i}" class="danger">Let go</button>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? 'Position filled' : 'Hire'}</button>`}</div>`;
+      ${hired ? `<button data-fire="${i}" class="danger">Let go</button>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? (s.role === 'therapist' && !S.owned.room3 ? 'Needs Treatment Room 3' : 'Position filled') : 'Hire'}</button>`}</div>`;
   };
   showModal(`<h2>👥 Your team</h2>
-    <p>Staff are paid at the end of each day. You can have one receptionist and one therapist.</p>
+    <p>Staff are paid at the end of each day. Positions: 1 receptionist, ${roleMax('therapist')} therapist${roleMax('therapist') > 1 ? 's' : ''}${S.owned.room3 ? '' : ' (2 with Treatment Room 3)'}, 1 cleaner, 1 manager.</p>
     <div class="shop">${S.staff.length ? S.staff.map((s, i) => card(s, i, true)).join('') : '<div class="ctl">Nobody hired yet.</div>'}</div>
     <h2 style="margin-top:16px">Applicants today</h2><div class="shop">${S.cands.map((s, i) => card(s, i, false)).join('')}</div>`, [['← Back', back, '']]);
   $('modal').querySelectorAll('canvas[data-pi]').forEach(cv2 => {
@@ -2523,7 +2582,7 @@ function showStaff(back) {
     drawPortrait(s.c, 'happy', 1, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 120, 120);
   });
   $('modal').querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
-    const s = S.cands[+b.dataset.hire]; if (!s || hasStaff(s.role)) return;
+    const s = S.cands[+b.dataset.hire]; if (!s || staffCount(s.role) >= roleMax(s.role)) return;
     S.staff.push(s); S.cands.splice(+b.dataset.hire, 1); saveGame(); spawnStaff(); chime(); toast(`🤝 ${s.c.name} joined as your ${ROLES[s.role].label.toLowerCase()}`); showStaff(back);
   });
   $('modal').querySelectorAll('[data-fire]').forEach(b => b.onclick = () => {
@@ -2533,6 +2592,212 @@ function showStaff(back) {
   });
 }
 function openStaffWorld() { state = 'modal'; showStaff(() => { hideModal(); state = 'world'; }); }
+
+// ---------- Check-in & payment ----------
+const DESK_Q = [{ x: 425, y: 912 }, { x: 375, y: 955 }, { x: 475, y: 955 }, { x: 425, y: 1000 }];
+function checkIn(e, byStaff) {
+  if (e.state !== 'checkin') return;
+  const fee = e.c.price; S.money += fee; e.c.paid = fee; S.stats.earned += fee;
+  cashSound(); setEmote(e, '💵', 1.4);
+  toast(`💵 ${e.c.name} checked in and paid $${fee}${byStaff ? ` (${byStaff.s.c.name})` : ''}`);
+  const st = SPOT.seats[e.seat];
+  e.state = 'arrive'; e.path = null; e.tasks = [{ to: { x: st.fx, y: st.fy }, then: 'sit' }]; saveGame();
+}
+function patienceMult() { return (hasStaff('reception') ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
+function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => p.status === 'partner') ? 1.1 : 1); }
+
+// ---------- Regulars, friendship & dating ----------
+const TOPICS = [
+  { id: 'anime', ask: 'So… do you watch anime?', great: 'Totally. I just finished a slice-of-life series that wrecked me emotionally.', ok: 'Sometimes, if a friend recommends one.', bad: "Cartoons? Nah, that's for kids." },
+  { id: 'food', ask: "What's your comfort food?", great: "Homemade ramen at 2am. I'll cook it for you sometime.", ok: 'Pizza, I guess. Classic.', bad: "I don't really care about food." },
+  { id: 'music', ask: 'What are you listening to lately?', great: 'Lo-fi and old city pop. Want to share earbuds?', ok: "Whatever's on the radio.", bad: "Music's just noise to me." },
+  { id: 'fitness', ask: 'Do you work out?', great: 'Every morning. We should go for a run together.', ok: 'I try to stretch when I remember.', bad: 'Exercise is a waste of time.' },
+  { id: 'art', ask: "I've been sketching again. Do you like art?", great: "I'd love to see your sketchbook. Art says so much about a person.", ok: "I like looking at it, but I can't draw.", bad: "Art's kind of pointless, no?" },
+  { id: 'travel', ask: 'If you could go anywhere tomorrow, where?', great: 'Kyoto in autumn. Lanterns, temples, all of it. Would you come?', ok: 'Somewhere with a beach.', bad: 'I hate travelling.' },
+  { id: 'games', ask: 'Are you a gamer?', great: 'Yep! Co-op games are the best. Player two, are you in?', ok: 'I play on my phone sometimes.', bad: 'Games rot your brain.' },
+  { id: 'books', ask: 'Read anything good lately?', great: "A cozy mystery novel. I'll lend it to you.", ok: 'Mostly articles online.', bad: 'Reading is boring.' },
+  { id: 'pets', ask: 'Cats or dogs?', great: "Both! I'd adopt every shelter animal if I could.", ok: 'Either is fine.', bad: "I'm not really an animal person." },
+];
+const TOPIC_LABEL = { anime: 'anime', food: 'food', music: 'music', fitness: 'fitness', art: 'art', travel: 'travel', games: 'games', books: 'books', pets: 'animals' };
+const DATE_SPOTS = [
+  { id: 'park', name: '🌸 Picnic in the park', cost: 20, bonus: 2, scene: 'Cherry blossoms drift over your picnic blanket.' },
+  { id: 'cafe', name: '☕ Café date', cost: 30, bonus: 2, scene: 'Two lattes and a corner table by the window.' },
+  { id: 'arcade', name: '🕹️ Arcade night', cost: 35, bonus: 3, scene: 'Neon lights, claw machines and a very competitive air-hockey match.' },
+  { id: 'ramen', name: '🍜 Ramen bar', cost: 45, bonus: 3, scene: 'Steaming bowls at a tiny counter in an alley.' },
+  { id: 'rooftop', name: '🌃 Rooftop dinner', cost: 120, bonus: 8, scene: 'Candlelight and the whole city glittering below.' },
+];
+const GIFTS = [
+  { id: 'flowers', name: '💐 Flowers', price: 25, aff: 6 }, { id: 'choco', name: '🍫 Chocolates', price: 40, aff: 8 }, { id: 'plush', name: '🧸 Plushie', price: 55, aff: 10 },
+  { id: 'perfume', name: '🌸 Perfume', price: 90, aff: 13 }, { id: 'tickets', name: '🎟️ Concert tickets', price: 150, aff: 17 }, { id: 'necklace', name: '💎 Necklace', price: 220, aff: 22 },
+];
+const STATUS_LABEL = { acquaintance: 'Regular', friend: 'Friend', dating: 'Dating 💕', partner: 'Partner 💖' };
+function recordVisit(c, stars, talked, byStaff) {
+  S.people = S.people || {};
+  if (!c.pid) c.pid = 'p' + Math.random().toString(36).slice(2, 9);
+  let p = S.people[c.pid];
+  if (!p) {
+    const ids = TOPICS.map(t => t.id).sort(() => Math.random() - 0.5);
+    p = S.people[c.pid] = { id: c.pid, aff: 8, status: 'acquaintance', visits: 0, dates: 0, likes: ids.slice(0, 2), dislike: ids[2], giftDay: 0, lastDay: 0,
+      c: JSON.parse(JSON.stringify({ name: c.name, pron: c.pron, idLabel: c.idLabel, idKey: c.idKey, subj: c.subj, body: c.body, look: Object.assign({}, c.look, { mood: '' }), seed: c.seed, bg: c.bg, pref: c.pref, favScent: c.favScent, ticklish: c.ticklish, hairOil: c.hairOil, chatty: c.chatty })) };
+  }
+  p.visits++; p.lastDay = S.day;
+  const before = p.status;
+  p.aff = clamp(Math.round(p.aff + (byStaff ? (stars - 3) * 2 : (stars - 2.5) * 5 + (talked ? 3 : 0))), 0, 100);
+  if (p.status === 'acquaintance' && p.aff >= 30) p.status = 'friend';
+  if (before !== p.status) toast(`💞 You and ${c.name} are friends now`);
+  saveGame();
+}
+function clientFromPerson(p) {
+  const c = makeClient(), keep = JSON.parse(JSON.stringify(p.c));
+  Object.assign(c, keep, { pid: p.id }); c.look.mood = ''; c.feel = genFeel(c);
+  return c;
+}
+function hearts(a) { const n = Math.round(a / 20); return '<span style="color:#ff7aa8;letter-spacing:1px">' + '♥'.repeat(n) + '</span><span style="color:#4a5a5e">' + '♥'.repeat(5 - n) + '</span>'; }
+function showPeople(back) {
+  S.people = S.people || {}; S.gifts = S.gifts || {};
+  const list = Object.values(S.people).sort((a, b) => b.aff - a.aff);
+  const inv = GIFTS.filter(g => S.gifts[g.id] > 0);
+  const card = (p, i) => {
+    const canDate = p.aff >= 45 && S.lastDateDay !== S.day, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
+    return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pp="${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
+      <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
+      <div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select data-gsel="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>${inv.length ? inv.map(g => `<option value="${g.id}">${g.name} ×${S.gifts[g.id]}</option>`).join('') : '<option>No gifts</option>'}</select>
+        <button data-gift="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>🎁 Give</button>
+        <button data-date="${i}" class="primary" ${canDate ? '' : 'disabled'} title="${p.aff < 45 ? 'Needs 45+ affection' : S.lastDateDay === S.day ? 'One date per day' : ''}">💌 Ask on a date</button>
+        ${canAsk ? `<button data-ask="${i}" class="primary">💍 Be my partner?</button>` : ''}
+      </div></div>`;
+  };
+  showModal(`<h2>💞 People you know</h2>
+    <p>Clients you've treated come back as regulars. Great sessions and friendly chats build affection; at 45+ you can ask them out (one date a day). Keep it sweet: dates are about getting to know each other.</p>
+    <div class="shop">${list.length ? list.map(card).join('') : '<div class="ctl">Nobody yet. Every client you treat becomes someone you know.</div>'}</div>
+    <h2 style="margin-top:16px">🎁 Gift shop</h2><p>Balance: <b>$${S.money}</b></p>
+    <div class="shop">${GIFTS.map(g => `<div class="item"><div class="t">${g.name}</div><div class="d">+${g.aff} affection · you have ${S.gifts[g.id] || 0}</div><button data-buy="${g.id}" class="primary" ${S.money < g.price ? 'disabled' : ''}>$${g.price}</button></div>`).join('')}</div>`,
+    [['← Back', back, '']]);
+  $('modal').querySelectorAll('canvas[data-pp]').forEach(cv2 => { const p = list[+cv2.dataset.pp]; drawPortrait(p.c, p.aff >= 45 ? 'happy' : 'neutral', 1, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 120, 120); });
+  $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const g = GIFTS.find(x => x.id === b.dataset.buy); if (S.money < g.price) return; S.money -= g.price; S.gifts[g.id] = (S.gifts[g.id] || 0) + 1; saveGame(); cashSound(); showPeople(back); });
+  $('modal').querySelectorAll('[data-gift]').forEach(b => b.onclick = () => {
+    const p = list[+b.dataset.gift], gid = $('modal').querySelector(`[data-gsel="${b.dataset.gift}"]`).value, g = GIFTS.find(x => x.id === gid); if (!g || !(S.gifts[gid] > 0)) return;
+    S.gifts[gid]--; p.giftDay = S.day; p.aff = Math.min(100, p.aff + g.aff); if (p.status === 'acquaintance' && p.aff >= 30) p.status = 'friend';
+    saveGame(); chime(); toast(`🎁 ${p.c.name} loved the ${g.name.slice(2).toLowerCase()}! (+${g.aff})`); showPeople(back);
+  });
+  $('modal').querySelectorAll('[data-date]').forEach(b => b.onclick = () => pickDateSpot(list[+b.dataset.date], back));
+  $('modal').querySelectorAll('[data-ask]').forEach(b => b.onclick = () => {
+    const p = list[+b.dataset.ask];
+    if (p.aff >= 85) { p.status = 'partner'; saveGame(); chime(); showModal(`<h2>💖 ${esc(p.c.name)} said yes!</h2><p>“I was hoping you'd ask.” You're officially partners. They'll drop by the spa more often, and your good mood shows: +10% tips.</p>`, [['💞 Back', () => showPeople(back), 'primary']]); }
+    else { p.aff = Math.max(0, p.aff - 5); saveGame(); showModal(`<h2>${esc(p.c.name)} hesitates…</h2><p>“I really like you… can we take it a little slower?” (Needs 85+ affection.)</p>`, [['OK', () => showPeople(back), '']]); }
+  });
+}
+function pickDateSpot(p, back) {
+  showModal(`<h2>💌 Where should you take ${esc(p.c.name)}?</h2><div class="shop">${DATE_SPOTS.map(d => `<div class="item"><div class="t">${d.name}</div><div class="d">${d.scene}</div><button data-spot="${d.id}" class="primary" ${S.money < d.cost ? 'disabled' : ''}>$${d.cost}</button></div>`).join('')}</div>`, [['← Back', () => showPeople(back), '']]);
+  $('modal').querySelectorAll('[data-spot]').forEach(b => b.onclick = () => { const d = DATE_SPOTS.find(x => x.id === b.dataset.spot); if (S.money < d.cost) return; S.money -= d.cost; S.lastDateDay = S.day; saveGame(); runDate(p, d, back); });
+}
+function runDate(p, spot, back) {
+  const others = TOPICS.map(t => t.id).filter(id => !p.likes.includes(id) && id !== p.dislike);
+  const rounds = [p.likes[0], pick(others), p.likes[1]].map(id => TOPICS.find(t => t.id === id));
+  let gained = spot.bonus, r = 0, expr = 'happy', said = spot.scene;
+  const tick = setInterval(() => { const cv2 = $('dateP'); if (!cv2) { clearInterval(tick); return; } p.c._comfort = 90; drawPortrait(p.c, expr, performance.now() / 1000, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 300, 300); }, 40);
+  const step = () => {
+    if (r >= rounds.length) {
+      clearInterval(tick);
+      p.dates++; p.aff = clamp(p.aff + gained, 0, 100);
+      const great = gained >= 18, fine = gained >= 8;
+      if (fine && (p.status === 'friend' || p.status === 'acquaintance')) p.status = 'dating';
+      saveGame(); if (great) chime();
+      const end = great ? (p.status === 'partner' ? 'You walk home hand in hand, talking about everything and nothing.' : 'You walk them home under the streetlights. At the door they give you a warm hug and a shy smile.')
+        : fine ? 'It was a nice evening. They thank you with a smile and a wave.' : 'The conversation never quite clicked. Maybe next time.';
+      showModal(`<h2>${spot.name.slice(0, 2)} Date with ${esc(p.c.name)}</h2><p>${end}</p><div class="rows"><div class="row"><span>Affection</span><b>${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100</b></div><div class="row"><span>Status</span><b>${STATUS_LABEL[p.status]}</b></div></div>`,
+        [['💞 Back', () => showPeople(back), 'primary']]);
+      return;
+    }
+    const t = rounds[r], liked = p.likes.includes(t.id), opts = [['great', t.great], ['ok', t.ok], ['bad', t.bad]].sort(() => Math.random() - 0.5);
+    showModal(`<h2>${spot.name}</h2><div class="intro"><canvas id="dateP" width="300" height="300"></canvas><div style="flex:1;min-width:220px">
+      <p style="color:var(--muted);margin:0 0 6px">${esc(said)}</p><div class="req">${esc(p.c.name)}: “${esc(t.ask)}”</div><p class="d">Round ${r + 1} of 3</p></div></div>`,
+      opts.map(([k, txt]) => [txt, () => {
+        const d = k === 'great' ? (liked ? 9 : 5) : k === 'ok' ? (liked ? 3 : 2) : (liked ? -8 : -6);
+        gained += d; expr = d >= 5 ? 'happy' : d > 0 ? 'neutral' : 'annoyed';
+        said = d >= 5 ? pick(['Their eyes light up. “Same!!”', 'They laugh. “Okay, you get it.”', '“Honestly? That\'s really sweet.”']) : d > 0 ? pick(['“Mm, fair enough.”', 'They nod along.']) : pick(['Their smile fades a little.', '“…Oh. Okay.”']);
+        r++; step();
+      }, '']));
+  };
+  step();
+}
+function openPeopleWorld() { state = 'modal'; showPeople(() => { hideModal(); state = 'world'; }); }
+
+// ---------- Upgrades you can see ----------
+function applyUpgradeSolids() {
+  let changed = false;
+  if (S.owned.coffee && !F.coffeeBar) { F.coffeeBar = SR(232, 900, 46, 100); changed = true; }
+  if (S.owned.aquarium && !F.aquarium) { F.aquarium = SR(300, 1012, 150, 40); changed = true; }
+  if (changed) rebuildGrid();
+}
+function buildUpgrades3D() {
+  if (!R3) return;
+  if (R3.upg) { R3.scene.remove(R3.upg); R3.upg.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  const g = new THREE.Group(); R3.upg = g; R3.scene.add(g); R3.fish = []; R3.mist = [];
+  const add = m => { g.add(m); return m; };
+  const box = (x, y, w, h, y0, ht, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w * U, ht, h * U), mat); m.position.set((x + w / 2) * U, y0 + ht / 2, (y + h / 2) * U); return add(m); };
+  const cyl = (x, y, r1, r2, y0, ht, mat) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1 * U, r2 * U, ht, 18), mat); m.position.set(x * U, y0 + ht / 2, y * U); return add(m); };
+  const plane = (w, h, mat, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat); m.position.set(x, y, z); m.rotation.y = ry || 0; return add(m); };
+  const textTex = (txt, w, h, bg, fg, font) => canvasTex(w, h, (c, cw, ch) => { c.fillStyle = bg; c.fillRect(0, 0, cw, ch); c.fillStyle = fg; c.font = font; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(txt, cw / 2, ch / 2 + 2); });
+  const t3 = F.table3;
+  if (!S.owned.room3) { // roped off until you buy it
+    for (const x of [t3.x - 10, t3.x + t3.w + 10]) cyl(x, t3.y + t3.h + 30, 3, 4, 0, 0.95, lam('#c9a25c'));
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, (t3.w + 20) * U, 8), lam('#a3302f')); rope.rotation.z = Math.PI / 2; rope.position.set((t3.x + t3.w / 2) * U, 0.85, (t3.y + t3.h + 30) * U); add(rope);
+    plane(1.1, 0.26, new THREE.MeshBasicMaterial({ map: textTex('ROOM 3 · UNLOCK IN THE SHOP', 440, 104, '#3a2a1f', '#f1dca8', '800 30px Nunito, system-ui') }), (t3.x + t3.w / 2) * U, 1.05, (t3.y + t3.h + 31) * U, 0);
+  } else { cyl(t3.x + t3.w - 10, t3.y - 20, 5, 5, 0, 0.9, lam('#f5ecd9')); }
+  if (S.owned.coffee) {
+    const b = F.coffeeBar; box(b.x, b.y, b.w, b.h, 0, 0.95, lam('#4a3020')); box(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 0.95, 0.04, lam('#e2d7c3'));
+    box(b.x + 8, b.y + 10, 30, 34, 0.99, 0.36, lam('#b8bcc2')); for (let i = 0; i < 3; i++) cyl(b.x + 22, b.y + 60 + i * 12, 4, 3.5, 0.99, 0.08, lam('#f4efe6'));
+    plane(0.9, 0.3, new THREE.MeshBasicMaterial({ map: textTex('☕ FREE COFFEE & TEA', 360, 120, '#2a1d14', '#f6d8a8', '800 34px Nunito, system-ui') }), (b.x + 2) * U, 1.8, (b.y + b.h / 2) * U, Math.PI / 2);
+  }
+  if (S.owned.tv) {
+    box(800, 579, 160, 3, 1.15, 0.95, lam('#141618'));
+    const scr = canvasTex(512, 300, (c, w, h) => { const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#7cc4e8'); gr.addColorStop(0.55, '#d8f0f6'); gr.addColorStop(0.56, '#3f8a5a'); gr.addColorStop(1, '#2a5a3c'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      c.fillStyle = '#f4f0e0'; c.beginPath(); c.moveTo(80, 170); c.lineTo(180, 60); c.lineTo(280, 170); c.fill(); c.fillStyle = '#ffffff'; c.font = '800 26px Nunito, system-ui'; c.fillText('Nature · Relax channel', 20, 280); });
+    R3.tvTex = scr; plane(1.5, 0.86, new THREE.MeshBasicMaterial({ map: scr }), 8.8, 1.62, 5.835, 0);
+  }
+  if (S.owned.aquarium) {
+    const a = F.aquarium; box(a.x, a.y, a.w, a.h, 0, 0.55, lam('#3a2a1f'));
+    box(a.x + 4, a.y + 4, a.w - 8, a.h - 8, 0.55, 0.62, new THREE.MeshPhongMaterial({ color: '#5fb8d8', transparent: true, opacity: 0.45, shininess: 90 }));
+    for (let i = 0; i < 7; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 6), lam(['#f08a3c', '#ffd36b', '#ff7aa8', '#7ad0ff'][i % 4])); f.scale.set(1.5, 0.8, 0.5); add(f); R3.fish.push(f); }
+  }
+  if (S.owned.diffuser) for (const [x, y] of [[1700, 230], [450, 200], [900, 640], [1700, 830]]) { cyl(x, y, 7, 9, x === 1700 && y === 230 ? 0.82 : 0, 0.22, lam('#e8dfcf')); R3.mist.push({ x: x * U, y: (x === 1700 && y === 230 ? 1.04 : 0.22), z: y * U }); }
+  if (S.owned.robes) { box(1124, 300, 12, 70, 1.5, 0.04, lam('#7a5a40')); for (let i = 0; i < 3; i++) box(1126, 305 + i * 22, 10, 18, 0.75, 0.75, lam('#f4f0e8')); }
+  if (S.owned.sign) {
+    const t = textTex('OPEN · RELAX · RECHARGE', 640, 120, 'rgba(0,0,0,0)', '#ff6fb5', '900 46px Nunito, system-ui');
+    plane(2.6, 0.48, new THREE.MeshBasicMaterial({ map: t, transparent: true }), 7.2, 2.4, 11.016, 0);
+    const l = new THREE.PointLight('#ff6fb5', 0.4, 5, 2); l.position.set(7.2, 2.2, 11.4); add(l);
+  }
+  if (S.owned.gold) for (const [x, y] of [[925, 1062], [1075, 1062], [700, 600], [1020, 600]]) { cyl(x, y, 9, 13, 0, 0.6, new THREE.MeshPhongMaterial({ color: '#d4a63a', shininess: 120, specular: '#fff2c0' })); }
+}
+function animUpgrades3D() {
+  if (!R3 || !R3.upg) return;
+  const a = F.aquarium;
+  if (a && R3.fish) R3.fish.forEach((f, i) => { const t = time * (0.5 + i * 0.07) + i; f.position.set((a.x + a.w / 2 + Math.sin(t) * (a.w / 2 - 18)) * U, 0.7 + (i % 3) * 0.13 + Math.sin(t * 2) * 0.02, (a.y + a.h / 2 + Math.cos(t * 1.3) * 8) * U); f.rotation.y = Math.cos(t) > 0 ? 0 : Math.PI; });
+}
+// merge static scenery that shares a material into single meshes: far fewer draw calls, smoother frames
+function mergeStatic(scene) {
+  scene.updateMatrixWorld(true);
+  const groups = new Map();
+  for (const m of scene.children.slice()) {
+    if (!m.isMesh || m.isInstancedMesh || m.userData.dyn || !m.geometry || !m.geometry.attributes.uv) continue;
+    const mt = m.material; if (Array.isArray(mt) || mt.transparent) continue;
+    const key = mt.type + '|' + (mt.color ? mt.color.getHexString() : '') + '|' + (mt.map ? mt.map.uuid : '') + '|' + mt.side;
+    if (!groups.has(key)) groups.set(key, []); groups.get(key).push(m);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const parts = list.map(m => { const gg = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); gg.applyMatrix4(m.matrixWorld); return gg; });
+    let n = 0; for (const p of parts) n += p.attributes.position.count;
+    const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2); let o = 0;
+    for (const p of parts) { pos.set(p.attributes.position.array, o * 3); nor.set(p.attributes.normal.array, o * 3); uv.set(p.attributes.uv.array, o * 2); o += p.attributes.position.count; p.dispose(); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.computeBoundingSphere();
+    const merged = new THREE.Mesh(geo, list[0].material); scene.add(merged);
+    for (const m of list) { scene.remove(m); m.geometry.dispose(); }
+  }
+}
 
 // ---------- First-person 3D spa (three.js) ----------
 const U = 0.01, EYE = 1.62;
@@ -2544,7 +2809,7 @@ function init3D() {
   if (R3) return true; if (!window.THREE) return false;
   try {
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     renderer.domElement.id = 'w3d'; renderer.domElement.style.display = ''; $('stage').insertBefore(renderer.domElement, $('stage').firstChild);
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#bcd9ea'); scene.fog = new THREE.Fog('#d5e6ef', 16, 44);
     const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 90);
@@ -2615,7 +2880,7 @@ function build3D() {
   // signs
   const sign = (text, x, y, w, rotY, y0, big) => { const t = canvasTex(w * 2, big ? 80 : 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = '#c9a25c'; g.lineWidth = 4; g.strokeRect(4, 4, cw - 8, ch - 8); g.fillStyle = '#f1dca8'; g.font = `800 ${big ? 40 : 30}px Nunito, system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w * U, (big ? 80 : 64) / 2 * U), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x * U, y0, y * U); m.rotation.y = rotY; add(m); };
-  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('TREATMENT ROOM 2', 660, 581.5, 180, 0, 2.45);
+  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('TREATMENT ROOMS 2 & 3', 660, 581.5, 240, 0, 2.45);
   sign('SERENITY HANDS SPA', 1000, 1101.5, 300, 0, 2.45, true);
   { const t = canvasTex(320, 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.fillStyle = '#f1dca8'; g.font = '800 30px Nunito, system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RECEPTION', cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.32), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide })); m.position.set(4.25, 2.35, 7.6); add(m); }
@@ -2638,7 +2903,8 @@ function build3D() {
   const mtable = b => { for (const [dx, dy] of [[20, 14], [b.w - 26, 14], [20, b.h - 20], [b.w - 26, b.h - 20]]) box(b.x + dx, b.y + dy, 6, 6, 0, 0.62, woodD); box(b.x, b.y, b.w, b.h, 0.62, 0.12, leather); box(b.x + 40, b.y + 6, b.w - 46, b.h - 12, 0.74, 0.02, sheet);
     const tor = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.045, 10, 24), lam('#d9d2c8')); tor.rotation.x = -Math.PI / 2; tor.position.set((b.x + 20) * U, 0.77, (b.y + b.h / 2) * U); add(tor);
     box(b.x + 140, b.y + 14, 50, b.h - 28, 0.76, 0.06, lam('#e8e2d6')); };
-  mtable(F.table); mtable(F.table2);
+  mtable(F.table); mtable(F.table2); mtable(F.table3);
+  for (const k of ['chair1', 'chair2', 'chair3']) { const b = F[k]; box(b.x + 6, b.y + 4, b.w - 10, b.h - 8, 0, 0.42, lam('#8a6e5a')); box(b.x + b.w - 12, b.y, 12, b.h, 0, 0.9, lam('#6e5646')); box(b.x + 4, b.y, b.w - 8, 8, 0, 0.62, lam('#6e5646')); box(b.x + 4, b.y + b.h - 8, b.w - 8, 8, 0, 0.62, lam('#6e5646')); box(b.x + 8, b.y + 8, b.w - 22, b.h - 16, 0.42, 0.08, lam('#c9b49a')); }
   const ca = F.cart; box(ca.x, ca.y, ca.w, ca.h, 0, 0.82, lam('#8a6b52')); for (let i = 0; i < 3; i++) { const m = cyl(ca.x + 22 + i * 26, ca.y + 29, 10, 10, 0.82, 0.4, lam('#f3efe6')); m.rotation.z = Math.PI / 2; m.position.y = 0.92; }
   for (const [x, y] of [[1700, 220], [1620, 560], [1290, 560]]) { cyl(x, y, 6, 6, x === 1700 ? 0.82 : 0, x === 1700 ? 0.12 : 0.9, lam('#f5ecd9')); const f = sph(x, y, 2.6, (x === 1700 ? 0.82 : 0) + (x === 1700 ? 0.15 : 0.93), new THREE.MeshBasicMaterial({ color: '#ffcf6e' }), 1, 1.8, 1); R3.flames.push(f); }
   const sh = F.shelf; box(sh.x, sh.y, sh.w, sh.h, 0, 1.8, lam('#6a4a35')); for (let i = 0; i < 5; i++) box(sh.x + 8, sh.y + 10 + i * 28, sh.w - 16, 22, 0.3 + i * 0.3, 0.12, lam(['#f3efe6', '#e8dfcf', '#cfe0dc'][i % 3]));
@@ -2657,6 +2923,8 @@ function build3D() {
     gp.position.set((t2.x + 22) * U + 0.05, 0.86, (t2.y + t2.h / 2) * U); gp.visible = false; add(gp); R3.lying = gp; R3.lyingHead = head;
   }
   const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#f2c45a' })); add(mk); R3.marker = mk;
+  for (const m of [...R3.water, ...R3.flames, ...R3.koi, mk]) m.userData.dyn = true;
+  mergeStatic(scene); buildUpgrades3D();
 }
 function personSprite(key) {
   let s = R3.people.get(key);
@@ -2692,13 +2960,14 @@ function render3D() {
   if (tg) { R3.marker.position.set(tg.x * U, 2.15 + Math.sin(time * 3) * 0.06, tg.y * U); R3.marker.rotation.y = time * 2; }
   for (const w of R3.water) w.material.color.setHSL(0.54, 0.45, 0.36 + Math.sin(time * 1.5) * 0.02);
   for (const f of R3.flames) f.scale.y = 1.6 + Math.sin(time * 13 + f.position.x * 9) * 0.35;
+  animUpgrades3D();
   const pb = F.pond; R3.koi.forEach((k, i) => { const a = time * (0.35 + i * 0.07) + i * 1.7; k.position.set((pb.x + pb.w / 2 + Math.cos(a) * (60 - i * 10)) * U, 0.03, (pb.y + pb.h / 2 + Math.sin(a) * (32 - i * 4)) * U); k.rotation.y = -a - Math.PI / 2; });
   renderer.render(scene, camera);
   updateHUD3D();
 }
 function objectiveTarget() {
-  const f = follower(), seated = ents.find(e => e.state === 'seated' && !e.claimed) || ents.find(e => e.state === 'arrive');
-  return f ? SPOT.table : seated ? { x: seated.x, y: seated.y } : null;
+  const f = follower(), ci = !hasStaff('reception') && ents.find(e => e.state === 'checkin'), seated = ents.find(e => e.state === 'seated' && !e.claimed);
+  return f ? SPOT.table : ci ? { x: ci.x, y: ci.y } : seated ? { x: seated.x, y: seated.y } : null;
 }
 let lastMM = 0;
 function updateHUD3D() {
@@ -2807,7 +3076,7 @@ function toonGrad() {
 function toonMat(c, extra) { return new THREE.MeshToonMaterial(Object.assign({ color: c, gradientMap: toonGrad() }, extra || {})); }
 function lathe(profile, mat, seg) {
   const pts = profile.slice().sort((a, b) => a[1] - b[1]).map(([r, y]) => new THREE.Vector2(Math.max(0.0008, r), y));
-  return new THREE.Mesh(new THREE.LatheGeometry(pts, seg || 20), mat);
+  return new THREE.Mesh(new THREE.LatheGeometry(pts, seg || 24), mat);
 }
 function ellip(r, sx, sy, sz, mat, seg) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 18, Math.max(8, (seg || 18) * 0.7 | 0)), mat); m.scale.set(sx, sy, sz); return m; }
 function specFor(look, body, kind) {
@@ -2823,7 +3092,7 @@ function buildHuman(sp) {
   const h = { sp, H, S, W, P, yAnk, yKnee, yHip, yWaist, yChest, ySh, yChin, headR, yHeadC: yChin + headR * 0.95, parts: [], clothes: { top: [], bottom: [], low: [], shoes: [] }, skin, j: {}, faceT: -1, lastExpr: '', walkAmt: 0, angle: null };
   const root = new THREE.Group(); h.root = root;
   const tag = (m, zone, extra) => { m.userData = Object.assign({ zone, human: h }, extra || {}); h.parts.push(m); return m; };
-  const cloth = (m, kind) => { m.userData = { cloth: true }; h.clothes[kind].push(m); return m; };
+  const cloth = (m, kind) => { m.userData = { cloth: true, kind }; h.clothes[kind].push(m); return m; };
   const shellOf = (prof, mul, mat, add) => lathe(prof.map(([r, y]) => [r * mul + (add || 0.004), y]), mat);
   // ---- pelvis
   const pelvis = new THREE.Group(); pelvis.position.y = yHip; root.add(pelvis); h.pelvis = pelvis;
@@ -2834,11 +3103,16 @@ function buildHuman(sp) {
   const tY = v => v - yWaist;
   const torsoProf = [[W, -0.004 * H], [W + (S - W) * 0.2, 0.035 * H], [(W + S) / 2 * 1.02, tY(yChest) - 0.03 * H], [S * (0.84 + 0.035 * fem), tY(yChest)], [S * 0.87, tY(ySh) - 0.04 * H], [S * 0.8, tY(ySh) - 0.012 * H], [S * 0.55, tY(ySh) + 0.004 * H], [0.034 * H, tY(ySh) + 0.016 * H]];
   const chest = lathe(torsoProf, skin); chest.scale.z = 0.64; spine.add(tag(chest, 'torso')); h.chest = chest;
+  for (const s of [1, -1]) { // collarbones in front, shoulder blades behind
+    const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.0062 * H, 0.0062 * H, S * 0.62, 8), skin); cb.rotation.z = Math.PI / 2 + s * 0.12; cb.position.set(s * S * 0.36, tY(ySh) - 0.006 * H, S * 0.44); spine.add(tag(cb, 'torso')); cb.userData.keep = true; h.underTop = (h.underTop || []).concat(cb);
+    const sc = ellip(S * 0.27, 1, 1.25, 0.18, skin, 12); sc.position.set(s * S * 0.4, tY(yChest) + 0.03 * H, -S * 0.5); sc.rotation.z = s * 0.25; spine.add(tag(sc, 'torso')); sc.userData.keep = true; h.underTop.push(sc);
+  }
   const neckR = (sp.masc ? 0.036 : 0.031) * H;
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(neckR * 0.92, neckR, yChin - ySh + 0.03 * H, 16), skin); neck.position.y = tY(ySh) + (yChin - ySh) / 2; spine.add(tag(neck, 'neck')); h.neckR = neckR;
   const head = new THREE.Group(); head.position.set(0, tY(yChin), 0.006 * H); spine.add(head); h.j.head = head;
   const hs = new THREE.Group(); hs.position.y = headR * 0.95; hs.scale.set(0.86, 1, 0.93); head.add(hs); h.headShape = hs;
   hs.add(tag(new THREE.Mesh(new THREE.SphereGeometry(headR, 28, 20), skin), 'head'));
+  const nose = ellip(headR * 0.07, 0.7, 1, 0.9, skin, 8); nose.position.set(0, -headR * 0.2, headR * 0.99); hs.add(tag(nose, 'head'));
   for (const s of [1, -1]) { const ear = ellip(headR * 0.2, 0.45, 1, 0.75, skin, 10); ear.position.set(s * headR * 0.97, -0.05 * headR, -0.02 * headR); hs.add(tag(ear, 'head')); }
   const fc = document.createElement('canvas'); fc.width = fc.height = 256; const ft = new THREE.CanvasTexture(fc);
   const face = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.008, 22, 14, Math.PI / 2 - 0.85, 1.7, 0.9, 1.45), new THREE.MeshToonMaterial({ map: ft, transparent: true, gradientMap: toonGrad(), alphaTest: 0.04 }));
@@ -2877,14 +3151,19 @@ function buildHuman(sp) {
     const wr = new THREE.Group(); wr.position.y = -FA; el.add(wr); h.j['wr' + L] = wr;
     const palm = ellip(0.032 * H, 0.38, 1.15, 0.78, skin, 12); palm.position.y = -0.034 * H; wr.add(tag(palm, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s }));
     const fg = new THREE.Group(); fg.position.y = -0.066 * H; wr.add(fg); h.j['fg' + L] = fg;
-    for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CylinderGeometry(0.0052 * H, 0.0045 * H, 0.046 * H, 7), skin); f.position.set(0, -0.022 * H, (i - 1.5) * 0.0088 * H); fg.add(tag(f, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s })); }
+    h.j['tips' + L] = [];
+    for (let i = 0; i < 4; i++) { const fl = 1 - Math.abs(i - 1.3) * 0.12, f = new THREE.Group(); f.position.z = (i - 1.5) * 0.0088 * H; fg.add(f);
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.0054 * H, 0.005 * H, 0.026 * H * fl, 7), skin); p1.position.y = -0.013 * H * fl; f.add(tag(p1, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s }));
+      const tip = new THREE.Group(); tip.position.y = -0.026 * H * fl; f.add(tip); h.j['tips' + L].push(tip);
+      const k1 = ellip(0.0052 * H, 1, 1, 1, skin, 6); tip.add(k1);
+      const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.0049 * H, 0.0042 * H, 0.022 * H * fl, 7), skin); p2.position.y = -0.011 * H * fl; tip.add(tag(p2, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s })); }
     const th = new THREE.Mesh(new THREE.CylinderGeometry(0.0058 * H, 0.005 * H, 0.04 * H, 7), skin); th.position.set(-s * 0.006 * H, -0.04 * H, 0.022 * H); th.rotation.x = -0.6; wr.add(tag(th, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s }));
     // sleeves
     if (sp.top !== 'tank') {
       const long = ['hoodie', 'sweater', 'linen'].includes(sp.top), uaEnd = long ? -UA : -0.085 * H;
-      sh.add(cloth(shellOf([[0.004 * H, 0.034 * H], ...uaProf.slice(1).filter(p => p[1] >= uaEnd), [0.026 * H * k, uaEnd]], 1.13, topM), 'top'));
-      sh.add(cloth(ellip(0.036 * H * k * 1.08, 1, 0.95, 0.92, topM, 14), 'top'));
-      if (long) { el.add(cloth(ellip(0.023 * H, 1, 1, 1, topM, 10), 'top')); el.add(cloth(shellOf(faProf.filter(p => p[1] >= -0.9 * FA), 1.14, topM), 'top')); }
+      sh.add(cloth(shellOf([[0.004 * H, 0.034 * H], ...uaProf.slice(1).filter(p => p[1] >= uaEnd), [0.026 * H * k, uaEnd]], 1.2, topM), 'top'));
+      sh.add(cloth(ellip(0.036 * H * k * 1.17, 1, 0.97, 0.95, topM, 14), 'top'));
+      if (long) { el.add(cloth(ellip(0.023 * H, 1, 1, 1, topM, 10), 'top')); el.add(cloth(shellOf(faProf.filter(p => p[1] >= -0.9 * FA), 1.2, topM), 'top')); }
     }
   }
   // ---- legs
@@ -2901,18 +3180,20 @@ function buildHuman(sp) {
     const an = new THREE.Group(); an.position.y = -SHL; kn.add(an); h.j['an' + L] = an;
     const foot = ellip(0.028 * H, 0.95, 0.6, 2.3, skin, 14); foot.position.set(0, -0.022 * H, 0.038 * H); an.add(tag(foot, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
     const heel = ellip(0.02 * H, 1, 1, 1.1, skin, 10); heel.position.set(0, -0.02 * H, -0.01 * H); an.add(tag(heel, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
+    for (let t = 0; t < 5; t++) { const toe = ellip(0.0072 * H * (t === 0 ? 1.35 : 1 - t * 0.06), 1, 0.85, 1.2, skin, 8); toe.position.set(-s * (t - 1.6) * 0.0085 * H, -0.03 * H, 0.104 * H - t * 0.003 * H); an.add(tag(toe, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s })); }
+    const cap = ellip(0.017 * H, 1, 1.15, 0.55, skin, 10); cap.position.set(0, 0.002 * H, 0.03 * H); kn.add(tag(cap, 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s }));
     // trousers / shorts / skirt panels and shoes
     const skirt = sp.bottom === 'skirt' || sp.top === 'dress';
     if (skirt) hp.add(cloth(lathe([[0.004 * H, 0.04 * H], [0.07 * H * ff, 0.02 * H], [0.078 * H * ff, -0.32 * TH], [0.085 * H * ff, -0.62 * TH]], sp.top === 'dress' ? topM : botM), 'bottom'));
     else {
       const end = sp.bottom === 'shorts' ? -0.55 * TH : -TH;
-      hp.add(cloth(shellOf([...thProf.filter(p => p[1] >= end), [0.045 * H * k, end]], 1.08, botM), 'bottom'));
-      if (sp.bottom === 'pants') { kn.add(cloth(ellip(0.037 * H, 1, 1, 1, botM, 12), 'low')); kn.add(cloth(shellOf(shProf.filter(p => p[1] >= -0.92 * SHL), 1.12, botM), 'low')); }
+      hp.add(cloth(shellOf([...thProf.filter(p => p[1] >= end), [0.045 * H * k, end]], 1.12, botM), 'bottom'));
+      if (sp.bottom === 'pants') { kn.add(cloth(ellip(0.037 * H, 1, 1, 1, botM, 12), 'low')); kn.add(cloth(shellOf(shProf.filter(p => p[1] >= -0.92 * SHL), 1.16, botM), 'low')); }
     }
     const shoe = ellip(0.031 * H, 0.98, 0.66, 2.25, shoeM, 14); shoe.position.set(0, -0.022 * H, 0.04 * H); an.add(cloth(shoe, 'shoes'));
   }
   // ---- torso clothing
-  const shirt = lathe([[P * 1.12, -0.072 * H], [(W + P) / 2 * 1.1, -0.035 * H], ...torsoProf.slice(0, 7).map(([r, y]) => [r * 1.055 + 0.004, y])], topM); shirt.scale.z = 0.66; spine.add(cloth(shirt, 'top')); h.shirt = shirt;
+  const shirt = lathe([[P * 1.12, -0.072 * H], [(W + P) / 2 * 1.1, -0.035 * H], ...torsoProf.slice(0, 7).map(([r, y]) => [r * 1.07 + 0.005, y])], topM); shirt.scale.z = 0.66; spine.add(cloth(shirt, 'top')); h.shirt = shirt;
   const pants = shellOf(pelProf, 1.06, sp.top === 'dress' ? topM : botM); pants.scale.z = 0.82; pelvis.add(cloth(pants, 'bottom'));
   if (sp.top === 'dress' || sp.bottom === 'skirt') { const sk = lathe([[W * 1.1, yWaist - yHip], [P * 1.18, -0.01 * H], [P * 1.3, -0.07 * H]], sp.top === 'dress' ? topM : botM); sk.scale.z = 0.85; pelvis.add(cloth(sk, 'bottom')); }
   if (sp.top === 'hoodie') { const hood = new THREE.Mesh(new THREE.TorusGeometry(0.062 * H, 0.022 * H, 8, 18), topM); hood.position.set(0, tY(ySh) + 0.01 * H, -0.045 * H); hood.rotation.x = 1.25; spine.add(cloth(hood, 'top')); }
@@ -2922,11 +3203,37 @@ function buildHuman(sp) {
   const ec = document.createElement('canvas'); ec.width = ec.height = 128; const et = new THREE.CanvasTexture(ec);
   const emote = new THREE.Sprite(new THREE.SpriteMaterial({ map: et, transparent: true, depthTest: false })); emote.scale.set(0.34, 0.34, 1); emote.position.y = H + 0.24; emote.visible = false; root.add(emote);
   h.emote = { s: emote, c: ec, g: ec.getContext('2d'), t: et, type: '' };
-  root.traverse(o => { if (o.isMesh) o.frustumCulled = true; });
+  for (const m of [h.chest, h.shirt, face, h.longHair, h.tail]) if (m) m.userData.keep = true;
+  for (const m of h.underTop) m.visible = false; // collarbones & shoulder blades only show without a shirt
+  mergeHuman(h);
   return h;
 }
+// Merge the pieces that ride on the same joint and share a material into one mesh each: same look, far fewer draw calls.
+function mergeHuman(h) {
+  const groups = []; h.root.traverse(o => { if (o.isGroup) groups.push(o); }); groups.push(h.root);
+  for (const gp of groups) {
+    const buckets = new Map();
+    for (const m of gp.children) {
+      if (!m.isMesh || m.userData.keep) continue;
+      const ud = m.userData, key = m.material.uuid + '|' + (ud.cloth ? 'c' + ud.kind : 'z' + ud.zone + (ud.seg || ''));
+      if (!buckets.has(key)) buckets.set(key, []); buckets.get(key).push(m);
+    }
+    for (const list of buckets.values()) {
+      if (list.length < 2) continue;
+      const geos = list.map(m => { m.updateMatrix(); const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone(); g.applyMatrix4(m.matrix); return g; });
+      let n = 0; for (const g of geos) n += g.attributes.position.count;
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), uv = new Float32Array(n * 2); let o = 0;
+      for (const g of geos) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); if (g.attributes.uv) uv.set(g.attributes.uv.array, o * 2); o += g.attributes.position.count; g.dispose(); }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.computeBoundingSphere();
+      const mm = new THREE.Mesh(geo, list[0].material); mm.userData = list[0].userData; gp.add(mm);
+      for (const m of list) { gp.remove(m); m.geometry.dispose(); }
+      if (mm.userData.cloth) { const arr = h.clothes[mm.userData.kind]; h.clothes[mm.userData.kind] = arr.filter(x => !list.includes(x)).concat([mm]); }
+      else if (mm.userData.zone) { h.parts = h.parts.filter(x => !list.includes(x)); h.parts.push(mm); }
+    }
+  }
+}
 function setTopVisible(h, v) { for (const m of h.clothes.top) m.visible = v; }
-function setTableDress(h, on) { for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; }
+function setTableDress(h, on) { for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; for (const m of h.underTop || []) m.visible = on || h.sp.top === 'tank'; }
 function disposeHuman(h) {
   h.root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
   if (h.root.parent) h.root.parent.remove(h.root);
@@ -2983,7 +3290,7 @@ function poseHuman(h, p) {
     const legPh = s > 0 ? ph : ph + Math.PI, armPh = s > 0 ? ph + Math.PI : ph;
     sh.position.copy(sh.userData.rest); sh.position.y += (p.hunch || 0) * 0.03 * H;
     hp.rotation.set(-Math.sin(legPh) * 0.45 * walk, 0, 0); kn.rotation.set((0.08 + 0.65 * Math.max(0, Math.sin(legPh + 1.3))) * walk, 0, 0); an.rotation.set(0, 0, 0);
-    sh.rotation.set(-Math.sin(armPh) * 0.35 * walk, 0, s * 0.07); el.rotation.set(-0.1 - (0.12 + 0.2 * Math.max(0, Math.sin(armPh))) * walk, 0, 0); wr.rotation.set(0, 0, 0); fg.rotation.set(0.25 + (p['curl' + side] || 0) * 1.2, 0, 0);
+    sh.rotation.set(-Math.sin(armPh) * 0.35 * walk, 0, s * 0.07); el.rotation.set(-0.1 - (0.12 + 0.2 * Math.max(0, Math.sin(armPh))) * walk, 0, 0); wr.rotation.set(0, 0, 0); fg.rotation.set(0.25 + (p['curl' + side] || 0) * 1.2, 0, 0); for (const tg of (J['tips' + L] || [])) tg.rotation.x = 0.18 + (p['curl' + side] || 0) * 0.9;
     if (p.sit) { hp.rotation.x = -1.5; kn.rotation.x = 1.45; sh.rotation.x = -0.32; el.rotation.x = -0.85; }
     if (p.phone) { sh.rotation.set(-0.5, 0, s * 0.16); el.rotation.x = -1.55; wr.rotation.z = -s * 0.3; }
     if (p.cross) { sh.rotation.set(-0.3, -s * 0.35, s * 0.22); el.rotation.x = -1.95; }
@@ -3046,7 +3353,7 @@ function humanFor(key, specFn) {
   if (!h) { h = buildHuman(specFn()); R3.scene.add(h.root); R3.humans.set(key, h); }
   h.seen = true; return h;
 }
-function staffSpec(st) { const sp = specFor(Object.assign({}, st.look, { H: st.look.H || (st.s.c.body.masc ? 1.78 : 1.66), top3: st.s.role === 'reception' ? 'polo' : 'scrubs', bot3: 'pants' }), st.s.c.body); return sp; }
+function staffSpec(st) { return specFor(Object.assign({}, st.look, { H: st.look.H || (st.s.c.body.masc ? 1.78 : 1.66), top3: { reception: 'polo', therapist: 'scrubs', cleaner: 'tee', manager: 'linen' }[st.s.role], bot3: 'pants' }), st.s.c.body); }
 function syncHumans(third) {
   for (const h of R3.humans.values()) h.seen = false;
   for (const e of ents) {
@@ -3054,13 +3361,15 @@ function syncHumans(third) {
     const h = humanFor('c' + e.uid, () => specFor(e.c.look, e.c.body));
     if (e.state === 'onTable') continue; // the massage view poses this one
     if (e.state === 'staffTable') {
-      setTableDress(h, true); placeOnTable(h, F.table2, false); tableSheet(h, F.table2, false);
+      const tb = e.tableRoom === 3 ? F.table3 : F.table2; setTableDress(h, true); placeOnTable(h, tb, false); tableSheet(h, tb, false);
       poseHuman(h, { lie: 'prone', breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.2)) }); setHumanEmote(h, ''); continue;
     }
     if (h.sheet) h.sheet.visible = false; setTableDress(h, false);
-    const seated = e.state === 'seated', mf = moodFor(e), ang = seated ? Math.PI / 2 : (e.ang ?? -Math.PI / 2);
-    h.angle = h.angle == null ? ang : lerpAngle(h.angle, ang, 0.18);
-    h.root.position.set(e.x * U, 0, (seated ? e.y - 36 : e.y) * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
+    const seated = e.state === 'seated', mf = moodFor(e), ang = seated ? (e.seatAng ?? Math.PI / 2) : (e.ang ?? -Math.PI / 2);
+    h.angle = seated ? ang : h.angle == null ? ang : lerpAngle(h.angle, ang, 0.18);
+    const dc = dist(e.x, e.y, player.x, player.y); h.root.visible = dc < 3200;
+    h.root.position.set((seated ? e.x - Math.cos(ang) * 36 : e.x) * U, 0, (seated ? e.y - Math.sin(ang) * 36 : e.y) * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
+    if (dc > 1500 && h.posed) { setHumanEmote(h, e.emote || ''); continue; } h.posed = true; // far away: keep the last pose, save the work
     h.walkAmt += ((e.moving ? 1 : 0) - h.walkAmt) * 0.2;
     const dp = dist(e.x, e.y, player.x, player.y), rel = Math.atan2(Math.sin(Math.atan2(player.y - e.y, player.x - e.x) - h.angle), Math.cos(Math.atan2(player.y - e.y, player.x - e.x) - h.angle));
     poseHuman(h, { walk: h.walkAmt, ph: e.ph * 0.42, sit: seated, phone: mf.opts.phone, cross: mf.opts.cross, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.7 + e.c.seed)),
@@ -3073,8 +3382,9 @@ function syncHumans(third) {
     h.angle = h.angle == null ? st.ang : lerpAngle(h.angle, st.ang, 0.18);
     h.root.position.set(st.x * U, 0, st.y * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
     h.walkAmt += ((st.moving ? 1 : 0) - h.walkAmt) * 0.2;
-    poseHuman(h, { walk: h.walkAmt, ph: st.ph * 0.42, work: st.state === 'work', lean: st.state === 'work' ? 0.3 : 0, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.6)) });
-    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, st.state === 'work' ? 'bliss' : 'happy', time, false); }
+    const busy = st.state === 'work' || st.state === 'clean';
+    poseHuman(h, { walk: h.walkAmt, ph: st.ph * 0.42, work: busy, lean: st.state === 'work' ? 0.3 : st.state === 'clean' ? 0.4 : 0, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.6)), cross: st.s.role === 'manager' && st.state === 'idle' });
+    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, busy ? 'bliss' : 'happy', time, false); }
     setHumanEmote(h, st.emote || '');
   }
   // you
