@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Serenity Hands</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141a1c; --panel:#1d2629; --panel2:#243034; --line:#33444a;
+  --text:#eef3f1; --muted:#9fb2ae; --gold:#e8c37a; --teal:#4fc1a6;
+  --pink:#f08bb0; --red:#e86a5f; --green:#6fd08c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:Nunito,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
+#app{display:flex;flex-direction:column;height:100%}
+#topbar{display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.brand{font-weight:800;color:var(--gold);letter-spacing:.5px;margin-right:auto}
+.stat{background:var(--panel2);padding:4px 10px;border-radius:999px;font-weight:700;font-size:14px;white-space:nowrap}
+#timeWrap{display:flex;align-items:center;gap:8px;min-width:200px}
+#timeBar{flex:1;height:8px;background:#0e1314;border-radius:6px;overflow:hidden;min-width:100px}
+#timeFill{height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--gold));transition:width .2s}
+#timeFill.over{background:var(--red)}
+#main{flex:1;display:flex;min-height:0}
+#side{width:270px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--line);padding:12px;overflow-y:auto}
+#portrait{width:100%;max-width:200px;aspect-ratio:1;display:block;margin:0 auto 8px;border-radius:16px;border:2px solid var(--line);background:#222}
+.cname{font-size:20px;font-weight:800;text-align:center}
+.pron{font-size:13px;color:var(--muted);font-weight:600}
+.tags{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:6px 0}
+.tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line)}
+.req{font-style:italic;color:#d6e2df;font-size:13.5px;background:#18201f;border-left:3px solid var(--gold);padding:6px 8px;border-radius:6px;margin:8px 0}
+h4{margin:12px 0 6px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.meter{margin:6px 0}
+.meter .lbl{display:flex;justify-content:space-between;font-size:13px;font-weight:700}
+.bar{height:10px;background:#0e1314;border-radius:6px;overflow:hidden;margin-top:3px}
+.bar>div{height:100%;width:0;transition:width .15s}
+#relaxFill{background:linear-gradient(90deg,#3aa58a,var(--green))}
+#comfortFill{background:linear-gradient(90deg,#c0607f,var(--pink))}
+.fz{display:flex;align-items:center;gap:6px;font-size:12.5px;margin:3px 0}
+.fz span{width:96px}
+.fz .bar{flex:1;margin:0;height:7px}
+.fz .bar>div{background:linear-gradient(90deg,var(--red),var(--gold),var(--green))}
+.know{font-size:13px;margin:3px 0;display:flex;justify-content:space-between;gap:6px}
+.know b{color:var(--gold)}
+.know .unk{color:#6e807c}
+#stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0;background:#0d1112}
+#game{display:block;touch-action:none;cursor:none;border-radius:6px}
+#toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(15,20,22,.92);border:1px solid var(--line);
+  padding:8px 16px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+#toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--line);flex-wrap:wrap;justify-content:center}
+.grp{display:flex;gap:4px;align-items:center;background:#18201f;padding:4px;border-radius:12px}
+.grp .gl{font-size:11px;color:var(--muted);padding:0 6px;text-transform:uppercase;letter-spacing:1px}
+button{font-family:inherit;font-weight:700;font-size:14px;color:var(--text);background:var(--panel2);border:1px solid var(--line);
+  padding:8px 12px;border-radius:10px;cursor:pointer;transition:background .15s,transform .05s;white-space:nowrap}
+button:hover{background:#2e3d42}
+button:active{transform:translateY(1px)}
+button.on{background:var(--teal);color:#0d1a17;border-color:var(--teal)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:var(--gold);color:#2a1f08;border-color:var(--gold)}
+button.primary:hover{background:#f3d396}
+button.danger{background:#5a2a2a;border-color:#7a3a3a}
+kbd{font-size:10px;opacity:.6;margin-left:4px;font-family:inherit}
+select{font-family:inherit;font-weight:700;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:7px}
+#overlay{position:fixed;inset:0;background:rgba(5,8,9,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#overlay.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;max-width:620px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h1{margin:0 0 6px;color:var(--gold);font-size:30px}
+.modal h2{margin:0 0 10px;color:var(--gold)}
+.modal p{color:#d3dfdc;line-height:1.5}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;justify-content:center}
+.intro{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.intro canvas{width:150px;height:150px;border-radius:14px;border:2px solid var(--line)}
+.stars{font-size:34px;color:var(--gold);letter-spacing:2px;text-align:center}
+.rows{margin:10px 0}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed var(--line)}
+.row.total{font-weight:800;font-size:18px;border:none;color:var(--gold)}
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:10px}
+.item{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.item .t{font-weight:800}
+.item .d{font-size:13px;color:var(--muted);flex:1}
+.help li{margin:4px 0;color:#d3dfdc}
+.stw{white-space:nowrap}.st{color:#4a5a5e}.st.full{color:var(--gold)}
+.st.half{background:linear-gradient(90deg,var(--gold) 50%,#4a5a5e 50%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.quote{font-style:italic;text-align:center;color:#d6e2df;margin:8px 0}
+@media (max-width:820px){
+  #main{flex-direction:column}
+  #side{width:100%;max-height:150px;display:grid;grid-template-columns:90px 1fr;gap:4px 10px;border-right:none;border-bottom:1px solid var(--line);padding:8px}
+  #portrait{grid-row:span 6;width:90px;margin:0}
+  .cname{text-align:left;font-size:16px}.tags{justify-content:flex-start}
+  #side h4,#focusList,#knowList{display:none}
+  .req{margin:2px 0;font-size:12px}
+  button{padding:7px 9px;font-size:13px} kbd{display:none}
+  .brand{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar">
+    <div class="brand">🌿 Serenity Hands</div>
+    <div class="stat" id="moneyStat">💵 $0</div>
+    <div class="stat" id="dayStat">Day 1 · Client 1/5</div>
+    <div class="stat" id="repStat">⭐ 3.0</div>
+    <div id="timeWrap"><span class="stat" id="timeTxt">0 / 60 min</span><div id="timeBar"><div id="timeFill"></div></div></div>
+  </div>
+  <div id="main">
+    <aside id="side">
+      <canvas id="portrait" width="320" height="320"></canvas>
+      <div class="cname"><span id="cName">—</span> <span class="pron" id="cPron"></span></div>
+      <div class="tags" id="cTags"></div>
+      <div class="req" id="cReq">Waiting for a client…</div>
+      <div class="meter"><div class="lbl"><span>😌 Relaxation</span><span id="relaxPct">0%</span></div><div class="bar"><div id="relaxFill"></div></div></div>
+      <div class="meter"><div class="lbl"><span>💗 Comfort</span><span id="comfortPct">0%</span></div><div class="bar"><div id="comfortFill"></div></div></div>
+      <h4>Focus areas</h4>
+      <div id="focusList"></div>
+      <h4>What you know</h4>
+      <div id="knowList"></div>
+    </aside>
+    <div id="stage"><canvas id="game"></canvas><div id="toast"></div></div>
+  </div>
+  <div id="toolbar">
+    <div class="grp"><span class="gl">Tool</span>
+      <button id="tHands" class="on">✋ Hands<kbd>Q</kbd></button>
+      <button id="tOil">💧 Oil<kbd>W</kbd></button>
+      <select id="scentSel" title="Oil scent"></select>
+      <button id="tStone">🪨 Hot Stones<kbd>R</kbd></button>
+    </div>
+    <div class="grp"><span class="gl">Pressure</span>
+      <button id="p1">Light<kbd>1</kbd></button>
+      <button id="p2" class="on">Medium<kbd>2</kbd></button>
+      <button id="p3">Firm<kbd>3</kbd></button>
+    </div>
+    <div class="grp">
+      <button id="bHeat">🔥 Tension view<kbd>T</kbd></button>
+      <button id="bTalk">💬 Talk<kbd>C</kbd></button>
+      <button id="bMusic">🎵 Music<kbd>M</kbd></button>
+      <button id="bPause">⏸<kbd>Esc</kbd></button>
+    </div>
+    <button id="bEnd" class="primary">✔ End Session<kbd>E</kbd></button>
+  </div>
+</div>
+<div id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+'use strict';
+/* =========================================================
+   Serenity Hands — a 2D first-person massage therapist sim
+   ========================================================= */
+
+// ---------- Utilities ----------
+const W = 1280, H = 720, CY = 380;
+const $ = id => document.getElementById(id);
+const rand = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const dist = (ax, ay, bx, by) => Math.hypot(ax - bx, ay - by);
+function weighted(obj) { // {key: weight}
+  const entries = Object.entries(obj); let t = 0;
+  for (const [, w] of entries) t += w;
+  let r = Math.random() * t;
+  for (const [k, w] of entries) { r -= w; if (r <= 0) return k; }
+  return entries[0][0];
+}
+function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function shade(hex, amt) { // amt -1..1
+  const [r, g, b] = hexToRgb(hex);
+  const f = c => clamp(Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt), 0, 255);
+  return '#' + [f(r), f(g), f(b)].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function rgba(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+function rr(g, x, y, w, h, r) { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); }
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---------- Save data ----------
+const SAVE_KEY = 'serenityHands_v1';
+const DEFAULT_SAVE = () => ({ money: 120, day: 1, clientNo: 0, ratings: [], owned: {}, music: true,
+  stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 4 });
+let S = DEFAULT_SAVE();
+function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
+function loadGame() {
+  try { const d = JSON.parse(localStorage.getItem(SAVE_KEY)); if (d && typeof d.money === 'number') { S = Object.assign(DEFAULT_SAVE(), d); return true; } } catch (e) {}
+  return false;
+}
+function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+function rep() { if (!S.ratings.length) return 3; const r = S.ratings.slice(-20); return r.reduce((a, b) => a + b, 0) / r.length; }
+function clientsToday() { const r = rep(); return 4 + (r >= 3.6 ? 1 : 0) + (r >= 4.4 ? 1 : 0) + (S.owned.decor ? 1 : 0); }
+function todayTotal() { return S.todayTotal || clientsToday(); }
+function dailyRent() { return Math.min(90, 40 + 5 * Math.floor((S.day - 1) / 3)); }
+
+// ---------- Game data ----------
+const SHOP = [
+  { id: 'lavender', name: '💜 Lavender Oil', price: 60, desc: 'A calming floral scent. Some clients adore it.' },
+  { id: 'citrus', name: '🍊 Sweet Orange Oil', price: 70, desc: 'Bright and uplifting. A favorite of energetic clients.' },
+  { id: 'eucalyptus', name: '🌿 Eucalyptus Oil', price: 80, desc: 'Cooling and fresh. Athletes love it.' },
+  { id: 'stones', name: '🪨 Hot Stone Set', price: 150, desc: 'Unlocks Hot Stones: place them on the back/shoulders to melt tension passively.' },
+  { id: 'speakers', name: '🎶 Ambient Speakers', price: 140, desc: 'Music now actively builds comfort during sessions.' },
+  { id: 'table', name: '🛏️ Memory-Foam Table', price: 220, desc: '+12 starting comfort for every client.' },
+  { id: 'decor', name: '🏮 Zen Room Decor', price: 300, desc: 'Lanterns, plants & bamboo. +15% session prices and +1 client per day.' },
+  { id: 'cert', name: '🎓 Advanced Certification', price: 600, desc: 'Your hands work 25% more effectively. +20% session prices.' },
+];
+const SCENTS = { unscented: 'Unscented', lavender: 'Lavender', citrus: 'Sweet Orange', eucalyptus: 'Eucalyptus' };
+const SCENT_COLOR = { unscented: '#e9d9a8', lavender: '#b79be6', citrus: '#f2a65a', eucalyptus: '#86c9a3' };
+
+const SKINS = ['#fde6d4', '#f8d5bd', '#f0c3a2', '#e3ab86', '#cf9168', '#b0734c', '#8f5a3a', '#6e432a'];
+const HAIRS = { black: '#26252d', brown: '#4d3222', chestnut: '#7b4a2b', blonde: '#e9c96f', pink: '#f3a3c4', silver: '#cfd3dc',
+  blue: '#5a7fd8', red: '#b8433a', purple: '#8d6bd4', teal: '#3db3a1', white: '#f1efe9' };
+const EYES = ['#5a3a22', '#2f6fb5', '#3a9a6a', '#8a4fc0', '#c0473f', '#c99a2e', '#4a4a58', '#2aa3b0'];
+
+const IDS = {
+  woman:      { label: 'Woman', w: 40, pron: ['she/her'], subj: 'she',
+    names: ['Sakura','Mia','Elena','Aiko','Chloe','Priya','Yuna','Sofia','Hana','Isabella','Rin','Amara','Leila','Nora','Mei','Zoe','Camila','Fatima','Ingrid','Mio','Valentina','Aaliyah','Emi','Grace'],
+    hair: { long: 5, ponytail: 3, bob: 2, buns: 2, twintails: 1, short: 1 }, sw: [76, 88], ww: [48, 60], hw: [70, 86] },
+  transwoman: { label: 'Trans woman', w: 13, pron: ['she/her'], subj: 'she',
+    names: ['Luna','Aria','Jade','Kira','Vivian','Seraphina','Nova','Rei','Ivy','Mira','Celeste','Ophelia','Natsuki','Lyra'],
+    hair: { long: 5, ponytail: 2, bob: 2, buns: 1, twintails: 1 }, sw: [80, 96], ww: [52, 64], hw: [66, 80] },
+  femboy:     { label: 'Femboy', w: 16, pron: ['he/him', 'he/they'], subj: 'he',
+    names: ['Felix','Ren','Kai','Asher','Nico','Yuki','Haru','Theo','Sora','Milo','Ezra','Aoi','Riku','Jules'],
+    hair: { bob: 4, short: 3, ponytail: 2, long: 2, twintails: 1 }, sw: [74, 86], ww: [50, 60], hw: [62, 74] },
+  transman:   { label: 'Trans man', w: 7, pron: ['he/him'], subj: 'he',
+    names: ['Elliot','Rowan','Jasper','Silas','Kaito','Noah','Finn','Leo','Hiro'],
+    hair: { short: 6, bob: 1, undercut: 3 }, sw: [82, 94], ww: [56, 68], hw: [64, 76] },
+  man:        { label: 'Man', w: 10, pron: ['he/him'], subj: 'he',
+    names: ['Daichi','Marcus','Kenji','Diego','Owen','Takeshi','Liam','Andre','Jun','Malik','Ivan','Sebastian'],
+    hair: { short: 6, undercut: 3, ponytail: 1 }, sw: [90, 104], ww: [62, 76], hw: [64, 76] },
+  nonbinary:  { label: 'Non-binary', w: 8, pron: ['they/them'], subj: 'they',
+    names: ['Sky','River','Ash','Quinn','Rory','Sasha','Robin','Akira','Kit','Phoenix','Remy','Sage'],
+    hair: { bob: 3, short: 3, undercut: 2, long: 2, buns: 1 }, sw: [76, 96], ww: [52, 68], hw: [62, 80] },
+  genderfluid:{ label: 'Genderfluid', w: 6, pron: ['she/they', 'he/they'], subj: 'they',
+    names: ['Alex','Jordan','Nao','Charlie','Max','Hikaru','Emery','Avery'],
+    hair: { long: 2, bob: 2, twintails: 1, short: 2, ponytail: 2 }, sw: [76, 94], ww: [50, 66], hw: [64, 80] },
+};
+
+const ZONES = ['head','neck','shoulderT','shoulderB','upperBack','lowerBack','armT','armB','handT','handB','calfT','calfB','footT','footB'];
+const ZLABEL = { head: 'Scalp', neck: 'Neck', shoulderT: 'Left shoulder', shoulderB: 'Right shoulder', upperBack: 'Upper back',
+  lowerBack: 'Lower back', armT: 'Left arm', armB: 'Right arm', handT: 'Left hand', handB: 'Right hand',
+  calfT: 'Left calf', calfB: 'Right calf', footT: 'Left foot', footB: 'Right foot' };
+const NEEDS_OIL = new Set(['shoulderT','shoulderB','upperBack','lowerBack','armT','armB','calfT','calfB']);
+const STONE_OK = new Set(['shoulderT','shoulderB','upperBack','lowerBack']);
+
+const REQUESTS = [
+  { text: "Desk job. My neck and shoulders are basically concrete.", focus: ['neck','shoulderT','shoulderB'], service: 'Deep Tissue', pref: 3 },
+  { text: "My lower back has ached ever since I moved apartments.", focus: ['lowerBack','upperBack'], service: 'Therapeutic', pref: 2 },
+  { text: "Leg day destroyed me. Please save my calves.", focus: ['calfT','calfB'], service: 'Sports', pref: 3 },
+  { text: "I'm on my feet all day at the café. Feet and calves, please!", focus: ['footT','footB','calfT','calfB'], service: 'Reflexology', pref: 2 },
+  { text: "I just want to melt. Full back, nice and slow.", focus: ['upperBack','lowerBack'], service: 'Swedish', pref: 1 },
+  { text: "Exam season headaches… could you focus on my scalp and neck?", focus: ['head','neck'], service: 'Relaxation', pref: 1 },
+  { text: "Gaming marathon. My forearms and hands hate me.", focus: ['armT','armB','handT','handB'], service: 'Therapeutic', pref: 2 },
+  { text: "Went bouldering yesterday. Shoulders and upper back are fried.", focus: ['shoulderT','shoulderB','upperBack'], service: 'Sports', pref: 3 },
+  { text: "Dance rehearsals all week. My legs and feet are done.", focus: ['calfT','calfB','footT','footB'], service: 'Sports', pref: 2 },
+  { text: "Twelve-hour flight. Everything is stiff, especially my back.", focus: ['upperBack','lowerBack','neck'], service: 'Swedish', pref: 2 },
+  { text: "I draw comics all day — my right arm and shoulder are aching.", focus: ['armB','handB','shoulderB'], service: 'Therapeutic', pref: 2 },
+  { text: "Stressful week at work. I just want to feel human again.", focus: ['neck','upperBack','head'], service: 'Relaxation', pref: 1 },
+];
+const STONE_REQUEST = { text: "I booked the hot stone treatment — I've heard it's amazing!", focus: ['upperBack','lowerBack','shoulderT','shoulderB'], service: 'Hot Stone', pref: 2 };
+
+const LINES = {
+  greet: ["Hi! I'm all yours. Be gentle… or don't.", "Hello~ I've been looking forward to this all week.", "Hey there. Ready when you are.", "Hi! Sorry, I'm a little tense today.", "Okay, I'm comfy. Let's do this."],
+  good: ["Mmm… that's nice.", "Oh wow… right there.", "I can feel it letting go…", "You have magic hands.", "This is exactly what I needed.", "Mmmhm…", "Ahh… so good."],
+  zone: { head: "Scalp massages should be illegal, that's so good…", neck: "My neck is thanking you right now.", footT: "My feet… pure bliss.", footB: "My feet… pure bliss.",
+    lowerBack: "Oh, my lower back needed that.", handT: "Ooh, I never knew hands could feel this good.", handB: "Ooh, I never knew hands could feel this good.",
+    calfT: "Ahh, my poor calves…", calfB: "Ahh, my poor calves…", upperBack: "That's the spot… mmm." },
+  knot: ["Oh! That knot just… melted.", "Ahh—yes, that one's been bugging me for weeks!", "Whoa… I felt that release.", "How did you find that? Amazing."],
+  hard: p => [`Ow—a little lighter? ${p} pressure is my sweet spot.`, `Ouch… could you ease up? ${p} feels best.`],
+  soft: p => [`You can press harder, I don't mind. ${p} is fine!`, `Feel free to go ${p.toLowerCase()}er—I can take it.`],
+  dry: ["Could you use a little oil? It's a bit draggy.", "Ah, my skin's dry—some oil would help."],
+  tickle: ["Pfft—haha! Sorry! My feet are ticklish!", "Hehe—stop—ticklish! Maybe firmer?"],
+  hairOil: ["Ah—not in my hair, please! I just washed it.", "Eep, oil in the hair… not my favorite."],
+  idle: ["…Everything okay back there?", "Hm? Are you still there?"],
+  stone: ["Ooh, warm…", "Oh, that heat is lovely.", "Mmm, the stones are so cozy."],
+  over: ["I think we're running a bit over time…", "Ah, I should probably get going soon."],
+  quiet: ["Mm… I'd rather just relax quietly, if that's okay.", "Sorry, I'm not much of a talker."],
+  small: ["Ha, yeah, the weather's been wild lately.", "I've been binge-watching this anime, it's so good.", "Work's been busy, but I'm hanging in there.", "This place smells amazing, by the way.", "I adopted a cat last month! She's a menace.", "I'm learning to cook. Mostly burning things."],
+};
+const PNAME = ['', 'Light', 'Medium', 'Firm'];
+
+// ---------- Client generation ----------
+function makeClient() {
+  const idKey = weighted(Object.fromEntries(Object.entries(IDS).map(([k, v]) => [k, v.w])));
+  const id = IDS[idKey];
+  const masc = idKey === 'man' || idKey === 'transman';
+  let req = S.owned.stones && Math.random() < 0.22 ? STONE_REQUEST : pick(REQUESTS);
+  const duration = pick([30, 60, 60, 60, 90]);
+  const skin = pick(SKINS);
+  const hairKey = Math.random() < 0.55 ? pick(['black', 'brown', 'chestnut', 'blonde']) : pick(Object.keys(HAIRS));
+  const sw = rand(...id.sw), ww = Math.min(rand(...id.ww), sw - 18), hw = rand(...id.hw);
+  const body = {
+    sw, ww, hw, nw: masc ? rand(20, 24) : rand(16, 20), ls: hw * 0.5,
+    skin: { base: skin, shade: shade(skin, -0.16), deep: shade(skin, -0.3), line: shade(skin, -0.42) },
+    hair: weighted(id.hair), hairColor: HAIRS[hairKey], eye: pick(EYES), masc,
+    muscle: masc ? Math.random() < 0.5 : Math.random() < 0.15,
+    freckles: [], moles: [], tattoo: null,
+    stubble: idKey === 'man' && Math.random() < 0.4, clip: !masc && Math.random() < 0.4, earring: Math.random() < 0.35,
+  };
+  if (Math.random() < 0.3) for (let i = 0; i < 40; i++) body.freckles.push([rand(330, 560), rand(-0.75, 0.75), rand(0.8, 1.8)]);
+  for (let i = 0, n = randi(0, 3); i < n; i++) body.moles.push([rand(340, 560), rand(-0.7, 0.7)]);
+  if (Math.random() < 0.25) body.tattoo = { type: pick(['star', 'flower', 'wave', 'moon']), x: rand(390, 520), y: rand(-0.5, 0.5), color: pick(['#2b3a55', '#5a2b4a', '#22463a']) };
+  let pref = clamp(req.pref + (Math.random() < 0.35 ? pick([-1, 1]) : 0), 1, 3);
+  const scents = ['unscented', 'lavender', 'citrus', 'eucalyptus'];
+  const c = {
+    name: pick(id.names), idKey, idLabel: id.label, pron: pick(id.pron), subj: id.subj, body, req, duration,
+    pref, favScent: pick(scents), ticklish: Math.random() < 0.3, hairOil: Math.random() < 0.35,
+    chatty: Math.random() < 0.6, bg: pick([['#3b4f6b', '#25303f'], ['#5b3b5f', '#2f2234'], ['#2f5a52', '#1d3330'], ['#6a4b35', '#3a2a1f'], ['#4d3f6e', '#28213a']]),
+  };
+  c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1));
+  return c;
+}
+
+// ---------- Body layout ----------
+function limbPath(pts) {
+  const p = new Path2D(), L = [], R = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const ang = Math.atan2(b.y - a.y, b.x - a.x), nx = -Math.sin(ang), ny = Math.cos(ang), r = pts[i].r;
+    L.push([pts[i].x + nx * r, pts[i].y + ny * r]); R.push([pts[i].x - nx * r, pts[i].y - ny * r]);
+  }
+  const side = (arr, first) => {
+    first ? p.moveTo(...arr[0]) : p.lineTo(...arr[0]);
+    for (let i = 1; i < arr.length - 1; i++) p.quadraticCurveTo(arr[i][0], arr[i][1], (arr[i][0] + arr[i + 1][0]) / 2, (arr[i][1] + arr[i + 1][1]) / 2);
+    p.lineTo(...arr[arr.length - 1]);
+  };
+  const e = pts[pts.length - 1], e2 = pts[pts.length - 2], s = pts[0], s2 = pts[1];
+  const ae = Math.atan2(e.y - e2.y, e.x - e2.x), as = Math.atan2(s2.y - s.y, s2.x - s.x);
+  side(L, true);
+  p.arc(e.x, e.y, e.r, ae + Math.PI / 2, ae - Math.PI / 2, true);
+  side(R.slice().reverse(), false);
+  p.arc(s.x, s.y, s.r, as - Math.PI / 2, as + Math.PI / 2, true);
+  p.closePath();
+  return p;
+}
+function handPath(x, y, dir) { // client's hand, palm down, fingers toward +x
+  const p = new Path2D();
+  p.ellipse(x, y, 17, 12.5, 0, 0, Math.PI * 2);
+  for (let i = 0; i < 4; i++) { const fy = y - 8 + i * 5.3; p.moveTo(x + 10, fy); p.ellipse(x + 20, fy, 12 - Math.abs(i - 1.5) * 1.6, 2.8, 0, 0, Math.PI * 2); }
+  p.moveTo(x + 2, y + dir * 10); p.ellipse(x + 6, y + dir * 14, 9, 4, dir * 0.6, 0, Math.PI * 2);
+  return p;
+}
+function buildLayout(b) {
+  const { sw, ww, hw, nw, ls } = b, P = {}, Z = {};
+  const t = new Path2D();
+  t.moveTo(280, CY - nw);
+  t.bezierCurveTo(312, CY - nw - 2, 322, CY - sw + 12, 350, CY - sw);
+  t.bezierCurveTo(372, CY - sw - 6, 392, CY - sw + 2, 398, CY - sw + 10);
+  t.bezierCurveTo(440, CY - sw + 14, 488, CY - ww, 525, CY - ww);
+  t.bezierCurveTo(556, CY - ww, 576, CY - hw + 6, 604, CY - hw);
+  t.lineTo(604, CY + hw);
+  t.bezierCurveTo(576, CY + hw - 6, 556, CY + ww, 525, CY + ww);
+  t.bezierCurveTo(488, CY + ww, 440, CY + sw - 14, 398, CY + sw - 10);
+  t.bezierCurveTo(392, CY + sw - 2, 372, CY + sw + 6, 350, CY + sw);
+  t.bezierCurveTo(322, CY + sw - 12, 312, CY + nw + 2, 280, CY + nw);
+  t.closePath();
+  P.torso = t;
+  for (const [k, s] of [['T', -1], ['B', 1]]) {
+    const ay = v => CY + s * v;
+    P['arm' + k] = limbPath([{ x: 366, y: ay(sw + 4), r: 19 }, { x: 420, y: ay(sw + 10), r: 17 }, { x: 472, y: ay((sw + hw) / 2 + 16), r: 13 },
+      { x: 528, y: ay(hw + 20), r: 14.5 }, { x: 588, y: ay(hw + 24), r: 10.5 }]);
+    P['hand' + k] = handPath(604, ay(hw + 25), -s);
+    P['leg' + k] = limbPath([{ x: 830, y: ay(ls), r: 33 }, { x: 900, y: ay(ls + 2), r: 31 }, { x: 965, y: ay(ls + 1), r: 24 }, { x: 1040, y: ay(ls), r: 13 }]);
+    const f = new Path2D(); f.ellipse(1072, ay(ls), 32, 17.5, 0, 0, Math.PI * 2); P['foot' + k] = f;
+    Z['shoulder' + k] = { x: 352, y: ay(sw * 0.62), rx: 40, ry: sw * 0.36, rot: 0 };
+    const a1 = { x: 366, y: ay(sw + 4) }, a2 = { x: 588, y: ay(hw + 24) };
+    Z['arm' + k] = { x: (a1.x + a2.x) / 2, y: (a1.y + a2.y) / 2, rx: 120, ry: 17, rot: Math.atan2(a2.y - a1.y, a2.x - a1.x) };
+    Z['hand' + k] = { x: 612, y: ay(hw + 25), rx: 26, ry: 14, rot: 0 };
+    Z['calf' + k] = { x: 935, y: ay(ls), rx: 105, ry: 28, rot: 0 };
+    Z['foot' + k] = { x: 1072, y: ay(ls), rx: 32, ry: 18, rot: 0 };
+  }
+  const h = new Path2D(); h.ellipse(242, CY, 46, 42, 0, 0, Math.PI * 2); P.head = h;
+  Z.head = { x: 242, y: CY, rx: 46, ry: 42, rot: 0 };
+  Z.neck = { x: 300, y: CY, rx: 24, ry: nw + 4, rot: 0 };
+  Z.upperBack = { x: 432, y: CY, rx: 70, ry: sw * 0.8, rot: 0 };
+  Z.lowerBack = { x: 528, y: CY, rx: 52, ry: ww * 0.95, rot: 0 };
+  const towel = { x: 566, y: CY - hw - 10, w: 300, h: hw * 2 + 20 };
+  return { P, Z, towel };
+}
+const hitCtx = document.createElement('canvas').getContext('2d');
+function zoneAt(x, y) {
+  if (!ses) return null;
+  const { P, towel } = ses.L, b = ses.c.body, hit = p => hitCtx.isPointInPath(p, x, y);
+  for (const k of ['T', 'B']) if (hit(P['hand' + k])) return 'hand' + k;
+  for (const k of ['T', 'B']) if (hit(P['arm' + k])) return 'arm' + k;
+  if (x >= towel.x && x <= towel.x + towel.w && y >= towel.y && y <= towel.y + towel.h) return 'towel';
+  for (const k of ['T', 'B']) if (hit(P['foot' + k])) return 'foot' + k;
+  for (const k of ['T', 'B']) if (hit(P['leg' + k])) return 'calf' + k;
+  if (hit(P.head)) return 'head';
+  if (hit(P.torso)) {
+    const dy = y - CY;
+    if (x < 322) return 'neck';
+    if (x < 402 && Math.abs(dy) > b.sw * 0.36) return dy < 0 ? 'shoulderT' : 'shoulderB';
+    if (x < 480) return 'upperBack';
+    return 'lowerBack';
+  }
+  return null;
+}
+
+// ---------- Canvas setup ----------
+const cv = $('game'), ctx = cv.getContext('2d');
+const bodyC = document.createElement('canvas'), bctx = bodyC.getContext('2d');
+const baseC = document.createElement('canvas'), basectx = baseC.getContext('2d');
+const roomC = document.createElement('canvas'), rctx = roomC.getContext('2d');
+const pcv = $('portrait'), pctx = pcv.getContext('2d');
+let K = 1;
+function resize() {
+  const st = $('stage'), sw = st.clientWidth - 8, sh = st.clientHeight - 8;
+  const scale = Math.max(0.1, Math.min(sw / W, sh / H));
+  cv.style.width = Math.floor(W * scale) + 'px'; cv.style.height = Math.floor(H * scale) + 'px';
+  const nk = clamp(scale * (window.devicePixelRatio || 1), 0.5, 2);
+  if (Math.abs(nk - K) > 0.01 || cv.width !== Math.round(W * nk)) {
+    K = nk;
+    for (const c of [cv, bodyC, roomC, baseC]) { c.width = Math.round(W * K); c.height = Math.round(H * K); }
+    buildRoom(); if (ses) drawBodyBase();
+  }
+}
+
+// ---------- Room rendering (cached) ----------
+function plant(g, x, y, s) {
+  g.save(); g.translate(x, y);
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(6, 8, 40 * s, 40 * s, 0, 0, 7); g.fill();
+  g.fillStyle = '#c9b49a'; g.beginPath(); g.arc(0, 0, 34 * s, 0, 7); g.fill();
+  g.fillStyle = '#5b4030'; g.beginPath(); g.arc(0, 0, 28 * s, 0, 7); g.fill();
+  for (let i = 0; i < 14; i++) {
+    const a = i / 14 * Math.PI * 2 + (i % 2) * 0.2, l = (50 + (i % 3) * 12) * s;
+    g.fillStyle = i % 2 ? '#3f8a52' : '#57a865';
+    g.beginPath(); g.ellipse(Math.cos(a) * l / 2, Math.sin(a) * l / 2, l / 2, 9 * s, a, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(20,60,30,.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * l * 0.95, Math.sin(a) * l * 0.95); g.stroke();
+  }
+  g.restore();
+}
+function buildRoom() {
+  const g = rctx; g.setTransform(K, 0, 0, K, 0, 0);
+  // wooden floor
+  g.fillStyle = '#5e412d'; g.fillRect(0, 0, W, H);
+  let seed = 7; const sr = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let y = 0; y < H; y += 40) {
+    for (let x = -((y / 40) % 2) * 110; x < W; x += 220) {
+      g.fillStyle = shade('#76523a', (sr() - 0.5) * 0.18); g.fillRect(x + 1, y + 1, 218, 38);
+      g.strokeStyle = 'rgba(40,25,15,.25)'; g.lineWidth = 1;
+      for (let i = 0; i < 3; i++) { g.beginPath(); const yy = y + 8 + sr() * 24; g.moveTo(x + 6, yy); g.bezierCurveTo(x + 70, yy + 3, x + 140, yy - 3, x + 212, yy + 1); g.stroke(); }
+    }
+  }
+  // rug
+  g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, 104, CY - 200, 1092, 416, 30); g.fill();
+  g.fillStyle = '#d8c9ae'; rr(g, 100, CY - 206, 1092, 412, 30); g.fill();
+  g.strokeStyle = '#b39a74'; g.lineWidth = 6; rr(g, 118, CY - 188, 1056, 376, 22); g.stroke();
+  g.strokeStyle = 'rgba(150,120,80,.35)'; g.lineWidth = 2; rr(g, 132, CY - 174, 1028, 348, 18); g.stroke();
+  if (S.owned.decor) { // bamboo mat stripes
+    g.fillStyle = 'rgba(120,150,80,.12)'; for (let x = 140; x < 1150; x += 14) g.fillRect(x, CY - 172, 6, 344);
+  }
+  // table shadow + table
+  g.fillStyle = 'rgba(0,0,0,.32)'; rr(g, 160, CY - 146, 1000, 312, 40); g.fill();
+  const leather = S.owned.table ? '#3d5c58' : '#4c3c35';
+  g.fillStyle = leather; rr(g, 150, CY - 158, 1000, 316, 40); g.fill();
+  g.strokeStyle = shade(leather, 0.25); g.lineWidth = 2; g.setLineDash([6, 6]); rr(g, 162, CY - 146, 976, 292, 32); g.stroke(); g.setLineDash([]);
+  // sheet
+  const sg = g.createLinearGradient(0, CY - 140, 0, CY + 140); sg.addColorStop(0, '#f6f3ee'); sg.addColorStop(0.5, '#ffffff'); sg.addColorStop(1, '#e9e4dc');
+  g.fillStyle = sg; rr(g, 290, CY - 138, 846, 276, 26); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,.06)'; g.lineWidth = 2;
+  for (let i = 0; i < 7; i++) { g.beginPath(); const x = 320 + i * 120; g.moveTo(x, CY - 136); g.bezierCurveTo(x + 20, CY - 60, x - 20, CY + 60, x + 6, CY + 136); g.stroke(); }
+  // face cradle
+  g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(240, CY + 6, 74, 70, 0, 0, 7); g.fill();
+  g.fillStyle = S.owned.table ? '#5b807a' : '#6b5850'; g.beginPath(); g.ellipse(236, CY, 72, 68, 0, 0, 7); g.fill();
+  g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(236, CY, 64, 60, 0, 0, 7); g.fill();
+  g.fillStyle = '#d9d2c8'; g.beginPath(); g.ellipse(226, CY, 40, 30, 0, 0, 7); g.fill();
+  // side cart with towels & bottles
+  g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, 1006, 30, 230, 110, 14); g.fill();
+  g.fillStyle = '#8a6b52'; rr(g, 1000, 22, 230, 110, 14); g.fill();
+  g.fillStyle = '#9c7c61'; rr(g, 1008, 30, 214, 94, 10); g.fill();
+  for (let i = 0; i < 3; i++) { // rolled towels
+    const x = 1030 + i * 34; g.fillStyle = '#f3efe6'; g.beginPath(); g.arc(x, 76, 15, 0, 7); g.fill();
+    g.strokeStyle = '#d8d0c2'; g.lineWidth = 2; g.beginPath(); g.arc(x, 76, 9, 0, 6); g.stroke(); g.beginPath(); g.arc(x, 76, 4, 0, 6); g.stroke();
+  }
+  const owned = ['unscented', ...['lavender', 'citrus', 'eucalyptus'].filter(s => S.owned[s])];
+  owned.forEach((s, i) => { const x = 1150 + (i % 2) * 30, y = 56 + Math.floor(i / 2) * 40; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.arc(x + 3, y + 3, 13, 0, 7); g.fill();
+    g.fillStyle = shade(SCENT_COLOR[s], -0.2); g.beginPath(); g.arc(x, y, 13, 0, 7); g.fill(); g.fillStyle = '#333'; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); });
+  if (S.owned.stones) { for (let i = 0; i < 5; i++) { g.fillStyle = '#2f3134'; g.beginPath(); g.ellipse(1050 + i * 22, 112, 10, 7, 0, 0, 7); g.fill(); } }
+  plant(g, 70, 90, 1); plant(g, 1220, 650, 1.1);
+  if (S.owned.decor) {
+    plant(g, 70, 640, 0.9); plant(g, 600, 50, 0.7);
+    for (const [x, y] of [[360, 40], [880, 40], [360, 700], [880, 700]]) {
+      const lg = g.createRadialGradient(x, y, 4, x, y, 90); lg.addColorStop(0, 'rgba(255,200,120,.35)'); lg.addColorStop(1, 'rgba(255,200,120,0)');
+      g.fillStyle = lg; g.fillRect(x - 90, y - 90, 180, 180);
+      g.fillStyle = '#c0392b'; g.beginPath(); g.arc(x, y, 16, 0, 7); g.fill(); g.strokeStyle = '#7d2a1f'; g.lineWidth = 2;
+      for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(x - 15, y + i * 7); g.lineTo(x + 15, y + i * 7); g.stroke(); }
+    }
+  }
+  // candle stand (flame drawn live)
+  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.arc(1222, CY + 4, 30, 0, 7); g.fill();
+  g.fillStyle = '#3a2d25'; g.beginPath(); g.arc(1218, CY, 30, 0, 7); g.fill();
+  for (const [dx, dy] of [[-10, -8], [10, -6], [0, 12]]) { g.fillStyle = '#f5ecd9'; g.beginPath(); g.arc(1218 + dx, CY + dy, 8, 0, 7); g.fill(); }
+}
+
+// ---------- Session state ----------
+let ses = null;             // current massage session
+let state = 'title';        // title | intro | session | results | dayEnd | paused
+let tool = 'hands', pressure = 2, heatView = false, scent = 'unscented';
+const ptr = { x: 640, y: 400, lx: 640, ly: 400, down: false, inside: false, zone: null, touch: false };
+const particles = [], floaters = [];
+let bubble = null, time = 0;
+
+function startSession(c) {
+  const L = buildLayout(c.body), scale = c.duration / 60;
+  const tension = {}, init = {};
+  for (const z of ZONES) {
+    const base = c.req.focus.includes(z) ? rand(62, 90) : rand(14, 32) * Math.min(1, 0.55 + scale * 0.45);
+    tension[z] = init[z] = base;
+  }
+  const knots = [], nk = c.duration === 30 ? 2 : c.duration === 60 ? 3 : 4;
+  const kz = [...c.req.focus];
+  for (let i = 0; i < nk; i++) {
+    const z = i < kz.length ? kz[i] : pick(kz);
+    const zc = L.Z[z]; let x, y, tries = 0;
+    do {
+      const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * 0.65;
+      const ox = Math.cos(a) * zc.rx * r, oy = Math.sin(a) * zc.ry * r;
+      x = zc.x + ox * Math.cos(zc.rot) - oy * Math.sin(zc.rot); y = zc.y + ox * Math.sin(zc.rot) + oy * Math.cos(zc.rot);
+      tries++;
+    } while (tries < 30 && (zoneAtLayout(L, c.body, x, y) !== z || knots.some(k => dist(k.x, k.y, x, y) < 40)));
+    knots.push({ x, y, z, amt: 100, done: false });
+  }
+  ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
+    overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {} };
+  bubble = null; particles.length = 0; floaters.length = 0;
+  tool = 'hands'; heatView = false;
+  drawBodyBase(); refreshUI(true);
+  say(pick(LINES.greet), 'happy', true);
+}
+function zoneAtLayout(L, b, x, y) { const save = ses; ses = { L, c: { body: b } }; const z = zoneAt(x, y); ses = save; return z; }
+
+function relaxScore() {
+  if (!ses) return 0;
+  let num = 0, den = 0;
+  for (const z of ZONES) { const w = ses.c.req.focus.includes(z) ? 3 : 1; num += w * (ses.init[z] - ses.tension[z]); den += w * ses.init[z]; }
+  const kr = ses.knots.length ? ses.knots.filter(k => k.done).length / ses.knots.length : 1;
+  return clamp(0.7 * (num / den) + 0.3 * kr, 0, 1);
+}
+
+function say(text, expr, force) {
+  if (!ses) return;
+  if (!force && ses.lineCd > 0) return;
+  bubble = { text, t: 4.2 };
+  ses.lineCd = 3.2;
+  if (expr) { ses.expr = expr; ses.exprT = 1.8; }
+}
+function float(x, y, text, color) { floaters.push({ x, y, text, color: color || '#fff', life: 1.6 }); }
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2000); }
+
+// ---------- Gameplay update ----------
+function update(dt) {
+  time += dt;
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i]; p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.type === 'drop') p.vy += 900 * dt; if (p.type === 'steam') { p.vx += Math.sin(time * 3 + i) * 8 * dt; }
+    if (p.life <= 0 || (p.type === 'drop' && p.y >= p.ty)) {
+      if (p.type === 'drop') for (let j = 0; j < 3; j++) particles.push({ type: 'splash', x: p.x, y: p.ty, vx: rand(-40, 40), vy: rand(-60, -10), life: 0.3, max: 0.3, color: p.color, size: 2 });
+      particles.splice(i, 1);
+    }
+  }
+  for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.life -= dt; f.y -= 28 * dt; if (f.life <= 0) floaters.splice(i, 1); }
+  if (bubble) { bubble.t -= dt; if (bubble.t <= 0) bubble = null; }
+  if (state !== 'session' || !ses) return;
+
+  const c = ses.c;
+  ses.minutes += dt * 0.75; // 1 real second = 0.75 in-game minutes
+  ses.lineCd -= dt; ses.talkCd -= dt; ses.complainCd -= dt; ses.exprT -= dt;
+  for (const z of ZONES) { ses.red[z] = Math.max(0, ses.red[z] - dt * 0.04); ses.oil[z] = Math.max(0, ses.oil[z] - dt * 0.005); }
+
+  // ambient comfort
+  if (S.music) ses.comfort += dt * (S.owned.speakers ? 0.5 : 0.15);
+  if (ses.minutes > c.duration) {
+    if (!ses.overWarn) { ses.overWarn = true; say(pick(LINES.over), 'neutral', true); toast('⏰ Time is up — wrap up and end the session.'); }
+    ses.comfort -= dt * 2.5;
+    if (ses.minutes > c.duration + 12) { endSession(); return; }
+  }
+
+  // hot stones
+  for (const s of ses.stones) {
+    s.heat = Math.max(0, s.heat - dt / 45);
+    if (s.heat > 0) {
+      ses.tension[s.z] = Math.max(0, ses.tension[s.z] - dt * 1.6 * s.heat);
+      ses.red[s.z] = Math.min(0.6, ses.red[s.z] + dt * 0.05 * s.heat);
+      for (const k of ses.knots) if (!k.done && dist(k.x, k.y, s.x, s.y) < 60) { k.amt -= dt * 3.5 * s.heat; checkKnot(k); }
+      ses.comfort += dt * 0.35 * s.heat;
+      if (Math.random() < dt * 2 * s.heat) particles.push({ type: 'steam', x: s.x + rand(-8, 8), y: s.y - 6, vx: 0, vy: -25, life: 1.4, max: 1.4, size: rand(4, 8) });
+    }
+  }
+
+  // pointer interaction
+  const move = Math.min(30, dist(ptr.x, ptr.y, ptr.lx, ptr.ly));
+  ptr.lx = ptr.x; ptr.ly = ptr.y;
+  const z = ptr.inside ? zoneAt(ptr.x, ptr.y) : null; ptr.zone = z;
+  const active = ptr.down && ptr.inside && z && z !== 'towel';
+  if (!active) ses.idle += dt; else ses.idle = 0;
+  if (ses.idle > 7) { ses.comfort -= dt * 0.8; if (ses.idle > 9 && ses.idle < 9 + dt * 1.5) say(pick(LINES.idle), 'neutral'); }
+
+  if (active && tool === 'hands') massage(z, move, dt);
+  else if (active && tool === 'oil') applyOil(z, dt);
+  hands.squeeze = active && tool === 'hands' ? Math.min(1, hands.squeeze + dt * 6) : Math.max(0, hands.squeeze - dt * 4);
+  if (active && tool === 'hands') hands.phase += dt * (3 + move * 0.4);
+
+  ses.comfort = clamp(ses.comfort, 0, 100);
+  if (ses.comfort <= 0) { walkout(); return; }
+  refreshUI(false);
+}
+
+function massage(z, move, dt) {
+  const c = ses.c, P = pressure, pref = c.pref;
+  const oiled = ses.oil[z] > 0.15, needsOil = NEEDS_OIL.has(z);
+  let eff = (move * 0.012 + dt * 0.9) * (0.55 + 0.3 * P) * (S.owned.cert ? 1.25 : 1);
+  if (needsOil && !oiled) eff *= 0.55;
+  if (P < pref) eff *= P === pref - 1 ? 0.7 : 0.45;
+  if (oiled && c.favScent === ses.oilScent?.[z]) eff *= 1.1;
+  const before = ses.tension[z];
+  ses.tension[z] = Math.max(0, before - eff * 1.0);
+  ses.red[z] = Math.min(1, ses.red[z] + eff * 0.012 * P);
+  if (oiled) ses.oil[z] = Math.max(0, ses.oil[z] - eff * 0.004);
+
+  // knots respond to nearby work, and especially to steady held pressure
+  for (const k of ses.knots) {
+    if (k.done) continue;
+    const d = dist(k.x, k.y, ptr.x, ptr.y);
+    if (d < 40) {
+      const fit = P >= pref ? 1 : 0.5;
+      k.amt -= (eff * 2.0 + (move < 3 ? dt * 13 * (P / 3 + 0.34) : 0)) * fit * (S.owned.cert ? 1.25 : 1);
+      if (Math.random() < dt * 8) float(k.x + rand(-10, 10), k.y - 10, '•', '#ff9a8a');
+      checkKnot(k);
+    }
+  }
+
+  // comfort reactions
+  if (P > pref) {
+    ses.comfort -= dt * (P - pref) * 7;
+    if (ses.complainCd <= 0) { say(pick(LINES.hard(PNAME[pref])), 'wince', true); ses.complainCd = 5; ses.known.pref = true; }
+  } else if (z.startsWith('foot') && c.ticklish && P === 1 && move > 2) {
+    ses.comfort -= dt * 5;
+    if (ses.complainCd <= 0) { say(pick(LINES.tickle), 'laugh', true); ses.complainCd = 5; ses.known.tickle = true; }
+  } else if (needsOil && !oiled && move > 3) {
+    ses.comfort -= dt * 1.8;
+    if (ses.complainCd <= 0) { say(pick(LINES.dry), 'neutral', true); ses.complainCd = 7; }
+  } else {
+    ses.comfort += dt * (1.6 + (P === pref ? 1.4 : 0));
+    if (P < pref && ses.complainCd <= 0 && Math.random() < dt * 0.25) { say(pick(LINES.soft(PNAME[pref])), 'neutral', true); ses.complainCd = 8; ses.known.pref = true; }
+    else if (!ses.zoneLineDone[z] && LINES.zone[z] && before > 20 && Math.random() < dt * 0.5) { ses.zoneLineDone[z] = true; say(LINES.zone[z], 'bliss'); }
+    else if (Math.random() < dt * 0.12) say(pick(LINES.good), 'bliss');
+  }
+}
+function checkKnot(k) {
+  if (k.done || k.amt > 0) return;
+  k.done = true; ses.released++; S.stats.knots++;
+  float(k.x, k.y - 16, '✨ Knot released!', '#ffe08a');
+  for (let i = 0; i < 14; i++) { const a = rand(0, 7); particles.push({ type: 'spark', x: k.x, y: k.y, vx: Math.cos(a) * rand(40, 120), vy: Math.sin(a) * rand(40, 120), life: 0.7, max: 0.7, size: rand(2, 4), color: '#ffe08a' }); }
+  ses.comfort += 6; ses.tension[k.z] = Math.max(0, ses.tension[k.z] - 12);
+  say(pick(LINES.knot), 'bliss', true); chime();
+}
+function applyOil(z, dt) {
+  const c = ses.c;
+  ses.oil[z] = Math.min(1, ses.oil[z] + dt * 1.6);
+  ses.oilScent = ses.oilScent || {}; ses.oilScent[z] = scent;
+  ses.usedScent[scent] = true;
+  if (Math.random() < dt * 14) {
+    const bx = ptr.x - 24, by = ptr.y - 74;
+    particles.push({ type: 'drop', x: bx + rand(-2, 2), y: by, vx: rand(30, 50), vy: 20, ty: ptr.y + rand(-6, 6), life: 2, max: 2, size: rand(2.5, 4), color: SCENT_COLOR[scent] });
+  }
+  if (z === 'head' && c.hairOil) {
+    ses.comfort -= dt * 7;
+    if (ses.complainCd <= 0) { say(pick(LINES.hairOil), 'annoyed', true); ses.complainCd = 4; ses.known.hairOil = true; }
+    return;
+  }
+  if (!ses.scentPraised && scent === c.favScent && scent !== 'unscented') {
+    ses.scentPraised = true; ses.known.scent = true; ses.comfort += 8;
+    say(`Is that ${SCENTS[scent].toLowerCase()}? I love that smell…`, 'bliss', true);
+  }
+  ses.comfort += dt * 0.6;
+}
+function clickStone(x, y, z) {
+  const hitIdx = ses.stones.findIndex(s => dist(s.x, s.y, x, y) < 22);
+  if (hitIdx >= 0) { ses.stones.splice(hitIdx, 1); toast('Stone removed'); return; }
+  if (!STONE_OK.has(z)) { toast('🪨 Hot stones go on the shoulders or back.'); return; }
+  if (ses.stones.length >= 6) { toast('Max 6 stones at once — click one to remove it.'); return; }
+  ses.stones.push({ x, y, z, heat: 1, rot: rand(-0.5, 0.5) });
+  ses.usedStones = true; ses.comfort += 2;
+  say(pick(LINES.stone), 'bliss');
+}
+function talk() {
+  if (state !== 'session' || !ses) return;
+  if (ses.talkCd > 0) { toast(`💬 Let them relax a bit (${Math.ceil(ses.talkCd)}s)`); return; }
+  const c = ses.c; ses.talkCd = 14; ses.talkCount++;
+  if (!c.chatty && ses.talkCount > 1) { say(pick(LINES.quiet), 'annoyed', true); ses.comfort -= 4; return; }
+  ses.comfort += c.chatty ? 5 : 1;
+  const K2 = ses.known;
+  if (!K2.pref) { K2.pref = true; say(['', "Honestly? I like it light and gentle.", "Medium pressure is perfect for me.", "I like it firm. Don't hold back!"][c.pref], 'happy', true); }
+  else if (!K2.scent) { K2.scent = true; say(c.favScent === 'unscented' ? "I'm sensitive to smells, so unscented is best for me." : `I'm a sucker for ${SCENTS[c.favScent].toLowerCase()} scents.`, 'happy', true); }
+  else if (!K2.tickle && c.ticklish) { K2.tickle = true; say("Fair warning: my feet are SUPER ticklish with light touches.", 'laugh', true); }
+  else if (!K2.hairOil && c.hairOil) { K2.hairOil = true; say("Oh, and please keep oil out of my hair — I just had it done.", 'neutral', true); }
+  else { if (!c.ticklish) K2.tickle = true; if (!c.hairOil) K2.hairOil = true; say(pick(LINES.small), 'happy', true); }
+}
+
+// ---------- Ending sessions ----------
+function computeResult(walked) {
+  const c = ses.c, relax = relaxScore(), comfortN = ses.comfort / 100, timeUse = clamp(ses.minutes / c.duration, 0, 1);
+  let score = relax * 0.6 + comfortN * 0.3 + timeUse * 0.1;
+  const bonus = [];
+  if (c.req.service === 'Hot Stone') { if (ses.usedStones) { score += 0.06; bonus.push('Hot stones used ✔'); } else { score -= 0.1; bonus.push('No hot stones used ✘'); } }
+  if (ses.scentPraised) { score += 0.04; bonus.push('Favorite scent ✔'); }
+  if (ses.released === ses.knots.length) { score += 0.03; bonus.push('All knots released ✔'); }
+  let stars = walked ? 0.5 : clamp(Math.round(score * 5.3 * 2) / 2, 1, 5);
+  const pay = walked ? 0 : Math.round(c.price * (stars >= 2 ? 1 : 0.5));
+  const tip = stars >= 4 ? Math.round(c.price * (0.1 + (stars - 4) * 0.15 + (c.chatty && ses.talkCount ? 0.05 : 0))) : 0;
+  return { relax, comfortN, timeUse, stars, pay, tip, bonus, walked };
+}
+function finishClient(res) {
+  const c = ses.c;
+  S.money += res.pay + res.tip; S.clientNo++;
+  S.ratings.push(res.stars); if (S.ratings.length > 50) S.ratings.shift();
+  S.stats.clients++; S.stats.earned += res.pay + res.tip; if (res.stars >= 5) S.stats.fiveStars++;
+  S.dayLog.push({ name: c.name, stars: res.stars, total: res.pay + res.tip });
+  ses.ended = true; saveGame(); refreshUI(true);
+  if (res.pay + res.tip > 0) cashSound();
+}
+function walkout() {
+  state = 'results';
+  const res = computeResult(true);
+  say("That's it, I'm done. This isn't relaxing at all.", 'annoyed', true);
+  finishClient(res);
+  showResults(res, "That's it, I'm done. This isn't relaxing at all.");
+}
+function endSession(ask) {
+  if (state !== 'session' || !ses) return;
+  if (ask && ses.minutes < ses.c.duration * 0.5 && relaxScore() < 0.5) {
+    showModal(`<h2>End the session early?</h2><p>${esc(ses.c.name)} still has a lot of tension and ${Math.round(ses.c.duration - ses.minutes)} minutes left on their booking. Ending now will probably hurt your rating.</p>`,
+      [['Keep massaging', () => resume(), ''], ['End anyway', () => { hideModal(); state = 'session'; endSession(false); }, 'danger']]);
+    state = 'paused'; return;
+  }
+  state = 'results';
+  const res = computeResult(false);
+  finishClient(res);
+  const q = { 5: "That was incredible. I'm booking again next week!", 4.5: "Wow, I feel like a new person. Thank you!", 4: "Really good session, thank you so much!", 3.5: "That was nice. I feel a lot looser.", 3: "It was alright. I feel a bit better.", 2.5: "Hmm, it was okay I guess.", 2: "Not quite what I needed, honestly.", 1.5: "…I don't think I'll be back.", 1: "Well. That was a waste of an hour." };
+  showResults(res, q[res.stars] || q[1]);
+}
+function starStr(s) { let o = ''; for (let i = 1; i <= 5; i++) o += `<span class="st ${s >= i ? 'full' : s >= i - 0.5 ? 'half' : ''}">★</span>`; return `<span class="stw">${o}</span>`; }
+function showResults(res, quote) {
+  const c = ses.c;
+  const last = S.clientNo >= todayTotal();
+  showModal(`<h2>Session complete — ${esc(c.name)}</h2>
+    <div class="stars">${starStr(res.stars)}</div>
+    <div class="quote">“${esc(quote)}”</div>
+    <div class="rows">
+      <div class="row"><span>Relaxation</span><b>${Math.round(res.relax * 100)}%</b></div>
+      <div class="row"><span>Comfort</span><b>${Math.round(res.comfortN * 100)}%</b></div>
+      <div class="row"><span>Knots released</span><b>${ses.released} / ${ses.knots.length}</b></div>
+      <div class="row"><span>Time used</span><b>${Math.round(Math.min(ses.minutes, c.duration))} / ${c.duration} min</b></div>
+      ${res.bonus.map(b => `<div class="row"><span>${esc(b)}</span><span></span></div>`).join('')}
+      <div class="row"><span>Session fee</span><b>$${res.pay}</b></div>
+      <div class="row"><span>Tip</span><b>$${res.tip}</b></div>
+      <div class="row total"><span>Earned</span><span>$${res.pay + res.tip}</span></div>
+    </div>`,
+    [[last ? 'Close up for the day →' : 'Next client →', () => last ? showDayEnd() : nextClient(), 'primary']]);
+}
+function showDayEnd() {
+  state = 'dayEnd';
+  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent();
+  S.money -= rent; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
+  const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
+  showModal(`<h2>🌙 End of Day ${S.day - 1}</h2>
+    <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)} ${starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
+    <div class="row"><span>Earnings</span><b>$${earned}</b></div>
+    <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
+    <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
+    <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
+    [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => nextClient(), 'primary']]);
+}
+function showDayEndAgain() {
+  showModal(`<h2>☀️ Ready for Day ${S.day}?</h2><p>Balance: <b>$${S.money}</b> · Reputation ⭐ ${rep().toFixed(2)}</p>`,
+    [['🛍️ Shop', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => nextClient(), 'primary']]);
+}
+function showShop(back) {
+  const items = SHOP.map(it => {
+    const own = !!S.owned[it.id];
+    return `<div class="item"><div class="t">${it.name}</div><div class="d">${it.desc}</div>
+      <button data-buy="${it.id}" ${own || S.money < it.price ? 'disabled' : ''} class="${own ? '' : 'primary'}">${own ? 'Owned ✔' : '$' + it.price}</button></div>`;
+  }).join('');
+  showModal(`<h2>🛍️ Spa Upgrades</h2><p>Balance: <b>$${S.money}</b></p><div class="shop">${items}</div>`, [['← Back', back, '']]);
+  $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    const it = SHOP.find(i => i.id === b.dataset.buy);
+    if (!it || S.owned[it.id] || S.money < it.price) return;
+    S.money -= it.price; S.owned[it.id] = true; saveGame(); buildRoom(); refreshScents(); refreshUI(true); cashSound();
+    showShop(back);
+  });
+}
+function nextClient() {
+  hideModal();
+  const c = makeClient();
+  state = 'intro';
+  showModal(`<h2>🔔 A client walks in</h2>
+    <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
+    <div style="flex:1;min-width:220px">
+      <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="req">“${esc(c.req.text)}”</div>
+      <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
+    </div></div>`,
+    [['Begin session ✋', () => { hideModal(); state = 'session'; startSession(c); }, 'primary']]);
+  drawPortrait(c, 'happy'); const ip = $('introP'); ip.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
+}
+
+// ---------- Rendering: body ----------
+function innerShade(g, path, color, width) {
+  g.save(); g.clip(path); g.shadowColor = color; g.shadowBlur = width; g.strokeStyle = color; g.lineWidth = width * 0.6; g.stroke(path); g.restore();
+}
+function drawBodyBase() { // static skin, shading & anatomy — rendered once per client
+  const g = basectx, c = ses.c, b = c.body, sk = b.skin, { P, Z } = ses.L;
+  g.setTransform(K, 0, 0, K, 0, 0); g.clearRect(0, 0, W, H);
+  const parts = [P.armT, P.armB, P.handT, P.handB, P.legT, P.legB, P.footT, P.footB, P.torso, P.head];
+  // drop shadow onto sheet
+  g.save(); g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.fillStyle = sk.base;
+  for (const p of parts) g.fill(p); g.restore();
+  for (const p of parts) { g.fillStyle = sk.base; g.fill(p); innerShade(g, p, sk.shade, 18); g.lineWidth = 1.6; g.strokeStyle = sk.line; g.stroke(p); }
+  // ears
+  for (const s of [-1, 1]) { g.fillStyle = sk.base; g.beginPath(); g.ellipse(262, CY + s * 41, 10, 6, 0, 0, 7); g.fill(); g.strokeStyle = sk.line; g.lineWidth = 1.4; g.stroke(); }
+  // foot soles
+  for (const k of ['T', 'B']) {
+    const z = Z['foot' + k]; g.save(); g.clip(P['foot' + k]);
+    g.fillStyle = rgba('#ffd9c9', 0.35); g.beginPath(); g.ellipse(z.x + 4, z.y, 22, 11, 0, 0, 7); g.fill();
+    g.strokeStyle = rgba(sk.line, 0.4); g.lineWidth = 1;
+    for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(z.x + 30, z.y - 11 + i * 5.5, 3, Math.PI * 0.5, Math.PI * 1.5); g.stroke(); }
+    g.restore();
+  }
+  // anatomical details on top of skin
+  g.save(); g.globalCompositeOperation = 'source-atop';
+  // highlight (key light from top-left)
+  const hl = g.createRadialGradient(420, CY - b.sw * 0.4, 10, 420, CY - b.sw * 0.4, 260); hl.addColorStop(0, 'rgba(255,255,255,.14)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillRect(0, 0, W, H);
+  g.strokeStyle = rgba(sk.deep, 0.55); g.lineCap = 'round';
+  // spine
+  g.lineWidth = 3; g.filter = 'blur(1.5px)';
+  g.beginPath(); g.moveTo(318, CY); g.bezierCurveTo(400, CY + 2, 480, CY - 2, 600, CY); g.stroke();
+  // shoulder blades
+  g.lineWidth = 2.4;
+  for (const s of [-1, 1]) {
+    g.beginPath(); g.moveTo(395, CY + s * b.sw * 0.18); g.quadraticCurveTo(430, CY + s * b.sw * 0.12, 462, CY + s * b.sw * 0.34); g.quadraticCurveTo(440, CY + s * b.sw * 0.66, 400, CY + s * b.sw * 0.6); g.stroke();
+    // trapezius line
+    g.beginPath(); g.moveTo(312, CY + s * (b.nw + 2)); g.quadraticCurveTo(340, CY + s * b.sw * 0.55, 372, CY + s * b.sw * 0.82); g.stroke();
+    // lower back dimples
+    g.beginPath(); g.arc(578, CY + s * 18, 3, 0, 7); g.stroke();
+    if (b.muscle) { // lats & deltoids
+      g.beginPath(); g.moveTo(410, CY + s * b.sw * 0.82); g.quadraticCurveTo(470, CY + s * b.ww * 0.75, 520, CY + s * b.ww * 0.55); g.stroke();
+      g.beginPath(); g.arc(370, CY + s * (b.sw - 4), 16, s < 0 ? Math.PI * 0.1 : Math.PI * 1.1, s < 0 ? Math.PI * 0.9 : Math.PI * 1.9); g.stroke();
+      g.beginPath(); g.moveTo(330, CY + s * 8); g.lineTo(380, CY + s * 14); g.stroke();
+    }
+    // calf muscles & achilles
+    const ly = CY + s * b.ls;
+    g.beginPath(); g.moveTo(870, ly); g.quadraticCurveTo(930, ly + 2, 990, ly); g.stroke();
+    g.beginPath(); g.moveTo(1000, ly); g.lineTo(1040, ly); g.stroke();
+    // elbow
+    g.beginPath(); g.arc(472, CY + s * ((b.sw + b.hw) / 2 + 16), 4, 0, 7); g.stroke();
+  }
+  g.filter = 'none';
+  // freckles, moles, tattoo
+  g.fillStyle = rgba(sk.deep, 0.6);
+  for (const [x, yr, r] of b.freckles) { g.beginPath(); g.arc(x, CY + yr * (x < 450 ? b.sw : b.ww) * 0.9, r * 0.8, 0, 7); g.fill(); }
+  g.fillStyle = rgba('#3a2418', 0.7);
+  for (const [x, yr] of b.moles) { g.beginPath(); g.arc(x, CY + yr * b.ww, 1.8, 0, 7); g.fill(); }
+  if (b.tattoo) drawTattoo(g, b.tattoo, b);
+  g.restore();
+}
+function drawBody() { // per-frame: cached body + dynamic redness / oil / heat overlays
+  const g = bctx, { Z } = ses.L;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bodyC.width, bodyC.height); g.drawImage(baseC, 0, 0);
+  g.setTransform(K, 0, 0, K, 0, 0);
+  g.save(); g.globalCompositeOperation = 'source-atop';
+  for (const z of ZONES) {
+    const zc = Z[z], r = ses.red[z], o = ses.oil[z];
+    if (r > 0.02) blob(g, zc, `rgba(230,90,90,${0.28 * r})`, 1.1);
+    if (o > 0.02) {
+      blob(g, zc, rgba(SCENT_COLOR[(ses.oilScent && ses.oilScent[z]) || 'unscented'], 0.16 * o), 1.0);
+      for (let i = 0; i < 3; i++) {
+        const ox = ((i * 37) % 60 - 30) / 60 * zc.rx, oy = (i - 1) * zc.ry * 0.35 - zc.ry * 0.15;
+        const hx = zc.x + ox * Math.cos(zc.rot) - oy * Math.sin(zc.rot), hy = zc.y + ox * Math.sin(zc.rot) + oy * Math.cos(zc.rot);
+        blob(g, { x: hx, y: hy, rx: zc.rx * 0.32, ry: Math.max(3, zc.ry * 0.12), rot: zc.rot - 0.1 }, `rgba(255,255,255,${0.42 * o})`, 1);
+      }
+    }
+  }
+  if (heatView) for (const z of ZONES) { const t = ses.tension[z] / 100; blob(g, Z[z], heatColor(t, 0.6), 1.0); }
+  g.restore();
+}
+function blob(g, zc, color, s) {
+  g.save(); g.translate(zc.x, zc.y); g.rotate(zc.rot); g.scale(zc.rx * s, zc.ry * s);
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1); gr.addColorStop(0, color); gr.addColorStop(1, color.replace(/[\d.]+\)$/, '0)'));
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 1, 0, 7); g.fill(); g.restore();
+}
+function heatColor(t, a) { t = clamp(t, 0, 1); const r = t < 0.5 ? lerp(90, 240, t * 2) : 240, gg = t < 0.5 ? 200 : lerp(200, 70, (t - 0.5) * 2); return `rgba(${r | 0},${gg | 0},${t < 0.5 ? 120 : 70},${a})`; }
+function drawTattoo(g, t, b) {
+  const x = t.x, y = CY + t.y * b.ww; g.save(); g.translate(x, y); g.strokeStyle = rgba(t.color, 0.75); g.fillStyle = rgba(t.color, 0.6); g.lineWidth = 1.6;
+  if (t.type === 'star') { g.beginPath(); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 5 : 12; g.lineTo(Math.cos(a) * r, Math.sin(a) * r); } g.closePath(); g.stroke(); }
+  else if (t.type === 'flower') { for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; g.beginPath(); g.ellipse(Math.cos(a) * 7, Math.sin(a) * 7, 6, 3.5, a, 0, 7); g.stroke(); } g.beginPath(); g.arc(0, 0, 2.5, 0, 7); g.fill(); }
+  else if (t.type === 'wave') { g.beginPath(); g.moveTo(-16, 4); g.bezierCurveTo(-8, -10, 0, 10, 8, -4); g.bezierCurveTo(12, -10, 18, -4, 16, 2); g.stroke(); g.beginPath(); g.moveTo(-16, 8); g.lineTo(16, 8); g.stroke(); }
+  else { g.beginPath(); g.arc(0, 0, 10, Math.PI * 0.3, Math.PI * 1.7); g.arc(5, 0, 8, Math.PI * 1.6, Math.PI * 0.4, true); g.closePath(); g.fill(); }
+  g.restore();
+}
+function drawTowel() {
+  const t = ses.L.towel, g = ctx;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.22)'; g.shadowBlur = 14; g.shadowOffsetY = 5;
+  g.fillStyle = S.owned.decor ? '#efe6d6' : '#f7f5f0'; rr(g, t.x, t.y, t.w, t.h, 18); g.fill(); g.restore();
+  g.save(); rr(g, t.x, t.y, t.w, t.h, 18); g.clip();
+  const gr = g.createLinearGradient(0, t.y, 0, t.y + t.h); gr.addColorStop(0, 'rgba(0,0,0,.08)'); gr.addColorStop(0.5, 'rgba(255,255,255,.1)'); gr.addColorStop(1, 'rgba(0,0,0,.1)');
+  g.fillStyle = gr; g.fillRect(t.x, t.y, t.w, t.h);
+  g.strokeStyle = 'rgba(0,0,0,.07)'; g.lineWidth = 3;
+  for (let i = 0; i < 6; i++) { const x = t.x + 50 + i * 42; g.beginPath(); g.moveTo(x, t.y); g.bezierCurveTo(x + 14, t.y + t.h * 0.35, x - 14, t.y + t.h * 0.65, x + 4, t.y + t.h); g.stroke(); }
+  g.fillStyle = 'rgba(0,0,0,.07)'; g.fillRect(t.x, t.y, 20, t.h); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(t.x + 4, t.y, 5, t.h);
+  g.fillStyle = S.owned.decor ? 'rgba(80,140,120,.35)' : 'rgba(120,160,190,.3)'; g.fillRect(t.x + t.w - 34, t.y, 8, t.h); g.fillRect(t.x + t.w - 22, t.y, 4, t.h);
+  g.restore();
+  g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 1.5; rr(g, t.x, t.y, t.w, t.h, 18); g.stroke();
+}
+function drawHair() {
+  const g = ctx, b = ses.c.body, col = b.hairColor, dk = shade(col, -0.3), lt = shade(col, 0.35), st = b.hair;
+  const lock = (x1, y1, cx1, cy1, cx2, cy2, x2, y2, w) => {
+    g.beginPath(); g.moveTo(x1, y1 - w); g.bezierCurveTo(cx1, cy1 - w, cx2, cy2 - w * 0.4, x2, y2); g.bezierCurveTo(cx2, cy2 + w * 0.4, cx1, cy1 + w, x1, y1 + w); g.closePath(); g.fill(); g.stroke();
+  };
+  g.save(); g.lineWidth = 1.4; g.strokeStyle = dk; g.fillStyle = col;
+  if (st === 'long') { // hair draped forward through the face cradle
+    const hg = g.createLinearGradient(240, 0, 120, 0); hg.addColorStop(0, col); hg.addColorStop(1, dk);
+    g.fillStyle = hg; g.beginPath(); g.moveTo(236, CY - 46);
+    g.bezierCurveTo(200, CY - 58, 160, CY - 66, 138, CY - 58);
+    for (let i = -2; i <= 2; i++) g.quadraticCurveTo(122 + (i % 2 ? 6 : 0), CY + i * 24 - 2, 132 + (i % 2 ? 0 : 6), CY + i * 24 + 12);
+    g.bezierCurveTo(160, CY + 66, 200, CY + 58, 236, CY + 46); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = rgba(dk, 0.6); g.lineWidth = 1.2;
+    for (let i = -4; i <= 4; i++) { g.beginPath(); g.moveTo(220, CY + i * 9); g.bezierCurveTo(190, CY + i * 11, 160, CY + i * 12.5, 136, CY + i * 12 + 4); g.stroke(); }
+    g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 4; g.beginPath(); g.moveTo(205, CY - 30); g.quadraticCurveTo(175, CY - 34, 150, CY - 28); g.stroke();
+    g.strokeStyle = dk; g.lineWidth = 1.4; g.fillStyle = col;
+  }
+  if (st === 'twintails') for (const s of [-1, 1]) { lock(232, CY + s * 36, 200, CY + s * 80, 170, CY + s * 120, 152, CY + s * 150, 14); g.fillStyle = '#e85a8a'; g.beginPath(); g.arc(232, CY + s * 38, 7, 0, 7); g.fill(); g.fillStyle = col; }
+  if (st === 'ponytail') { lock(244, CY - 30, 228, CY - 70, 200, CY - 110, 170, CY - 128, 13); g.fillStyle = '#333'; g.beginPath(); g.arc(246, CY - 32, 6, 0, 7); g.fill(); g.fillStyle = col; }
+  // cap
+  const rx = st === 'bob' ? 52 : st === 'short' || st === 'undercut' ? 47 : 50, ry = st === 'bob' ? 50 : 45;
+  const gr = g.createRadialGradient(256, CY - 10, 6, 244, CY, rx + 6); gr.addColorStop(0, lt); gr.addColorStop(0.55, col); gr.addColorStop(1, dk);
+  g.fillStyle = gr;
+  g.beginPath();
+  if (st === 'short' || st === 'undercut') {
+    for (let i = 0; i <= 24; i++) { const a = i / 24 * Math.PI * 2, rj = (i % 2 ? 0.92 : 1.02); g.lineTo(242 + Math.cos(a) * rx * (Math.cos(a) > 0.6 ? rj : 1), CY + Math.sin(a) * ry); }
+  } else g.ellipse(240, CY, rx, ry, 0, 0, 7);
+  g.fill(); g.stroke();
+  if (st === 'undercut') { g.fillStyle = rgba(dk, 0.6); g.beginPath(); g.ellipse(274, CY, 14, 30, 0, 0, 7); g.fill(); }
+  // strands
+  g.strokeStyle = rgba(dk, 0.55); g.lineWidth = 1.2;
+  for (let i = -5; i <= 5; i++) { g.beginPath(); g.moveTo(258, CY + i * 2); g.quadraticCurveTo(240 + Math.abs(i) * 2, CY + i * 6, 204, CY + i * 8.5); g.stroke(); }
+  // angel-ring shine
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 5; g.beginPath(); g.ellipse(242, CY, rx * 0.6, ry * 0.62, 0, -2.3, -0.9); g.stroke();
+  g.lineWidth = 3; g.beginPath(); g.ellipse(242, CY, rx * 0.6, ry * 0.62, 0, 0.9, 2.0); g.stroke();
+  if (st === 'buns') { for (const s of [-1, 1]) { g.fillStyle = col; g.strokeStyle = dk; g.beginPath(); g.arc(262, CY + s * 22, 17, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(262, CY + s * 22, 9, 0, 5); g.stroke(); } }
+  if (b.clip && st !== 'buns') { g.fillStyle = '#ffd36b'; g.save(); g.translate(250, CY - 34); g.rotate(0.4); g.fillRect(-9, -3, 18, 6); g.restore(); }
+  g.restore();
+}
+function drawStones() {
+  for (const s of ses.stones) {
+    const g = ctx;
+    g.save(); g.translate(s.x, s.y); g.rotate(s.rot);
+    if (s.heat > 0) { const gl = g.createRadialGradient(0, 0, 4, 0, 0, 34); gl.addColorStop(0, `rgba(255,140,60,${0.35 * s.heat})`); gl.addColorStop(1, 'rgba(255,140,60,0)'); g.fillStyle = gl; g.beginPath(); g.arc(0, 0, 34, 0, 7); g.fill(); }
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(3, 4, 22, 15, 0, 0, 7); g.fill();
+    const gr = g.createRadialGradient(-6, -5, 2, 0, 0, 22); gr.addColorStop(0, '#6b6e73'); gr.addColorStop(1, '#232427');
+    g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, 22, 15, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.ellipse(-7, -5, 7, 3, -0.3, 0, 7); g.fill();
+    g.restore();
+  }
+}
+
+// ---------- Rendering: player's hands (first person) ----------
+const hands = { squeeze: 0, phase: 0 };
+const PSKIN = '#d6a27a', PSHADE = '#b98360', PLINE = '#8a5a3c', SCRUB = '#2d5f63';
+function capsule(g, x1, y1, x2, y2, w) { g.lineCap = 'round'; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+function drawPlayerHand(x, y, ang, mirror, squeeze, holding) {
+  const g = ctx; g.save(); g.translate(x, y); g.rotate(ang); g.scale(0.78, 0.78); if (mirror) g.scale(-1, 1);
+  const finger = (fx, len, w) => {
+    const l = len * (1 - 0.25 * squeeze);
+    g.strokeStyle = PLINE; capsule(g, fx, -12, fx + fx * 0.06, -12 - l, w + 2.4);
+    g.strokeStyle = PSKIN; capsule(g, fx, -12, fx + fx * 0.06, -12 - l, w);
+    g.fillStyle = '#e9c3a6'; g.beginPath(); g.ellipse(fx + fx * 0.06, -12 - l + 1, w * 0.32, w * 0.42, 0, 0, 7); g.fill();
+    g.strokeStyle = rgba(PLINE, 0.5); g.lineWidth = 1; g.beginPath(); g.moveTo(fx - w * 0.3, -12 - l * 0.5); g.lineTo(fx + w * 0.3, -12 - l * 0.5); g.stroke();
+  };
+  if (holding !== 'bottle') { finger(-17, 32, 11); finger(-5.5, 39, 12); finger(6, 37, 12); finger(16.5, 28, 10.5); }
+  // thumb
+  g.strokeStyle = PLINE; capsule(g, -18, 12, -36, -8 + squeeze * 6, 15.5); g.strokeStyle = PSKIN; capsule(g, -18, 12, -36, -8 + squeeze * 6, 13);
+  // back of hand
+  g.fillStyle = PSKIN; g.strokeStyle = PLINE; g.lineWidth = 1.6; rr(g, -25, -22, 50, 50, 15); g.fill(); g.stroke();
+  const sh = g.createLinearGradient(-25, 0, 25, 0); sh.addColorStop(0, 'rgba(0,0,0,.12)'); sh.addColorStop(0.4, 'rgba(255,255,255,.08)'); sh.addColorStop(1, 'rgba(0,0,0,.15)');
+  g.fillStyle = sh; rr(g, -25, -22, 50, 50, 15); g.fill();
+  // tendons and knuckles
+  g.strokeStyle = rgba(PLINE, 0.35); g.lineWidth = 1.3;
+  for (const fx of [-15, -5, 5, 14]) { g.beginPath(); g.moveTo(fx * 0.5, 22); g.lineTo(fx, -14); g.stroke(); g.beginPath(); g.arc(fx, -16, 3, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }
+  if (holding === 'bottle') { finger(-17, 14, 11); finger(-5.5, 16, 12); finger(6, 15, 12); finger(16.5, 13, 10.5); }
+  g.restore();
+}
+function drawForearm(ex, ey, wx, wy, watch) {
+  const g = ctx, a = Math.atan2(wy - ey, wx - ex), nx = -Math.sin(a), ny = Math.cos(a);
+  const pts = [[wx + nx * 14, wy + ny * 14], [ex + nx * 24, ey + ny * 24], [ex - nx * 24, ey - ny * 24], [wx - nx * 14, wy - ny * 14]];
+  g.fillStyle = PSKIN; g.strokeStyle = PLINE; g.lineWidth = 1.6; g.beginPath(); pts.forEach(p => g.lineTo(...p)); g.closePath(); g.fill(); g.stroke();
+  const sh = g.createLinearGradient(wx + nx * 20, wy + ny * 20, wx - nx * 20, wy - ny * 20); sh.addColorStop(0, 'rgba(0,0,0,.15)'); sh.addColorStop(0.45, 'rgba(255,255,255,.1)'); sh.addColorStop(1, 'rgba(0,0,0,.2)');
+  g.fillStyle = sh; g.fill();
+  // arm hair
+  g.strokeStyle = 'rgba(70,40,25,.35)'; g.lineWidth = 1;
+  for (let i = 0; i < 18; i++) { const t = 0.15 + (i * 0.618) % 0.7, o = ((i * 0.37) % 1 - 0.5) * 30; const px = lerp(wx, ex, t) + nx * o, py = lerp(wy, ey, t) + ny * o; g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * 5 + 1.5, py + Math.sin(a) * 5); g.stroke(); }
+  // scrub sleeve
+  const st = 0.62, sx = lerp(wx, ex, st), sy = lerp(wy, ey, st);
+  g.fillStyle = SCRUB; g.beginPath(); g.moveTo(sx + nx * 26, sy + ny * 26); g.lineTo(ex + nx * 32, ey + ny * 32); g.lineTo(ex - nx * 32, ey - ny * 32); g.lineTo(sx - nx * 26, sy - ny * 26); g.closePath(); g.fill();
+  g.strokeStyle = shade(SCRUB, -0.3); g.lineWidth = 3; g.beginPath(); g.moveTo(sx + nx * 26, sy + ny * 26); g.lineTo(sx - nx * 26, sy - ny * 26); g.stroke();
+  if (watch) {
+    const t = 0.08, cx = lerp(wx, ex, t), cy = lerp(wy, ey, t);
+    g.strokeStyle = '#26282b'; g.lineWidth = 11; g.lineCap = 'butt'; g.beginPath(); g.moveTo(cx + nx * 18, cy + ny * 18); g.lineTo(cx - nx * 18, cy - ny * 18); g.stroke();
+    g.fillStyle = '#c9ccd2'; g.beginPath(); g.arc(cx + nx * 4, cy + ny * 4, 8.5, 0, 7); g.fill(); g.fillStyle = '#18212b'; g.beginPath(); g.arc(cx + nx * 4, cy + ny * 4, 6.5, 0, 7); g.fill();
+    g.strokeStyle = '#7fe0c8'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(cx + nx * 4, cy + ny * 4); g.lineTo(cx + nx * 4 + 3, cy + ny * 4 - 3); g.stroke();
+  }
+}
+function drawPlayerHands() {
+  if (!ptr.inside || (ptr.touch && !ptr.down) || state !== 'session') return;
+  const g = ctx, x = ptr.x, y = ptr.y, z = ptr.zone;
+  // contact shadow
+  if (z && z !== 'towel' && tool === 'hands') { g.fillStyle = `rgba(0,0,0,${0.08 + 0.05 * pressure * (ptr.down ? 1 : 0.4)})`; g.beginPath(); g.ellipse(x, y + 8, 44, 18, 0, 0, 7); g.fill(); }
+  const sway = tool === 'hands' && ptr.down ? Math.sin(hands.phase) * 5 : 0;
+  const L = { x: x - 23, y: y + 8 + sway }, R = { x: x + 23, y: y + 8 - sway };
+  const el = { x: x * 0.45 + 352 - 150, y: H + 70 }, er = { x: x * 0.45 + 352 + 150, y: H + 70 };
+  if (tool === 'oil') { L.x = x - 70; L.y = y + 90; R.x = x + 22; R.y = y - 30; }
+  if (tool === 'stone') { L.x = x - 80; L.y = y + 100; R.x = x + 6; R.y = y + 18; }
+  const angL = Math.atan2(L.y - el.y, L.x - el.x) + Math.PI / 2, angR = Math.atan2(R.y - er.y, R.x - er.x) + Math.PI / 2;
+  const wrist = (h, a) => ({ x: h.x - Math.sin(a) * 20, y: h.y + Math.cos(a) * 20 });
+  const wl = wrist(L, angL), wr = wrist(R, angR);
+  drawForearm(el.x, el.y, wl.x, wl.y, true); drawForearm(er.x, er.y, wr.x, wr.y, false);
+  const sqL = tool === 'hands' ? hands.squeeze * (0.5 + 0.5 * Math.max(0, Math.sin(hands.phase))) : 0;
+  const sqR = tool === 'hands' ? hands.squeeze * (0.5 + 0.5 * Math.max(0, -Math.sin(hands.phase))) : 0;
+  drawPlayerHand(L.x, L.y, angL, true, sqL);
+  if (tool === 'oil') { // bottle held in right hand, tipped toward the cursor
+    g.save(); g.translate(R.x, R.y - 8); g.rotate(-0.9);
+    g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, -14, -40, 34, 74, 10); g.fill();
+    g.fillStyle = 'rgba(150,95,40,.92)'; rr(g, -17, -44, 34, 74, 10); g.fill();
+    g.fillStyle = SCENT_COLOR[scent]; rr(g, -13, -22, 26, 30, 4); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.font = '800 8px Nunito, system-ui'; g.textAlign = 'center'; g.fillText('OIL', 0, -4);
+    g.fillStyle = '#2a2a2a'; rr(g, -7, -62, 14, 20, 3); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)'; rr(g, -13, -38, 5, 60, 3); g.fill();
+    g.restore();
+    drawPlayerHand(R.x, R.y, angR, false, 0.6, 'bottle');
+  } else if (tool === 'stone') {
+    drawPlayerHand(R.x, R.y, angR, false, 0.4);
+    g.save(); g.translate(x, y); const gr = g.createRadialGradient(-5, -5, 2, 0, 0, 20); gr.addColorStop(0, '#6b6e73'); gr.addColorStop(1, '#232427');
+    g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, 21, 14, 0, 0, 7); g.fill(); g.restore();
+  } else drawPlayerHand(R.x, R.y, angR, false, sqR);
+  // cursor ring
+  const ok = z && z !== 'towel' && !(tool === 'stone' && !STONE_OK.has(z));
+  g.strokeStyle = ok ? 'rgba(120,230,200,.9)' : z === 'towel' ? 'rgba(240,110,100,.9)' : 'rgba(255,255,255,.5)'; g.lineWidth = 2;
+  g.beginPath(); g.arc(x, y, 6 + (ptr.down ? 2 : 0), 0, 7); g.stroke();
+  if (z === 'towel') { g.beginPath(); g.moveTo(x - 4, y - 4); g.lineTo(x + 4, y + 4); g.stroke(); }
+}
+
+// ---------- Rendering: HUD bits on canvas ----------
+function drawBubble() {
+  if (!bubble || !ses) return;
+  const g = ctx, a = Math.min(1, bubble.t * 2);
+  g.save(); g.globalAlpha = a; g.font = '600 17px Nunito, system-ui, sans-serif';
+  const words = bubble.text.split(' '), lines = []; let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > 330) { lines.push(line); line = w; } else line = t; }
+  lines.push(line);
+  const w = Math.max(...lines.map(l => g.measureText(l).width)) + 28, h = lines.length * 22 + 18, x = 170, y = CY - 175 - h;
+  g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, x + 3, y + 4, w, h, 14); g.fill();
+  g.fillStyle = '#fffdf8'; rr(g, x, y, w, h, 14); g.fill();
+  g.beginPath(); g.moveTo(x + 50, y + h - 1); g.lineTo(x + 66, y + h + 18); g.lineTo(x + 78, y + h - 1); g.fill();
+  g.fillStyle = '#2b2b33'; lines.forEach((l, i) => g.fillText(l, x + 14, y + 27 + i * 22));
+  g.fillStyle = '#a07a3a'; g.font = '800 12px Nunito, system-ui'; g.fillText(ses.c.name, x + 14, y - 6 > 0 ? y - 6 : y + 12);
+  g.restore();
+}
+function drawHoverTag() {
+  if (!ptr.inside || !ses || state !== 'session') return;
+  const z = ptr.zone; if (!z) return;
+  const g = ctx; let txt;
+  if (z === 'towel') txt = '🚫 Draped area — off-limits';
+  else {
+    const near = ses.knots.find(k => !k.done && dist(k.x, k.y, ptr.x, ptr.y) < 40);
+    txt = `${ZLABEL[z]} · tension ${Math.round(ses.tension[z])}%${ses.oil[z] > 0.15 ? ' · 💧' : NEEDS_OIL.has(z) ? ' · dry' : ''}${near ? ' · ⚠ knot — hold pressure' : ''}`;
+  }
+  g.save(); g.font = '700 13px Nunito, system-ui'; const w = g.measureText(txt).width + 16;
+  let x = ptr.x + 22, y = ptr.y - 48; if (x + w > W - 4) x = ptr.x - w - 22; if (y < 4) y = ptr.y + 30;
+  g.fillStyle = 'rgba(12,16,18,.82)'; rr(g, x, y, w, 24, 8); g.fill(); g.fillStyle = '#eaf3f0'; g.fillText(txt, x + 8, y + 16.5); g.restore();
+}
+function drawKnots() {
+  if (!heatView) return;
+  const g = ctx;
+  for (const k of ses.knots) {
+    if (k.done) continue;
+    const p = 1 + Math.sin(time * 5 + k.x) * 0.15, a = k.amt / 100;
+    g.strokeStyle = `rgba(255,70,60,${0.5 + 0.4 * a})`; g.lineWidth = 3; g.beginPath(); g.arc(k.x, k.y, 13 * p, 0, 7); g.stroke();
+    g.fillStyle = `rgba(255,70,60,${0.35 * a + 0.2})`; g.beginPath(); g.arc(k.x, k.y, 6, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(k.x, k.y, 19, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - a)); g.stroke();
+  }
+}
+function drawCandle() {
+  const g = ctx;
+  for (const [dx, dy] of [[-10, -8], [10, -6], [0, 12]]) {
+    const fx = 1218 + dx + Math.sin(time * 9 + dx) * 0.8, fy = CY + dy, f = 1 + Math.sin(time * 13 + dy) * 0.12;
+    const gl = g.createRadialGradient(fx, fy, 1, fx, fy, 40 * f); gl.addColorStop(0, 'rgba(255,190,90,.35)'); gl.addColorStop(1, 'rgba(255,190,90,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(fx, fy, 40 * f, 0, 7); g.fill();
+    g.fillStyle = '#ffd36e'; g.beginPath(); g.arc(fx, fy, 3.6 * f, 0, 7); g.fill(); g.fillStyle = '#fff6d8'; g.beginPath(); g.arc(fx, fy, 1.6, 0, 7); g.fill();
+  }
+}
+function drawParticles() {
+  const g = ctx;
+  for (const p of particles) {
+    const a = clamp(p.life / p.max, 0, 1);
+    if (p.type === 'steam') { g.fillStyle = `rgba(255,255,255,${0.25 * a})`; g.beginPath(); g.arc(p.x, p.y, p.size * (2 - a), 0, 7); g.fill(); }
+    else { g.fillStyle = p.type === 'drop' ? rgba(p.color, 0.9) : rgba(p.color || '#fff', a); g.beginPath(); g.arc(p.x, p.y, p.size, 0, 7); g.fill(); }
+  }
+  g.save(); g.textAlign = 'center'; g.font = '800 18px Nunito, system-ui';
+  for (const f of floaters) { g.globalAlpha = clamp(f.life, 0, 1); g.fillStyle = 'rgba(0,0,0,.5)'; g.fillText(f.text, f.x + 1, f.y + 2); g.fillStyle = f.color; g.fillText(f.text, f.x, f.y); }
+  g.restore();
+}
+function render() {
+  const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0);
+  g.drawImage(roomC, 0, 0);
+  g.setTransform(K, 0, 0, K, 0, 0);
+  drawCandle();
+  if (ses && state !== 'title') {
+    drawBody(); g.drawImage(bodyC, 0, 0, W, H);
+    drawTowel(); drawHair(); drawStones(); drawKnots(); drawParticles(); drawBubble(); drawPlayerHands(); drawHoverTag();
+  } else {
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.font = '800 26px Nunito, system-ui'; g.textAlign = 'center';
+    g.fillText('The table is ready…', W / 2, CY + 8); g.textAlign = 'left';
+  }
+  const v = g.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.35)');
+  g.fillStyle = v; g.fillRect(0, 0, W, H);
+}
+
+// ---------- Portrait (anime-style client card) ----------
+function drawPortrait(c, expr) {
+  const g = pctx, b = c.body, sk = b.skin, hc = b.hairColor, hd = shade(hc, -0.3), hl = shade(hc, 0.35), st = b.hair, m = b.masc;
+  g.setTransform(2, 0, 0, 2, 0, 0); g.clearRect(0, 0, 160, 160);
+  const bg = g.createLinearGradient(0, 0, 0, 160); bg.addColorStop(0, c.bg[0]); bg.addColorStop(1, c.bg[1]); g.fillStyle = bg; g.fillRect(0, 0, 160, 160);
+  g.fillStyle = 'rgba(255,255,255,.06)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(20 + i * 28, 20 + (i % 2) * 18, 10, 0, 7); g.fill(); }
+  g.lineJoin = 'round'; g.strokeStyle = hd; g.lineWidth = 1.5;
+  // back hair
+  g.fillStyle = hc;
+  if (st === 'long') { g.beginPath(); g.moveTo(40, 60); g.bezierCurveTo(30, 100, 28, 140, 36, 160); g.lineTo(124, 160); g.bezierCurveTo(132, 140, 130, 100, 120, 60); g.closePath(); g.fill(); g.stroke(); }
+  if (st === 'twintails') for (const s of [-1, 1]) { g.beginPath(); g.ellipse(80 + s * 52, 104, 16, 46, s * 0.15, 0, 7); g.fill(); g.stroke(); g.fillStyle = '#e85a8a'; g.beginPath(); g.arc(80 + s * 40, 62, 6, 0, 7); g.fill(); g.fillStyle = hc; }
+  if (st === 'ponytail') { g.beginPath(); g.ellipse(124, 92, 13, 38, 0.3, 0, 7); g.fill(); g.stroke(); }
+  if (st === 'buns') for (const s of [-1, 1]) { g.beginPath(); g.arc(80 + s * 30, 34, 15, 0, 7); g.fill(); g.stroke(); }
+  if (st === 'bob') { g.beginPath(); g.moveTo(40, 64); g.bezierCurveTo(34, 96, 38, 116, 46, 122); g.lineTo(114, 122); g.bezierCurveTo(122, 116, 126, 96, 120, 64); g.closePath(); g.fill(); g.stroke(); }
+  // neck & robe
+  g.fillStyle = sk.base; g.fillRect(70, 112, 20, 26); g.fillStyle = sk.shade; g.fillRect(70, 112, 20, 7);
+  g.fillStyle = '#f3f0e9'; g.strokeStyle = '#cfc8bb';
+  g.beginPath(); g.moveTo(14, 160); g.bezierCurveTo(18, 138, 44, 128, 66, 128); g.lineTo(80, 150); g.lineTo(94, 128); g.bezierCurveTo(116, 128, 142, 138, 146, 160); g.closePath(); g.fill(); g.stroke();
+  g.strokeStyle = '#ddd5c6'; g.beginPath(); g.moveTo(66, 128); g.lineTo(80, 150); g.lineTo(94, 128); g.stroke();
+  // face
+  g.fillStyle = sk.base; g.strokeStyle = sk.line; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(47, 70);
+  if (m) { g.bezierCurveTo(48, 100, 62, 120, 72, 124); g.lineTo(88, 124); g.bezierCurveTo(98, 120, 112, 100, 113, 70); }
+  else { g.bezierCurveTo(48, 100, 66, 122, 80, 127); g.bezierCurveTo(94, 122, 112, 100, 113, 70); }
+  g.bezierCurveTo(113, 34, 47, 34, 47, 70); g.closePath(); g.fill(); g.stroke();
+  for (const s of [-1, 1]) { g.beginPath(); g.ellipse(80 + s * 34, 86, 5, 9, 0, 0, 7); g.fill(); g.stroke(); if (b.earring) { g.fillStyle = '#ffd36b'; g.beginPath(); g.arc(80 + s * 34, 97, 2.2, 0, 7); g.fill(); g.fillStyle = sk.base; } }
+  if (b.stubble) { g.fillStyle = rgba(hd, 0.25); g.beginPath(); g.moveTo(56, 104); g.bezierCurveTo(62, 122, 98, 122, 104, 104); g.lineTo(98, 112); g.bezierCurveTo(90, 118, 70, 118, 62, 112); g.closePath(); g.fill(); }
+  // blush
+  const happy = ['happy', 'bliss', 'laugh'].includes(expr);
+  if (happy || expr === 'wince') { g.fillStyle = 'rgba(255,110,130,.35)'; for (const s of [-1, 1]) { g.beginPath(); g.ellipse(80 + s * 20, 100, 8, 4, 0, 0, 7); g.fill(); } }
+  // eyes
+  const ey = 88;
+  for (const s of [-1, 1]) {
+    const ex = 80 + s * 15; g.strokeStyle = '#2a1e1e'; g.lineCap = 'round';
+    if (expr === 'bliss') { g.lineWidth = 2.5; g.beginPath(); g.arc(ex, ey - 3, 7, 0.2 * Math.PI, 0.8 * Math.PI); g.stroke(); }
+    else if (expr === 'laugh' || expr === 'happyClosed') { g.lineWidth = 2.5; g.beginPath(); g.arc(ex, ey + 4, 7, 1.15 * Math.PI, 1.85 * Math.PI); g.stroke(); }
+    else if (expr === 'wince') { g.lineWidth = 2.5; g.beginPath(); g.moveTo(ex - 7 * s, ey - 5); g.lineTo(ex + 6 * s, ey); g.lineTo(ex - 7 * s, ey + 5); g.stroke(); }
+    else {
+      const ry = m ? 7 : 9.5, lid = expr === 'annoyed' ? 4 : 0;
+      g.save(); g.beginPath(); g.ellipse(ex, ey, 8.5, ry, 0, 0, 7); g.fillStyle = '#fff'; g.fill(); g.clip();
+      const ig = g.createLinearGradient(0, ey - ry, 0, ey + ry); ig.addColorStop(0, shade(b.eye, -0.4)); ig.addColorStop(1, shade(b.eye, 0.3));
+      g.fillStyle = ig; g.beginPath(); g.ellipse(ex, ey + 1, 6, ry - 0.5, 0, 0, 7); g.fill();
+      g.fillStyle = '#1a1414'; g.beginPath(); g.ellipse(ex, ey + 1.5, 2.6, ry * 0.42, 0, 0, 7); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(ex - 2.4, ey - 3, 2.3, 0, 7); g.fill(); g.beginPath(); g.arc(ex + 2.2, ey + 3.5, 1.1, 0, 7); g.fill();
+      if (lid) { g.fillStyle = sk.base; g.fillRect(ex - 10, ey - ry - 2, 20, lid + 4); }
+      g.restore();
+      g.lineWidth = 3; g.beginPath(); g.moveTo(ex - 9 * s, ey - ry + 2 + lid); g.quadraticCurveTo(ex, ey - ry - 2 + lid, ex + 10 * s, ey - ry + 3 + lid); g.stroke();
+      if (!m) { g.lineWidth = 1.6; g.beginPath(); g.moveTo(ex + 9 * s, ey - ry + 3); g.lineTo(ex + 12 * s, ey - ry); g.stroke(); }
+    }
+    // brows
+    g.strokeStyle = hd; g.lineWidth = m ? 3 : 2; const by = ey - 16 + (expr === 'annoyed' ? 2 : 0);
+    g.beginPath();
+    if (expr === 'annoyed' || expr === 'wince') { g.moveTo(ex - 7 * s, by - 2 * (expr === 'wince' ? -1 : 1)); g.lineTo(ex + 7 * s, by + 2 * (expr === 'wince' ? -1 : 1)); }
+    else { g.moveTo(ex - 7, by + 1); g.quadraticCurveTo(ex, by - 3, ex + 7, by + 1); }
+    g.stroke();
+  }
+  // nose & mouth
+  g.strokeStyle = sk.line; g.lineWidth = 1.3; g.beginPath(); g.moveTo(80, 98); g.lineTo(78.5, 102); g.stroke();
+  g.strokeStyle = '#7a3a3a'; g.lineWidth = 2; g.beginPath();
+  if (expr === 'laugh') { g.fillStyle = '#7a2a35'; g.moveTo(72, 108); g.quadraticCurveTo(80, 120, 88, 108); g.closePath(); g.fill(); g.fillStyle = '#ff8fa0'; g.beginPath(); g.ellipse(80, 113, 4, 2, 0, 0, 7); g.fill(); }
+  else if (expr === 'happy' || expr === 'bliss') { g.moveTo(73, 108); g.quadraticCurveTo(80, 114, 87, 108); g.stroke(); }
+  else if (expr === 'wince') { g.moveTo(72, 110); g.lineTo(76, 108); g.lineTo(80, 110); g.lineTo(84, 108); g.lineTo(88, 110); g.stroke(); }
+  else if (expr === 'annoyed') { g.moveTo(74, 111); g.quadraticCurveTo(80, 108, 86, 111); g.stroke(); }
+  else { g.moveTo(75, 109); g.lineTo(85, 109); g.stroke(); }
+  // front hair & bangs
+  const gr = g.createLinearGradient(0, 30, 0, 80); gr.addColorStop(0, hl); gr.addColorStop(1, hc);
+  g.fillStyle = gr; g.strokeStyle = hd; g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(42, 80); g.bezierCurveTo(36, 26, 124, 26, 118, 80);
+  if (m || st === 'short' || st === 'undercut') { g.lineTo(112, 62); g.lineTo(102, 66); g.lineTo(96, 54); g.lineTo(86, 62); g.lineTo(78, 52); g.lineTo(68, 62); g.lineTo(60, 54); g.lineTo(52, 66); g.lineTo(46, 60); }
+  else { g.lineTo(113, 72); g.lineTo(106, 64); g.lineTo(100, 76); g.lineTo(92, 60); g.lineTo(84, 74); g.lineTo(78, 58); g.lineTo(70, 74); g.lineTo(62, 60); g.lineTo(56, 76); g.lineTo(50, 64); g.lineTo(46, 74); }
+  g.closePath(); g.fill(); g.stroke();
+  if (['long', 'bob', 'twintails', 'ponytail'].includes(st)) for (const s of [-1, 1]) { g.beginPath(); g.moveTo(80 + s * 37, 64); g.bezierCurveTo(80 + s * 42, 90, 80 + s * 40, 110, 80 + s * 34, st === 'bob' ? 118 : 126); g.lineTo(80 + s * 30, 100); g.bezierCurveTo(80 + s * 32, 84, 80 + s * 33, 74, 80 + s * 30, 66); g.closePath(); g.fill(); g.stroke(); }
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 3; g.beginPath(); g.arc(80, 70, 30, -2.5, -1.8); g.stroke(); g.beginPath(); g.arc(80, 70, 30, -1.4, -0.9); g.stroke();
+  if (b.clip) { g.fillStyle = '#ffd36b'; g.save(); g.translate(104, 56); g.rotate(-0.5); rr(g, -8, -3, 16, 6, 3); g.fill(); g.restore(); }
+}
+
+// ---------- DOM UI ----------
+function refreshScents() {
+  const sel = $('scentSel'), owned = Object.keys(SCENTS).filter(s => s === 'unscented' || S.owned[s]);
+  sel.innerHTML = owned.map(s => `<option value="${s}">${SCENTS[s]}</option>`).join('');
+  if (!owned.includes(scent)) scent = 'unscented';
+  sel.value = scent;
+}
+let lastUI = 0;
+function refreshUI(full) {
+  const now = performance.now(); if (!full && now - lastUI < 100) return; lastUI = now;
+  $('moneyStat').textContent = `💵 $${S.money}`;
+  $('dayStat').textContent = `Day ${S.day} · Client ${Math.min(S.clientNo + (ses && !ses.ended ? 1 : 0), todayTotal()) || 1}/${todayTotal()}`;
+  $('repStat').textContent = `⭐ ${rep().toFixed(1)}`;
+  for (const [id, t] of [['tHands', 'hands'], ['tOil', 'oil'], ['tStone', 'stone']]) $(id).classList.toggle('on', tool === t);
+  $('tStone').disabled = !S.owned.stones; $('tStone').title = S.owned.stones ? '' : 'Buy the Hot Stone Set in the shop';
+  for (let i = 1; i <= 3; i++) $('p' + i).classList.toggle('on', pressure === i);
+  $('bHeat').classList.toggle('on', heatView); $('bMusic').classList.toggle('on', S.music);
+  const inSes = state === 'session' && ses && !ses.ended;
+  $('bEnd').disabled = !inSes; $('bTalk').disabled = !inSes;
+  if (!ses) return;
+  const c = ses.c;
+  $('timeTxt').textContent = `${Math.floor(Math.min(ses.minutes, 999))} / ${c.duration} min`;
+  $('timeFill').style.width = clamp(ses.minutes / c.duration * 100, 0, 100) + '%';
+  $('timeFill').classList.toggle('over', ses.minutes > c.duration);
+  const r = relaxScore();
+  $('relaxPct').textContent = Math.round(r * 100) + '%'; $('relaxFill').style.width = r * 100 + '%';
+  $('comfortPct').textContent = Math.round(ses.comfort) + '%'; $('comfortFill').style.width = ses.comfort + '%';
+  if (full) {
+    $('cName').textContent = c.name; $('cPron').textContent = c.pron;
+    $('cTags').innerHTML = `<span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min</span><span class="tag">${esc(c.req.service)}</span><span class="tag">$${c.price}</span>`;
+    $('cReq').textContent = '“' + c.req.text + '”';
+  }
+  $('focusList').innerHTML = c.req.focus.map(z => { const p = 1 - ses.tension[z] / Math.max(1, ses.init[z]); return `<div class="fz"><span>${ZLABEL[z]}</span><div class="bar"><div style="width:${clamp(p * 100, 0, 100)}%"></div></div></div>`; }).join('')
+    + `<div class="fz"><span>Knots</span><b style="font-size:12px">${ses.released} / ${ses.knots.length}</b></div>`;
+  const k = ses.known, u = '<span class="unk">??? (try Talk)</span>';
+  $('knowList').innerHTML = `<div class="know"><span>Pressure</span>${k.pref ? `<b>${PNAME[c.pref]}</b>` : u}</div>
+    <div class="know"><span>Favorite oil</span>${k.scent ? `<b>${SCENTS[c.favScent]}</b>` : u}</div>
+    <div class="know"><span>Ticklish feet</span>${k.tickle ? `<b>${c.ticklish ? 'Yes (use firm)' : 'No'}</b>` : u}</div>
+    <div class="know"><span>Oil in hair</span>${k.hairOil ? `<b>${c.hairOil ? 'Avoid!' : 'Fine'}</b>` : u}</div>
+    <div class="know"><span>Chatty</span>${ses.talkCount ? `<b>${c.chatty ? 'Yes' : 'Prefers quiet'}</b>` : u}</div>`;
+  // portrait expression
+  let e = ses.exprT > 0 && ses.expr ? ses.expr : ses.comfort > 80 ? 'bliss' : ses.comfort > 55 ? 'happy' : ses.comfort > 30 ? 'neutral' : 'annoyed';
+  if (e !== ses.lastExpr) { ses.lastExpr = e; drawPortrait(c, e); }
+}
+function showModal(html, buttons) {
+  $('modal').innerHTML = html + `<div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b[2] || ''}">${b[0]}</button>`).join('')}</div>`;
+  $('modal').querySelectorAll('.btns button').forEach(el => el.onclick = () => { initAudio(); buttons[+el.dataset.i][1](); });
+  $('overlay').classList.add('show');
+}
+function hideModal() { $('overlay').classList.remove('show'); }
+let prevState = 'session';
+function pause() {
+  if (state !== 'session') return;
+  prevState = state; state = 'paused'; ptr.down = false;
+  showModal(`<h2>⏸ Paused</h2><p>Take a breath. Your client is relaxing.</p>`,
+    [['▶ Resume', () => resume(), 'primary'], ['❓ How to play', () => showHelp(() => { state = 'session'; pause(); }), ''], ['🏠 Save & quit to title', () => { saveGame(); ses = null; showTitle(); }, 'danger']]);
+}
+function resume() { hideModal(); state = 'session'; }
+function showHelp(back) {
+  showModal(`<h2>❓ How to play</h2><ul class="help">
+    <li><b>Massage:</b> hold the mouse (or your finger) and rub over the client. Rubbing back and forth works the muscle.</li>
+    <li><b>Knots:</b> hidden tight spots in focus areas. Hover shows “⚠ knot”. <b>Hold still with steady pressure</b> on them to release them. Turn on <b>🔥 Tension view</b> (T) to see tension and knots.</li>
+    <li><b>Oil (W):</b> drag over back, shoulders, arms & calves first — dry skin drags and halves your effect. Scalp, neck, hands and feet don't need oil. Some clients hate oil in their hair!</li>
+    <li><b>Pressure (1/2/3 or mouse wheel):</b> every client has a preference. Too hard hurts comfort; too soft is weak. They'll tell you, or ask with <b>💬 Talk</b> (C).</li>
+    <li><b>Hot stones (R):</b> place on shoulders/back to melt tension passively. Click a stone to remove it.</li>
+    <li><b>Draping:</b> the towel area is off-limits — keep it professional.</li>
+    <li><b>End session (E)</b> when you're done. Rating = relaxation + comfort + time used. 4★+ earns tips.</li>
+    <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients.</li></ul>`,
+    [['Got it', back, 'primary']]);
+}
+function showTitle() {
+  state = 'title'; hideModal();
+  const cont = hasSave();
+  showModal(`<h1>🌿 Serenity Hands</h1>
+    <p>You're a massage therapist opening your own little spa. Read each client, find their knots, choose the right oil and pressure,
+    and send them home feeling brand new. Build your reputation, earn cash, and upgrade your studio.</p>`,
+    [...(cont ? [['▶ Continue', () => { loadGame(); afterLoad(); }, 'primary']] : []),
+     ['✨ New game', () => { S = DEFAULT_SAVE(); saveGame(); afterLoad(); }, cont ? '' : 'primary'],
+     ['❓ How to play', () => showHelp(showTitle), '']]);
+}
+function afterLoad() {
+  refreshScents(); buildRoom(); refreshUI(true);
+  if (!S.todayTotal) S.todayTotal = clientsToday();
+  if (S.clientNo >= todayTotal()) showDayEndAgain(); else nextClient();
+}
+
+// ---------- Audio (soft ambient pad + chimes) ----------
+let AC = null, master = null, musicGain = null, musicTimer = null;
+function initAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0.5; master.connect(AC.destination);
+    musicGain = AC.createGain(); musicGain.gain.value = S.music ? 0.22 : 0; musicGain.connect(master);
+    startMusic();
+  } catch (e) { AC = null; }
+}
+const CHORDS = [[261.6, 329.6, 392.0, 493.9], [220.0, 261.6, 329.6, 392.0], [174.6, 220.0, 261.6, 329.6], [196.0, 246.9, 293.7, 392.0]];
+function startMusic() {
+  let i = 0;
+  const play = () => {
+    if (!AC) return;
+    const t = AC.currentTime, ch = CHORDS[i++ % CHORDS.length];
+    ch.forEach((f, j) => {
+      const o = AC.createOscillator(), gn = AC.createGain();
+      o.type = j % 2 ? 'triangle' : 'sine'; o.frequency.value = f / (j === 0 ? 2 : 1);
+      gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(0.09, t + 2.5); gn.gain.linearRampToValueAtTime(0.0001, t + 8.5);
+      o.connect(gn); gn.connect(musicGain); o.start(t); o.stop(t + 9);
+    });
+    // a gentle bell note on top
+    const o = AC.createOscillator(), gn = AC.createGain(); o.type = 'sine'; o.frequency.value = ch[randi(0, 3)] * 2;
+    gn.gain.setValueAtTime(0, t + 1); gn.gain.linearRampToValueAtTime(0.05, t + 1.05); gn.gain.exponentialRampToValueAtTime(0.0001, t + 4);
+    o.connect(gn); gn.connect(musicGain); o.start(t + 1); o.stop(t + 4.2);
+  };
+  play(); musicTimer = setInterval(play, 7000);
+}
+function tone(f, d, v, type) {
+  if (!AC) return; const t = AC.currentTime, o = AC.createOscillator(), gn = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = f; gn.gain.setValueAtTime(v, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + d);
+  o.connect(gn); gn.connect(master); o.start(t); o.stop(t + d + 0.05);
+}
+function chime() { tone(880, 0.8, 0.12); setTimeout(() => tone(1320, 0.9, 0.08), 90); }
+function cashSound() { tone(1046, 0.25, 0.12, 'triangle'); setTimeout(() => tone(1568, 0.4, 0.1, 'triangle'), 110); }
+function toggleMusic() { S.music = !S.music; saveGame(); if (musicGain) musicGain.gain.setTargetAtTime(S.music ? 0.22 : 0, AC.currentTime, 0.3); refreshUI(true); toast(S.music ? '🎵 Music on' : '🔇 Music off'); }
+
+// ---------- Input ----------
+function toLogical(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+cv.addEventListener('pointerdown', e => {
+  initAudio(); const p = toLogical(e); ptr.x = ptr.lx = p.x; ptr.y = ptr.ly = p.y; ptr.inside = true; ptr.touch = e.pointerType !== 'mouse';
+  if (e.button !== 0 && e.pointerType === 'mouse') return;
+  ptr.down = true; try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  if (state !== 'session' || !ses) return;
+  const z = zoneAt(p.x, p.y);
+  if (z === 'towel') { toast('🚫 That area stays draped — keep it professional.'); return; }
+  if (tool === 'stone' && z) clickStone(p.x, p.y, z);
+  else if (tool === 'stone') toast('🪨 Place stones on the shoulders or back.');
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.x = clamp(p.x, 0, W); ptr.y = clamp(p.y, 0, H); ptr.inside = p.x >= 0 && p.x <= W && p.y >= 0 && p.y <= H; ptr.touch = e.pointerType !== 'mouse'; });
+const up = () => { ptr.down = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('pointerleave', () => { if (!ptr.down) ptr.inside = false; });
+cv.addEventListener('lostpointercapture', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { if (state !== 'session') return; e.preventDefault(); setPressure(pressure + (e.deltaY > 0 ? -1 : 1)); }, { passive: false });
+window.addEventListener('blur', () => { up(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'session') pause(); });
+function setTool(t) {
+  if (t === 'stone' && !S.owned.stones) { toast('🪨 Buy the Hot Stone Set in the shop to unlock stones.'); return; }
+  tool = t; refreshUI(true);
+}
+function setPressure(p) { pressure = clamp(p, 1, 3); refreshUI(true); toast(`Pressure: ${PNAME[pressure]}`); }
+$('tHands').onclick = () => setTool('hands'); $('tOil').onclick = () => setTool('oil'); $('tStone').onclick = () => setTool('stone');
+$('scentSel').onchange = e => { scent = e.target.value; setTool('oil'); };
+for (let i = 1; i <= 3; i++) $('p' + i).onclick = () => setPressure(i);
+$('bHeat').onclick = () => { heatView = !heatView; refreshUI(true); };
+$('bTalk').onclick = () => talk();
+$('bMusic').onclick = () => { initAudio(); toggleMusic(); };
+$('bPause').onclick = () => state === 'paused' ? resume() : pause();
+$('bEnd').onclick = () => endSession(true);
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (state === 'session') pause(); else if (state === 'paused') resume(); return; }
+  if (state !== 'session') return;
+  if (k === 'q') setTool('hands'); else if (k === 'w') setTool('oil'); else if (k === 'r') setTool('stone');
+  else if (k === '1' || k === '2' || k === '3') setPressure(+k);
+  else if (k === 't') { heatView = !heatView; refreshUI(true); }
+  else if (k === 'c') talk(); else if (k === 'm') { initAudio(); toggleMusic(); }
+  else if (k === 'e') endSession(true);
+});
+window.addEventListener('resize', resize);
+
+// ---------- Main loop ----------
+let lastT = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  try { update(dt); render(); } catch (err) { console.error(err); }
+  requestAnimationFrame(frame);
+}
+resize(); refreshScents(); refreshUI(true); showTitle();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
