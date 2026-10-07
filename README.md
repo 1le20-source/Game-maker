@@ -17,6 +17,10 @@ A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `inde
   - Partners react in different ways: easygoing, forgiving, jealous, all-or-nothing, or volatile enough to make a scene at your spa.
 - **Personal space:** people are solid, so you can't walk through anyone. Hovering over a waiting client is fine for some of them; others get uncomfortable or walk out.
 - **Robberies:** sometimes a masked robber goes for the register. Press 🛡️ Defend (F). Buy pepper spray, a baton, a taser, a silent alarm or a security guard in Upgrades.
+- **Your mansion:** at the end of each day, choose 🏠 Go home. Your mansion has a grand foyer with twin staircases, a living room, a kitchen and dining room, a game room, a music room and library, a bedroom, a gym, a garage, a terrace with string lights, a pool, a fire pit, and Mochi the cat.
+  - Invite someone over from the phone in the foyer or 💞 People (you can also invite them during the day for that night).
+  - First-person dates: greet them at the door, walk them around, and do activities together (movie, video games, pool, cooking, candlelit dinner, piano, library, painting, gym, dancing, stargazing, the cat). Each activity comes with a conversation.
+  - Say goodnight at the front door. Sleep in the bedroom or drive to the spa to start the next day.
 - **Daily events:** VIP visits, health inspections, holiday rushes and rainy days.
 - **Upgrades:** buy them in the supply cabinet. Customize your own therapist with My look.
 
