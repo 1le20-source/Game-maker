@@ -1,0 +1,7 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #15171b; color: #e9e6e1; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+#stage { position: fixed; inset: 0; background: radial-gradient(120% 90% at 50% 38%, #4a4b50 0%, #2b2d33 45%, #16171b 100%); }
+.bs-canvas { display: block; touch-action: none; }
+#loading { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 12px; color: #cfcac2; }
+.spinner { width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; border: 3px solid #ffffff22; border-top-color: #e8b98f; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+body.no-ui #ui { display: none; }

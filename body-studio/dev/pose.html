@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../css/studio.css"></head><body class="no-ui"><div id="stage"></div>
+<script src="../lib/three.min.js"></script><script src="../assets/body-data.js"></script>
+<script src="../js/params.js"></script><script src="../js/core.js"></script><script src="../js/human.js"></script><script src="../js/app.js"></script><script src="../js/stage.js"></script>
+<script>
+const q=new URLSearchParams(location.search);
+const units=JSON.parse(q.get('units')||'{}');
+BS.registerModule({name:'test',order:0,create(app){const h=app.human;return{update(){h.resetPose();
+ if(q.get('arms')!=='0') for(const s of ['L','R']){const i=h.boneIndex('upperarm01.'+s);const sx=s==='L'?1:-1;h.pose[i].copy(h.aimQuat(i,new THREE.Vector3(0.14*sx,-1,0.03)));}
+ const ax=q.get('axis'); if(ax){const [b,x,y,z,a]=ax.split(',');h.pose[h.boneIndex(b)].multiply(h.worldAxisQuat(h.boneIndex(b),new THREE.Vector3(+x,+y,+z),+a));}
+ const fu=BS.blendFaceUnits(app.D,units); for(const k in fu) h.pose[k].multiply(fu[k]);
+}}}});
+const app=new BS.App(document.getElementById('stage')); window.app=app;
+app.init().catch(e=>{window.err=e.stack;window.done=true;});
+</script></body></html>

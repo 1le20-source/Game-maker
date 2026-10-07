@@ -2,6 +2,8 @@
 
 A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `index.html` in any modern browser (desktop or mobile) to play. There's nothing to install.
 
+**🧬 Body Studio** (`body-studio/index.html`, also on the title screen) is a character creator for realistic 3D humans: any gender, age and build, with real motion and emotion, a 360° view, and anatomy layers that show the skeleton, organs, muscles, vessels and nerves inside. See [body-studio/README.md](body-studio/README.md).
+
 **Walking around:** WASD to walk, Shift to run, mouse (click first) or Q/←→ to look, E to interact, V to switch camera view. On phones, your left thumb moves and your right thumb looks.
 
 **Running the spa:**

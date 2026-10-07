@@ -1932,6 +1932,7 @@ function showTitle() {
     [...(cont ? [['▶ Continue', () => { loadGame(); afterLoad(); }, 'primary']] : []),
      ['✨ New game', () => { const me = S.me; S = DEFAULT_SAVE(); S.me = me || ME_DEFAULT(); saveGame(); afterLoad(); }, cont ? '' : 'primary'],
      ['👤 Your therapist', () => { S.me = S.me || ME_DEFAULT(); showMyLook(showTitle); }, ''],
+     ['🧬 Body Studio', () => { location.href = 'body-studio/index.html'; }, ''],
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
