@@ -292,7 +292,7 @@ function loadGame() {
 }
 function saveGame() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
 function rep() { if (!S.ratings.length) return 3; const r = S.ratings.slice(-20); return r.reduce((a, b) => a + b, 0) / r.length; }
-function clientsToday() { const r = rep(); return Math.min(12, 5 + (r >= 3.6 ? 1 : 0) + (r >= 4.4 ? 1 : 0) + (S.owned.decor ? 1 : 0) + (S.owned.sign ? 1 : 0) + Math.min(2, (S.staff || []).filter(s => s.role === 'therapist').length)); }
+function clientsToday() { const r = rep(); return Math.min(S.owned.ads ? 14 : 12, 5 + (S.owned.ads ? 2 : 0) + (r >= 3.6 ? 1 : 0) + (r >= 4.4 ? 1 : 0) + (S.owned.decor ? 1 : 0) + (S.owned.sign ? 1 : 0) + Math.min(2, (S.staff || []).filter(s => s.role === 'therapist').length)); }
 function todayTotal() { return S.todayTotal || clientsToday(); }
 function dailyRent() { return Math.min(90, 40 + 5 * Math.floor((S.day - 1) / 3)); }
 
@@ -322,6 +322,11 @@ const SHOP = [
   { id: 'taser', name: '⚡ Taser', price: 600, desc: 'Stops a robber from about 4.5 m away, 95% of the time.' },
   { id: 'alarm', name: '🔔 Silent Alarm', price: 400, desc: 'Police arrive mid-robbery and arrest the robber before they get away.' },
   { id: 'guard', name: '🛡️ Security Guard', price: 800, desc: 'A guard watches the entrance and stops 85% of robbers at the door. $60/day wage.' },
+  { id: 'steam', name: '🧖 Steam Room', price: 700, desc: 'Clients steam before their massage. +5 starting comfort.' },
+  { id: 'products', name: '🧴 Retail Product Shelf', price: 500, desc: 'Clients buy oils and lotions at check-in: +$8–25 per client.' },
+  { id: 'ads', name: '📣 Social Media Ads', price: 450, desc: '+2 clients per day (daily maximum rises to 14).' },
+  { id: 'member', name: '💳 Membership Program', price: 800, desc: 'Regulars come back more often, and +5% tips.' },
+  { id: 'sound', name: '🎵 Pro Sound System', price: 350, desc: 'Better music in every room: your massages work 6% better.' },
 ];
 const SCENTS = { unscented: 'Unscented', lavender: 'Lavender', citrus: 'Sweet Orange', eucalyptus: 'Eucalyptus' };
 const SCENT_COLOR = { unscented: '#e9d9a8', lavender: '#b79be6', citrus: '#f2a65a', eucalyptus: '#86c9a3' };
@@ -427,6 +432,7 @@ function makeClient() {
     pref, favScent: pick(scents), ticklish: Math.random() < 0.3, hairOil: Math.random() < 0.35,
     chatty: Math.random() < 0.6, seed: rand(0, 10), bg: pick([['#3b4f6b', '#25303f'], ['#5b3b5f', '#2f2234'], ['#2f5a52', '#1d3330'], ['#6a4b35', '#3a2a1f'], ['#4d3f6e', '#28213a']]),
   };
+  applyBuild(c);
   c.feel = genFeel(c);
   c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1) * (S.owned.gold ? 1.25 : 1) * ((S.staff || []).length >= 3 ? 1.1 : 1));
   return c;
@@ -652,7 +658,7 @@ function startSession(c) {
     knots.push({ x, y, z, amt: 100, done: false });
   }
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
-    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0) - (c.crowded ? 8 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + (S.owned.steam ? 5 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0) - (c.crowded ? 8 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
     head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
@@ -662,7 +668,7 @@ function startSession(c) {
   tool = 'hands'; heatView = false;
   drawBodyBase(); refreshUI(true);
   const per = personOfC(c);
-  say(per ? (per.status === 'partner' ? "Hey you~ I've been looking forward to this all day." : per.status === 'dating' ? "Hi! Seeing you is the best part of my week." : per.status === 'friend' ? "Hey, it's me again! Same magic as last time?" : 'Hi again! I had to come back.') : pick(LINES.greet), 'happy', true);
+  say(per ? (isCommitted(per) ? "Hey you~ I've been looking forward to this all day." : per.status === 'dating' ? "Hi! Seeing you is the best part of my week." : per.status === 'friend' ? "Hey, it's me again! Same magic as last time?" : 'Hi again! I had to come back.') : pick(LINES.greet), 'happy', true);
 }
 function zoneAtLayout(L, b, x, y) { const save = ses; ses = { L, c: { body: b } }; const z = zoneAt(x, y); ses = save; return z; }
 
@@ -830,7 +836,7 @@ function bodyLanguage(fl, z, dt) {
 function massage(z, move, dt) {
   const c = ses.c, P = pressure, pref = c.pref;
   const oiled = ses.oil[z] > 0.15, needsOil = NEEDS_OIL.has(z);
-  let eff = (move * 0.012 + dt * 0.9) * (0.55 + 0.3 * P) * (S.owned.cert ? 1.25 : 1);
+  let eff = (move * 0.012 + dt * 0.9) * (0.55 + 0.3 * P) * (S.owned.cert ? 1.25 : 1) * (S.owned.sound ? 1.06 : 1);
   if (needsOil && !oiled) eff *= 0.55;
   if (P < pref) eff *= P === pref - 1 ? 0.7 : 0.45;
   if (oiled && c.favScent === ses.oilScent?.[z]) eff *= 1.1;
@@ -997,13 +1003,17 @@ function showDayEnd() {
   const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + Math.max(0, b.wage - (b.docked || 0)), 0) + (S.owned.guard ? 60 : 0);
   const insp = eventToday() === 'inspection' ? (hasStaff() ? 80 : -60) : 0;
   for (const st of S.staff) { st.docked = 0; st.morale = morale(st) + (0.75 - morale(st)) * 0.25; }
-  S.money -= rent + wages - insp; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
+  const weekly = S.day % 7 === 0, homeN = Object.keys(S.home || {}).length;
+  const bills = weekly ? 250 + homeN * 40 + (homeOwned('supercar') ? 220 : 70) + 90 : 0, tax = weekly ? Math.round(Math.max(0, (S.weekEarned || 0) + earned) * 0.08) : 0;
+  S.weekEarned = weekly ? 0 : (S.weekEarned || 0) + earned;
+  S.money -= rent + wages - insp + bills + tax; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
   const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
   showModal(`<h2>🌙 End of Day ${S.day - 1}</h2>
     <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)}${l.by ? ` <span style="color:var(--muted)">(${esc(l.by)})</span>` : ''} ${l.left ? '<span style="color:var(--muted)">left before being seen</span>' : starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
     <div class="row"><span>Earnings</span><b>$${earned}</b></div>
     <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
     ${wages ? `<div class="row"><span>Staff wages</span><b>−$${wages}</b></div>` : ''}
+    ${bills ? `<div class="row"><span>🏠 Weekly bills (mansion upkeep, utilities, car insurance)</span><b>−$${bills}</b></div><div class="row"><span>🧾 Weekly income tax (8%)</span><b>−$${tax}</b></div>` : ''}
     ${insp ? `<div class="row"><span>${insp > 0 ? '🧾 Passed the health inspection (grant)' : '🧾 Failed the health inspection (hire staff to keep it tidy!)'}</span><b>${insp > 0 ? '+' : '−'}$${Math.abs(insp)}</b></div>` : ''}
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
     ${S.homeDate && S.people && S.people[S.homeDate.pid] ? `<p>💕 <b>${esc(S.people[S.homeDate.pid].c.name)}</b> is coming over to your mansion tonight. Go home to meet them!</p>` : ''}
@@ -1036,7 +1046,7 @@ function nextClient() {
     <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
     <div style="flex:1;min-width:220px">
       <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
-      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
       <div class="req">“${esc(c.req.text)}”</div>
       <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
     </div></div>`,
@@ -1829,7 +1839,7 @@ function refreshUI(full) {
   $('comfortPct').textContent = Math.round(ses.comfort) + '%'; $('comfortFill').style.width = ses.comfort + '%';
   if (full) {
     $('cName').textContent = c.name; $('cPron').textContent = c.pron;
-    $('cTags').innerHTML = `<span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min</span><span class="tag">${esc(c.req.service)}</span><span class="tag">$${c.price}</span>`;
+    $('cTags').innerHTML = `<span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min</span><span class="tag">${esc(c.req.service)}</span><span class="tag">$${c.price}</span>`;
     $('cReq').textContent = '“' + c.req.text + '”';
   }
   $('focusList').innerHTML = c.req.focus.map(z => { const p = 1 - ses.tension[z] / Math.max(1, ses.init[z]); return `<div class="fz"><span>${ZLABEL[z]}</span><div class="bar"><div style="width:${clamp(p * 100, 0, 100)}%"></div></div></div>`; }).join('')
@@ -1877,6 +1887,7 @@ function showHelp(back) {
     <li><b>Personal space:</b> people are solid, and standing right on top of a waiting client bothers some of them. Some don't mind, some get uncomfortable, and some walk out.</li>
     <li><b>Robbers:</b> sometimes a masked robber goes for the register. Press 🛡️ Defend (F). Buy pepper spray, a baton, a taser, a silent alarm or a security guard in Upgrades.</li>
     <li><b>Your mansion:</b> at the end of each day choose 🏠 Go home. Invite someone over from the phone in the foyer or 💞 People. On a first-person date you walk them around, do activities together, talk, and say goodnight at the front door. Sleep in the bedroom or drive to work to start the next day.</li>
+    <li><b>Real life:</b> people have good and bad days, so ask how they are. Partners can move in, you can buy a ring and propose, and plan a wedding. Renovate the mansion (bar, cinema, telescope, roses, art, chef's kitchen, koi pond, blackjack, sports car). Bills and taxes are due every 7 days.</li>
     <li><b>Relationships:</b> dating someone while you have a partner can get you caught. Partners react differently: some are fine with it, some forgive, some break up, and some come to the spa to make a scene.</li></ul>`,
     [['Got it', back, 'primary']]);
 }
@@ -1893,7 +1904,7 @@ function showTitle() {
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
-  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; migrateStaff();
+  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; S.home = S.home || {}; migrateStaff(); homeUpgradeSolids();
   if (!S.got20k) { S.got20k = true; S.money = Math.max(S.money, 20000); saveGame(); }
   applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
@@ -1996,7 +2007,7 @@ $('bInteract').onclick = () => { initAudio(); interact(); };
 $('fabUse').onclick = e => { e.stopPropagation(); initAudio(); interact(); };
 window.addEventListener('touchstart', () => document.body.classList.add('touch'), { passive: true, once: true });
 if (window.matchMedia && matchMedia('(pointer:coarse)').matches) document.body.classList.add('touch');
-$('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
+$('bShopW').onclick = () => { if (state !== 'world') return; if (world.loc === 'home') { state = 'modal'; showHomeShop(() => { hideModal(); state = 'world'; }); } else openShopWorld(); };
 $('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
 $('bPeople').onclick = () => { if (state === 'world') openPeopleWorld(); };
 $('bDefend').onclick = () => { initAudio(); defend(); };
@@ -2117,7 +2128,7 @@ function lookFor(c) {
   const top3 = b.masc ? pick(['tee', 'hoodie', 'polo', 'sweater', 'linen', 'tank']) : pick(['tee', 'blouse', 'hoodie', 'sweater', 'tank', 'dress', 'polo', 'tee']);
   const skirt = top3 === 'dress' || (!b.masc && Math.random() < 0.3), bot3 = skirt ? 'skirt' : pick(['pants', 'pants', 'shorts']);
   return { skin: b.skin.base, hairColor: b.hairColor, hair: b.hair, eye: b.eye, masc: b.masc, top, bottom, shoe: pick(['#f4f4f4', '#2b2b2b', '#b07a50', '#c94f4f']),
-    skirt, top3, bot3, H: b.masc ? rand(1.7, 1.88) : rand(1.56, 1.76), seed: c.seed, ahoge: b.ahoge, neck: pick(['round', 'v']), sw: b.sw / 7.4, ww: b.ww / 6.6, hw: b.hw / 7.2, h: b.masc ? rand(1, 1.07) : rand(0.93, 1.02) };
+    skirt, top3, bot3, H: (b.masc ? rand(1.7, 1.88) : rand(1.56, 1.76)) * (b.Hk || 1), seed: c.seed, ahoge: b.ahoge, neck: pick(['round', 'v']), sw: b.sw / 7.4, ww: b.ww / 6.6, hw: b.hw / 7.2, h: b.masc ? rand(1, 1.07) : rand(0.93, 1.02) };
 }
 const PLAYER_LOOK = { seed: 1.3, skin: '#d6a27a', hairColor: '#2a221e', hair: 'short', eye: '#4a3020', masc: true, top: '#2d6a6e', bottom: '#24494c', shoe: '#ececec', skirt: false, sw: 13.6, ww: 11.4, hw: 10, h: 1.07 };
 const player = { x: 1000, y: 980, dir: 'up', ph: 0, moving: false, path: null, goal: null, trail: [] };
@@ -2287,8 +2298,8 @@ function freeSeat() { return SPOT.seats.findIndex((s, i) => !ents.some(e => e.se
 function spawnClient() {
   const seat = freeSeat(); if (seat < 0) return false;
   const known = Object.values(S.people || {}).filter(p => p.lastDay !== S.day && !ents.some(e => e.c.pid === p.id));
-  const partner = known.find(p => p.status === 'partner');
-  const back = known.length && Math.random() < (partner ? 0.45 : 0.32) ? (partner && Math.random() < 0.5 ? partner : pick(known)) : null;
+  const partner = known.find(p => isCommitted(p));
+  const back = known.length && Math.random() < (partner ? 0.45 : 0.32) + (S.owned.member ? 0.15 : 0) ? (partner && Math.random() < 0.5 ? partner : pick(known)) : null;
   const c = back ? clientFromPerson(back) : makeClient(); if (!c.look) c.look = lookFor(c);
   if (!back && eventToday() === 'vip' && !S.event.vipDone && world.spawned >= 1) { S.event.vipDone = true; c.vip = true; c.price *= 3; c.name = '⭐ ' + c.name; toast(`⭐ VIP ${c.name.slice(2)} has arrived. Make it perfect!`); }
   const q = DESK_Q[Math.min(DESK_Q.length - 1, ents.filter(x => x.state === 'checkin' || (x.state === 'arrive' && !x.c.paid)).length)];
@@ -2296,7 +2307,7 @@ function spawnClient() {
   const e = { c, x: SPOT.door.x + rand(-10, 10), y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat, state: 'arrive', wait: 0,
     patience: pat, maxPatience: pat, uid: ++uidN, ang: -Math.PI / 2, tasks: [{ to: q, then: 'checkin' }], emote: null, emoteT: 0 };
   ents.push(e); world.spawned++;
-  if (!c.vip) toast(back ? `🔔 ${c.name} is back${back.status === 'partner' ? ' 💖' : back.status === 'dating' ? ' 💕' : ''}!` : `🔔 ${c.name} just arrived`); return true;
+  if (!c.vip) toast(back ? `🔔 ${c.name} is back${isCommitted(back) ? ' 💖' : back.status === 'dating' ? ' 💕' : ''}!` : `🔔 ${c.name} just arrived`); return true;
 }
 function setEmote(e, em, t) { e.emote = em; e.emoteT = t || 2.5; }
 function walkEnt(e, dt, speed) {
@@ -2410,7 +2421,7 @@ function greet(e) {
     <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
     <div style="flex:1;min-width:220px">
       <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
-      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
       <div class="req">“${esc(c.req.text)}”</div>
       <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
     </div></div>`,
@@ -2457,9 +2468,10 @@ function startDayWorld() {
   spawnStaff(); buildWorld(); resize(); refreshUI(true);
   if (!S.event || S.event.day !== S.day) { rollEvent(); saveGame(); }
   spawnDrama(); scheduleRobbery(); document.body.classList.remove('robbery');
-  const pt = Object.values(S.people || {}).find(p => p.status === 'partner' && !p.upset);
+  const pt = Object.values(S.people || {}).find(p => isCommitted(p) && !p.upset);
   if (pt && !S.teaBuff) { S.teaBuff = true; saveGame(); }
   const ev = eventToday();
+  setTimeout(maybeWedding, 900);
   if (!ents.some(e => e.state === 'drama')) toast(ev ? `${EVENTS[ev].name}: ${EVENTS[ev].desc}` : pt ? `💖 ${pt.c.name} packed you lunch. Day ${S.day}: the spa is open!` : `☀️ Day ${S.day}: the spa is open!`);
 }
 function updateWorld(dt) {
@@ -2747,14 +2759,14 @@ function openStaffWorld() { state = 'modal'; showStaff(() => { hideModal(); stat
 const DESK_Q = [{ x: 425, y: 912 }, { x: 375, y: 955 }, { x: 475, y: 955 }, { x: 425, y: 1000 }];
 function checkIn(e, byStaff) {
   if (e.state !== 'checkin') return;
-  const fee = e.c.price; S.money += fee; e.c.paid = fee; S.stats.earned += fee;
+  const fee = e.c.price, extra = S.owned.products ? randi(8, 25) : 0; S.money += fee + extra; e.c.paid = fee; S.stats.earned += fee + extra;
   cashSound(); setEmote(e, '💵', 1.4);
-  toast(`💵 ${e.c.name} checked in and paid $${fee}${byStaff ? ` (${byStaff.s.c.name})` : ''}`);
+  toast(`💵 ${e.c.name} checked in and paid $${fee}${extra ? ` + $${extra} in products` : ''}${byStaff ? ` (${byStaff.s.c.name})` : ''}`);
   const st = SPOT.seats[e.seat];
   e.state = 'arrive'; e.path = null; e.tasks = [{ to: { x: st.fx, y: st.fy }, then: 'sit' }]; saveGame();
 }
 function patienceMult() { return (eventToday() === 'rain' ? 1.3 : 1) * (hasStaff() ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
-function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => p.status === 'partner' && !p.upset) ? 1.1 : 1); }
+function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => isCommitted(p) && !p.upset) ? (Object.values(S.people).some(p => p.status === 'spouse') ? 1.15 : 1.1) : 1) * (S.owned.member ? 1.05 : 1); }
 
 // ---------- Regulars, friendship & dating ----------
 const TOPICS = [
@@ -2780,7 +2792,7 @@ const GIFTS = [
   { id: 'flowers', name: '💐 Flowers', price: 25, aff: 6 }, { id: 'choco', name: '🍫 Chocolates', price: 40, aff: 8 }, { id: 'plush', name: '🧸 Plushie', price: 55, aff: 10 },
   { id: 'perfume', name: '🌸 Perfume', price: 90, aff: 13 }, { id: 'tickets', name: '🎟️ Concert tickets', price: 150, aff: 17 }, { id: 'necklace', name: '💎 Necklace', price: 220, aff: 22 },
 ];
-const STATUS_LABEL = { acquaintance: 'Regular', friend: 'Friend', dating: 'Dating 💕', partner: 'Partner 💖', ex: 'Ex 💔' };
+const STATUS_LABEL = { acquaintance: 'Regular', friend: 'Friend', dating: 'Dating 💕', partner: 'Partner 💖', engaged: 'Engaged 💍', spouse: 'Married 💞', ex: 'Ex 💔' };
 function recordVisit(c, stars, talked, byStaff) {
   S.people = S.people || {};
   if (!c.pid) c.pid = 'p' + Math.random().toString(36).slice(2, 9);
@@ -2809,10 +2821,10 @@ function showPeople(back) {
   const list = Object.values(S.people).sort((a, b) => b.aff - a.aff);
   const inv = GIFTS.filter(g => S.gifts[g.id] > 0);
   const card = (p, i) => {
-    const canHome = p.aff >= 45 && p.status !== 'ex' && !p.upset && (world.loc === 'home' ? S.homeNight !== S.day && !homeDate() && !(world.dateArriveT > 0) : S.lastDateDay !== S.day && !S.homeDate);
+    const canHome = p.aff >= 45 && p.status !== 'ex' && !p.upset && !liveInPartner() && (world.loc === 'home' ? S.homeNight !== S.day && !homeDate() && !(world.dateArriveT > 0) : S.lastDateDay !== S.day && !S.homeDate);
     const canDate = p.aff >= 45 && S.lastDateDay !== S.day && p.status !== 'ex' && !p.upset, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pp="${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
-      <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
+      <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]}${p.livesIn ? ' · lives with you 🏡' : ''} · ${MOODS[moodOf(p)].label} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
       <div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <select data-gsel="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>${inv.length ? inv.map(g => `<option value="${g.id}">${g.name} ×${S.gifts[g.id]}</option>`).join('') : '<option>No gifts</option>'}</select>
@@ -2820,15 +2832,16 @@ function showPeople(back) {
         <button data-date="${i}" class="primary" ${canDate ? '' : 'disabled'} title="${p.aff < 45 ? 'Needs 45+ affection' : S.lastDateDay === S.day ? 'One date per day' : ''}">💌 Ask on a date</button>
         ${canAsk ? `<button data-ask="${i}" class="primary">💍 Be my partner?</button>` : ''}
         <button data-home="${i}" class="primary" ${canHome ? '' : 'disabled'} title="${p.aff < 45 ? 'Needs 45+ affection' : ''}">🏰 ${world.loc === 'home' ? 'Invite over now' : 'Invite to your mansion tonight'}</button>
-        ${['dating', 'partner'].includes(p.status) || p.upset ? `<button data-talk="${i}">💬 Talk</button>` : ''}
-      </div>${p.status === 'partner' ? `<div class="d">${p.upset ? '😠 Still upset with you.' : p.open ? '🤝 Open relationship: they are fine with you dating others.' : '💡 Dating someone else risks them finding out.'}</div>` : ''}<div style="display:none">
+        ${isCommitted(p) && p.aff >= 90 && !p.livesIn && !p.upset && !liveInPartner() ? `<button data-movein="${i}" class="primary">🏡 Ask to move in</button>` : ''}${p.livesIn && p.status === 'partner' ? `<button data-propose="${i}" class="primary">💍 Propose</button>` : ''}
+        ${['dating', ...COMMITTED].includes(p.status) || p.upset ? `<button data-talk="${i}">💬 Talk</button>` : ''}
+      </div>${isCommitted(p) ? `<div class="d">${p.upset ? '😠 Still upset with you.' : p.open ? '🤝 Open relationship: they are fine with you dating others.' : '💡 Dating someone else risks them finding out.'}</div>` : ''}<div style="display:none">
       </div></div>`;
   };
   showModal(`<h2>💞 People you know</h2>
     <p>Clients you've treated come back as regulars. Great sessions and friendly chats build affection; at 45+ you can ask them out (one date a day). Keep it sweet: dates are about getting to know each other.</p>
     <div class="shop">${list.length ? list.map(card).join('') : '<div class="ctl">Nobody yet. Every client you treat becomes someone you know.</div>'}</div>
     <h2 style="margin-top:16px">🎁 Gift shop</h2><p>Balance: <b>$${S.money}</b></p>
-    <div class="shop">${GIFTS.map(g => `<div class="item"><div class="t">${g.name}</div><div class="d">+${g.aff} affection · you have ${S.gifts[g.id] || 0}</div><button data-buy="${g.id}" class="primary" ${S.money < g.price ? 'disabled' : ''}>$${g.price}</button></div>`).join('')}</div>`,
+    <div class="shop">${GIFTS.map(g => `<div class="item"><div class="t">${g.name}</div><div class="d">+${g.aff} affection · you have ${S.gifts[g.id] || 0}</div><button data-buy="${g.id}" class="primary" ${S.money < g.price ? 'disabled' : ''}>$${g.price}</button></div>`).join('')}<div class="item"><div class="t">💍 Engagement ring</div><div class="d">For a proposal to a partner who lives with you · you have ${S.gifts.ring || 0}</div><button data-ring="1" class="primary" ${S.money < 2500 ? 'disabled' : ''}>$2500</button></div></div>`,
     [['← Back', back, '']]);
   $('modal').querySelectorAll('canvas[data-pp]').forEach(cv2 => { const p = list[+cv2.dataset.pp]; drawPortrait(p.c, p.aff >= 45 ? 'happy' : 'neutral', 1, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 120, 120); });
   $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const g = GIFTS.find(x => x.id === b.dataset.buy); if (S.money < g.price) return; S.money -= g.price; S.gifts[g.id] = (S.gifts[g.id] || 0) + 1; saveGame(); cashSound(); showPeople(back); });
@@ -2839,6 +2852,10 @@ function showPeople(back) {
   });
   $('modal').querySelectorAll('[data-date]').forEach(b => b.onclick = () => pickDateSpot(list[+b.dataset.date], back));
   $('modal').querySelectorAll('[data-home]').forEach(b => b.onclick = () => inviteHome(list[+b.dataset.home], back));
+  $('modal').querySelectorAll('[data-movein]').forEach(b => b.onclick = () => { const p = list[+b.dataset.movein]; p.livesIn = true; saveGame(); chime();
+    showModal(`<h2>🏡 ${esc(p.c.name)} is moving in!</h2><div class="req">“Really?! Yes! I'm bringing my plants. All of them.”</div><p>From now on ${esc(p.c.name)} is home when you get back from work. Spend your evenings together, and maybe one day… 💍</p>`, [['💞 Back', () => showPeople(back), 'primary']]); });
+  $('modal').querySelectorAll('[data-propose]').forEach(b => b.onclick = () => proposeTo(list[+b.dataset.propose], back));
+  $('modal').querySelectorAll('[data-ring]').forEach(b => b.onclick = () => { if (S.money < 2500) return; S.money -= 2500; S.gifts.ring = (S.gifts.ring || 0) + 1; saveGame(); cashSound(); showPeople(back); });
   $('modal').querySelectorAll('[data-talk]').forEach(b => b.onclick = () => talkAboutUs(list[+b.dataset.talk], back));
   $('modal').querySelectorAll('[data-ask]').forEach(b => b.onclick = () => {
     const p = list[+b.dataset.ask];
@@ -2862,9 +2879,9 @@ function runDate(p, spot, back) {
       const great = gained >= 18, fine = gained >= 8;
       if (fine && (p.status === 'friend' || p.status === 'acquaintance')) p.status = 'dating';
       saveGame(); if (great) chime();
-      const end = great ? (p.status === 'partner' ? 'You walk home hand in hand, talking about everything and nothing.' : 'You walk them home under the streetlights. At the door they give you a warm hug and a shy smile.')
+      const end = great ? (isCommitted(p) ? 'You walk home hand in hand, talking about everything and nothing.' : 'You walk them home under the streetlights. At the door they give you a warm hug and a shy smile.')
         : fine ? 'It was a nice evening. They thank you with a smile and a wave.' : 'The conversation never quite clicked. Maybe next time.';
-      const caught = p.status !== 'partner' ? checkCheating(p, spot) : null;
+      const caught = !isCommitted(p) ? checkCheating(p, spot) : null;
       showModal(`<h2>${spot.name.slice(0, 2)} Date with ${esc(p.c.name)}</h2><p>${end}</p><div class="rows"><div class="row"><span>Affection</span><b>${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100</b></div><div class="row"><span>Status</span><b>${STATUS_LABEL[p.status]}</b></div></div>${caught ? `<p>📱 Your phone buzzes. It's <b>${esc(caught.c.name)}</b>…</p>` : ''}`,
         [[caught ? '📱 Answer' : '💞 Back', () => caught ? partnerReaction(caught, p, back) : showPeople(back), 'primary']]);
       return;
@@ -3062,7 +3079,7 @@ function showStatusBoard() { // 2D fallback: a text board instead of video
 const TEMPERS = { open: 'easygoing', jealous: 'jealous', forgiving: 'forgiving', toxic: 'volatile', breakup: 'all-or-nothing' };
 function temperOf(p) { if (!p.temper) p.temper = weighted({ open: 2, jealous: 3, forgiving: 3, toxic: 2, breakup: 2 }); return p.temper; }
 function checkCheating(dated, spot) {
-  const partners = Object.values(S.people || {}).filter(p => p.status === 'partner' && p.id !== dated.id && !p.open);
+  const partners = Object.values(S.people || {}).filter(p => isCommitted(p) && p.id !== dated.id && !p.open);
   if (!partners.length) return null;
   const p = partners[0], chance = { park: 0.3, cafe: 0.35, arcade: 0.4, ramen: 0.45, rooftop: 0.55 }[spot.id] || 0.4;
   if (Math.random() > chance) { S.secrets = (S.secrets || 0) + 1; saveGame(); return null; }
@@ -3074,7 +3091,7 @@ function partnerReaction(p, other, back) {
   else if (t === 'jealous') { p.aff = Math.max(0, p.aff - 30); p.upset = true; line = `“You went out with ${other.c.name}?! I can't believe you. Don't talk to me right now.”`; res = 'They are hurt (−30). An apology and a gift might help.'; }
   else if (t === 'forgiving') { p.aff = Math.max(0, p.aff - 15); line = `“That really hurt… but I want to make this work. Please don't do it again.”`; res = 'They forgive you, barely (−15).'; }
   else if (t === 'toxic') { p.aff = Math.max(0, p.aff - 25); p.upset = true; S.drama = { pid: p.id, day: S.day }; line = `“Oh, you think you can just do that to me? We'll see about that. You'll see.”`; res = 'They are furious (−25) and might show up at your spa to make a scene.'; }
-  else { p.status = 'ex'; p.aff = 5; line = `“We're done. Don't call me.”`; res = 'They broke up with you.'; }
+  else { p.status = 'ex'; p.livesIn = false; p.aff = 5; line = `“We're done. Don't call me.”`; res = 'They broke up with you.'; }
   saveGame();
   showModal(`<h2>💔 ${esc(p.c.name)} found out</h2><div class="intro"><canvas id="dramaP" width="300" height="300"></canvas><div style="flex:1;min-width:220px"><div class="req">${esc(line)}</div><p>${esc(res)}</p><p class="d">${esc(p.c.name)} is ${TEMPERS[t]}.</p></div></div>`, [['OK', () => showPeople(back), 'primary']]);
   drawPortrait(p.c, t === 'open' ? 'neutral' : t === 'forgiving' ? 'wince' : 'annoyed', 1, false); const cv2 = $('dramaP'); if (cv2) cv2.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
@@ -3082,9 +3099,9 @@ function partnerReaction(p, other, back) {
 function talkAboutUs(p, back) {
   const opts = [];
   if (p.upset) opts.push(['🙏 Apologise sincerely', () => { if (p.aff >= 25 || Math.random() < 0.5) { p.upset = false; p.aff = Math.min(100, p.aff + 6); say2(p, '“…Okay. Thank you for saying that.”', back); } else { p.aff = Math.max(0, p.aff - 3); say2(p, '“Sorry doesn\'t fix it. Give me time.”', back); } }, 'primary']);
-  if (p.status === 'partner' && !p.open) opts.push(['💬 Ask about an open relationship', () => { const t = temperOf(p); if (t === 'open') { p.open = true; say2(p, '“Sure, as long as we\'re honest with each other.”', back); } else { p.aff = Math.max(0, p.aff - (t === 'toxic' ? 15 : 8)); say2(p, t === 'toxic' ? '“Are you serious right now?!”' : '“I… don\'t think I\'m okay with that.”', back); } }, '']);
+  if (isCommitted(p) && !p.open) opts.push(['💬 Ask about an open relationship', () => { const t = temperOf(p); if (t === 'open') { p.open = true; say2(p, '“Sure, as long as we\'re honest with each other.”', back); } else { p.aff = Math.max(0, p.aff - (t === 'toxic' ? 15 : 8)); say2(p, t === 'toxic' ? '“Are you serious right now?!”' : '“I… don\'t think I\'m okay with that.”', back); } }, '']);
   opts.push(['💕 Tell them how much they mean to you', () => { p.aff = Math.min(100, p.aff + (p.upset ? 2 : 4)); say2(p, '“You\'re sweet. I needed that.”', back); }, '']);
-  if (p.status === 'partner' || p.status === 'dating') opts.push(['💔 Break up', () => { p.status = 'ex'; p.aff = Math.max(0, p.aff - 30); p.upset = false; say2(p, temperOf(p) === 'toxic' ? '“Fine! You\'ll regret this!”' : '“…I understand. Take care of yourself.”', back); }, 'danger']);
+  if (isCommitted(p) || p.status === 'dating') opts.push(['💔 Break up', () => { p.status = 'ex'; p.livesIn = false; p.aff = Math.max(0, p.aff - 30); p.upset = false; say2(p, temperOf(p) === 'toxic' ? '“Fine! You\'ll regret this!”' : '“…I understand. Take care of yourself.”', back); }, 'danger']);
   opts.push(['← Back', () => showPeople(back), '']);
   showModal(`<h2>💬 Talking with ${esc(p.c.name)}</h2><p>${p.upset ? 'They are still upset with you.' : p.open ? 'You have an open, honest relationship.' : 'Things are good between you.'}</p>`, opts);
 }
@@ -3101,7 +3118,7 @@ function calmDrama(e) {
   const leave = () => { e.state = 'leaving'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null; e.emote = null; hideModal(); state = 'world'; saveGame(); };
   showModal(`<h2>😡 ${esc(e.c.name)} is making a scene</h2><div class="req">“How could you?! In front of everyone, I want answers!”</div><p class="d">Waiting clients are getting uncomfortable.</p>`,
     [['🙏 Apologise and calm them down', () => { if (p) { p.aff = Math.min(100, p.aff + 5); p.upset = false; } toast(`${e.c.name} calms down and leaves.`); leave(); }, 'primary'],
-     ['💔 End it, here and now', () => { if (p) { p.status = 'ex'; p.aff = 0; } toast(`${e.c.name} storms out. It's over.`); leave(); }, 'danger'],
+     ['💔 End it, here and now', () => { if (p) { p.status = 'ex'; p.livesIn = false; p.aff = 0; } toast(`${e.c.name} storms out. It's over.`); leave(); }, 'danger'],
      ['😤 Argue back', () => { if (p) p.aff = Math.max(0, p.aff - 10); S.ratings.push(2); toast('The shouting match scared off a few customers (reputation −)'); leave(); }, '']]);
 }
 
@@ -3325,6 +3342,11 @@ function poseExtra(h, pose) { // poses the base rig doesn't cover; applied on to
     for (const s of [1, -1]) { const L = s > 0 ? 'L' : 'R'; J['sh' + L].rotation.set(-1.25, -s * 0.55, s * 0.25); J['el' + L].rotation.x = -0.95; }
     J.head.rotation.z = 0.22; J.head.rotation.x = 0.1; h.spine.rotation.x = 0.06;
   }
+  if (pose === 'kiss') { // arms around their shoulders, eyes closed, leaning in
+    for (const s of [1, -1]) { const L = s > 0 ? 'L' : 'R'; J['sh' + L].rotation.set(-1.5, -s * 0.5, s * 0.3); J['el' + L].rotation.x = -1.15; }
+    J.head.rotation.z = 0.28; J.head.rotation.x = -0.3; h.spine.rotation.x = -0.05; // chin up, eyes closed
+  }
+  if (pose === 'drink') { J.shR.rotation.set(-0.85, 0, -0.15); J.elR.rotation.x = -1.7; J.shL.rotation.set(0.05, 0, 0.1); J.elL.rotation.x = -0.15; }
   if (pose === 'lean') { for (const s of [1, -1]) { const L = s > 0 ? 'L' : 'R'; J['sh' + L].rotation.set(-0.75, 0, s * 0.15); J['el' + L].rotation.x = -0.5; } h.spine.rotation.x = 0.2; }
   if (pose === 'piano') { for (const s of [1, -1]) { const L = s > 0 ? 'L' : 'R'; J['sh' + L].rotation.set(-0.85 + Math.sin(t * 6 + s * 2) * 0.05, 0, s * 0.18); J['el' + L].rotation.x = -0.7; J['wr' + L].rotation.x = Math.sin(t * 9 + s) * 0.15; } }
 }
@@ -3364,13 +3386,14 @@ function goHome() {
   setTimeout(() => {
     if (view === 'cams') closeCams();
     view = 'world'; document.body.classList.add('world'); document.body.classList.remove('robbery', 'm3d');
-    swapLocation('home');
+    homeUpgradeSolids(); homeC.built = false; swapLocation('home'); if (R3 && R3.homeScene) buildHomeUpgrades3D(); if (!homeC.built) buildHome2D();
     Object.assign(player, { x: HOME.SPOT.arrive.x, y: HOME.SPOT.arrive.y, path: null, goal: null, trail: [], pose: '' }); fp.yaw = Math.atan2(1880 - HOME.SPOT.arrive.y, 1600 - HOME.SPOT.arrive.x); fp.pitch = 0.1;
     world.dateInfo = null; world.dateArriveT = 0; homeCat.x = 1610; homeCat.y = 1650; homeCat.path = null;
-    const hp = S.homeDate && S.homeDate.day === S.day - 1 && S.people && S.people[S.homeDate.pid];
-    if (hp) { world.dateArriveT = 10; world.dateArrivePid = hp.id; S.homeNight = S.day; } S.homeDate = null; saveGame();
+    const live = liveInPartner(); let hp = S.homeDate && S.homeDate.day === S.day - 1 && S.people && S.people[S.homeDate.pid];
+    if (live && hp && hp.id !== live.id) { hp.aff = Math.max(0, hp.aff - 5); setTimeout(() => toast(`📱 You texted ${hp.c.name} to cancel tonight. ${live.c.name} is home.`), 3500); hp = null; }
+    if (live) spawnLiveIn(live); else if (hp) { world.dateArriveT = 10; world.dateArrivePid = hp.id; S.homeNight = S.day; } S.homeDate = null; saveGame();
     state = 'world'; resize(); refreshUI(true); lastHUI = 0; refreshHomeUI(); $('fade').classList.remove('on');
-    toast(hp ? `🏰 Home sweet home. ${hp.c.name} is coming over tonight!` : '🏰 Welcome home! Explore the mansion, invite someone over, or sleep to start tomorrow.');
+    toast(live ? `🏡 Home sweet home. ${live.c.name} is waiting for you in the foyer.` : hp ? `🏰 Home sweet home. ${hp.c.name} is coming over tonight!` : '🏰 Welcome home! Explore the mansion, invite someone over, or sleep to start tomorrow.');
   }, 420);
 }
 function leaveHome(how) {
@@ -3379,6 +3402,7 @@ function leaveHome(how) {
   setTimeout(() => { swapLocation('spa'); applyUpgradeSolids(); startDayWorld(); $('fade').classList.remove('on'); toast(how === 'car' ? `🚗 You drive to the spa. Day ${S.day} begins!` : `☀️ You wake up refreshed. Day ${S.day} begins!`); }, 480);
 }
 function inviteHome(p, back) {
+  const live = liveInPartner(); if (live) { toast(live.id === p.id ? `${p.c.name} lives here with you!` : `🏡 You live with ${live.c.name}. Inviting someone else over would end badly.`); return; }
   if (world.loc !== 'home') {
     S.homeDate = { pid: p.id, day: S.day }; S.lastDateDay = S.day; saveGame(); chime();
     showModal(`<h2>🏰 Date night at your mansion</h2><p><b>${esc(p.c.name)}</b> will come over tonight after work. When the day ends, choose <b>🏠 Go home</b> and wait for the doorbell.</p>`, [['💞 Back', () => showPeople(back), 'primary']]);
@@ -3410,14 +3434,6 @@ function updateDateEnt(e, dt) {
     if (walkEnt(e, dt, 120)) e.path = null;
   }
 }
-function greetHomeDate(e) {
-  fp.yaw = Math.atan2(e.y - player.y, e.x - player.x); fp.pitch = pitchToFace(e);
-  const first = !(S.people[e.pid] || {}).visitedHome;
-  dlg(e.c.name, first ? pick(['Hi! Wow… you live HERE? This place is like a palace!', 'Okay, I was not ready for a fountain AND columns. Hi!']) : pick(['Hey you! Missed this place. And you.', 'I brought snacks. Hi!']),
-    [['Come on in, let me show you around.', () => { e.state = 'follow'; e.waveT = time + 1.5; player.trail = [{ x: e.x, y: e.y }]; setEmote(e, 'heart', 2); if (S.people[e.pid]) S.people[e.pid].visitedHome = true;
-      dlg(e.c.name, 'Lead the way! What should we do first?', [['Continue ▸', () => toast('💡 Walk to a spot and press E: movie, games, pool, kitchen, dining, piano, library, easel, gym, terrace, fire pit, or the cat.')]]); }],
-     ['You look amazing tonight.', () => { world.dateInfo.gained += 2; e.expr = 'happy'; setEmote(e, 'heart', 2.5); dlg(e.c.name, 'Stop it, you\'re making me blush… You don\'t look so bad yourself.', [['Come on in.', () => { e.state = 'follow'; player.trail = [{ x: e.x, y: e.y }]; }]]); }]]);
-}
 function startActivity(key) {
   const A = ACTS[key], e = homeDate(), info = world.dateInfo; if (!e || !info) return;
   if (info.done.includes(key)) { toast('You already did that tonight. Try something else!'); return; }
@@ -3440,24 +3456,6 @@ function startActivity(key) {
     setTimeout(() => runActivityTalk(A, key, e), 500);
   }, 400);
 }
-function runActivityTalk(A, key, e) {
-  const p = S.people[e.pid], info = world.dateInfo; if (!p || !info) return;
-  dlg(e.c.name, pick(A.open), [['Continue ▸', () => {
-    let tid = A.topic; if (info.asked.includes(tid)) tid = TOPICS.map(t => t.id).find(id => !info.asked.includes(id)) || tid;
-    info.asked.push(tid); const T = TOPICS.find(t => t.id === tid), liked = p.likes.includes(tid), hated = p.dislike === tid;
-    const enjoy = p.likes.includes(A.topic) ? 4 : p.dislike === A.topic ? -3 : 2;
-    const opts = [['great', T.great], ['ok', T.ok], ['bad', T.bad]].sort(() => Math.random() - 0.5);
-    dlg(e.c.name, T.ask, opts.map(([k, txt]) => [txt, () => {
-      const d = (k === 'great' ? (liked ? 9 : 5) : k === 'ok' ? (liked ? 3 : 2) : (liked ? -8 : -6)) + enjoy;
-      info.gained += d; e.expr = d >= 7 ? 'laugh' : d >= 3 ? 'happy' : d > 0 ? 'neutral' : 'annoyed'; setEmote(e, d >= 7 ? 'heart' : d >= 3 ? 'note' : d > 0 ? '' : 'dots', 2.5);
-      const react = d >= 7 ? pick(['Okay, you get me. Like, really get me.', '*laughs* Same!! Oh my gosh.', 'That\'s honestly really sweet.']) : d >= 3 ? pick(['Mm, fair enough!', 'Ha, I like that.']) : d > 0 ? pick(['Hm. Okay.', 'Fair.']) : pick(['…Oh. Okay then.', 'Huh. We\'re different there.']);
-      const note = enjoy >= 4 ? ' (This is so my thing, by the way.)' : enjoy < 0 ? ' (Not really my thing, honestly.)' : '';
-      dlg(e.c.name, react + note, [['Continue ▸', () => {
-        dlg(e.c.name, pick(A.after), [['Continue ▸', () => endActivity(A, key, e)]]);
-      }]]);
-    }]));
-  }]]);
-}
 function endActivity(A, key, e) {
   const info = world.dateInfo; info.done.push(key); world.scene = null; player.pose = '';
   if (A.exit) { player.x = A.exit.x; player.y = A.exit.y; }
@@ -3465,30 +3463,6 @@ function endActivity(A, key, e) {
   e.expr = 'happy'; homeCat.held = 0;
   if (info.done.length >= 5) dlg(e.c.name, 'Tonight was so much fun… but it\'s getting late. Walk me to the front door?', [['Of course.', null]]);
   else if (info.done.length === 3) toast(`💞 ${e.c.name} is having a great time. Do another activity, or walk them to the front door to say goodnight.`);
-}
-function endHomeDate() {
-  const e = homeDate(), info = world.dateInfo; if (!e || !info) return;
-  const p = S.people[e.pid]; if (!p) return;
-  const gained = clamp(info.gained, -20, 30), great = gained >= 18, fine = gained >= 8;
-  world.scene = { key: 'bye' }; state = 'modal'; $('fade').classList.add('on');
-  setTimeout(() => {
-    Object.assign(player, { x: HOME.SPOT.door.x, y: HOME.SPOT.door.y - 25, pose: '', path: null }); fp.yaw = Math.PI / 2;
-    Object.assign(e, { state: 'date', x: HOME.SPOT.door.x, y: HOME.SPOT.door.y + 52, ang: -Math.PI / 2, pose: 'stand', expr: great ? 'bliss' : fine ? 'happy' : 'neutral' }); fp.pitch = pitchToFace(e);
-    state = 'world'; $('fade').classList.remove('on');
-    const line = !info.done.length ? 'Leaving already? Okay… thanks for having me, I guess.' : great ? 'Tonight was perfect. I don\'t really want it to end.' : fine ? 'I had a really nice time tonight. Thank you.' : 'Thanks for having me. It was… a nice house.';
-    const finish = () => {
-      p.dates++; p.aff = clamp(p.aff + gained, 0, 100);
-      if (fine && (p.status === 'friend' || p.status === 'acquaintance')) p.status = 'dating';
-      S.lastDateDay = S.day; S.homeNight = S.day; saveGame(); if (great) chime();
-      e.state = 'homeLeave'; e.pose = null; e.path = null; e.tasks = [{ x: HOME.SPOT.porch.x, y: HOME.SPOT.porch.y }, { x: HOME.SPOT.gate.x, y: HOME.SPOT.gate.y - 5 }]; world.scene = null;
-      setEmote(e, great ? 'heart' : fine ? 'note' : 'dots', 4);
-      toast(`💞 ${p.c.name}: affection ${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100 · ${STATUS_LABEL[p.status]}`);
-      const caught = p.status !== 'partner' ? checkCheating(p, { id: 'home' }) : null;
-      if (caught) setTimeout(() => { state = 'modal'; partnerReaction(caught, p, () => { hideModal(); state = 'world'; }); }, 2500);
-    };
-    dlg(e.c.name, line, great ? [['🤗 Hug goodnight', () => { e.pose = 'hug'; e.expr = 'bliss'; e.y = player.y + 46; fp.pitch = pitchToFace(e) - 0.05; setEmote(e, 'heart', 3); dlg(e.c.name, 'Text me when you wake up tomorrow, okay? Goodnight. 💕', [['Goodnight. 💕', finish]]); }], ['👋 Wave goodnight', () => { e.pose = 'wave'; dlg(e.c.name, 'Goodnight! See you soon.', [['Bye!', finish]]); }]]
-      : [['👋 Goodnight', () => { e.pose = 'wave'; dlg(e.c.name, fine ? 'Goodnight! Let\'s do this again.' : 'Goodnight.', [['Bye!', finish]]); }]]);
-  }, 400);
 }
 function pitchToFace(e) { // tilt your head to look your date in the eye
   const P = POSES[e.pose || 'stand'] || {}, theirH = (e.c.look.H || 1.65), faceY = P.sit ? (P.seatY || 0.47) + theirH * 0.42 : theirH * 0.92;
@@ -3512,27 +3486,6 @@ function petCat() {
 }
 
 // ---------- what you can do at home ----------
-function homeInteractables() {
-  const list = [], e = homeDate(), S2 = HOME.SPOT;
-  if (world.scene) return list;
-  if (e && e.state === 'homeWait') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Welcome ${e.c.name} in`, act: () => greetHomeDate(e), ent: e });
-  const dating = e && e.state === 'follow';
-  if (dating) {
-    for (const [k, A] of Object.entries(ACTS)) {
-      if (k === 'cat') { if (dist(homeCat.x, homeCat.y, player.x, player.y) < 200) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: `${A.label} with ${e.c.name}${world.dateInfo.done.includes(k) ? ' ✔' : ''}`, act: () => startActivity(k) }); continue; }
-      list.push({ x: A.at.x, y: A.at.y, spot: A.spot, label: `${A.label} with ${e.c.name}${world.dateInfo.done.includes(k) ? ' ✔' : ''}`, act: () => startActivity(k) });
-    }
-    list.push({ x: S2.door.x, y: S2.door.y + 60, spot: S2.door, label: `👋 Walk ${e.c.name} out and say goodnight`, act: () => endHomeDate() });
-  } else {
-    if (!e) list.push({ x: HOME.F.console.x + 20, y: HOME.F.console.y + 60, spot: S2.phone, label: world.dateArriveT > 0 ? '📱 Your guest is on the way' : '📱 Invite someone over', act: () => { if (world.dateArriveT > 0) return; state = 'modal'; showPeople(() => { hideModal(); state = 'world'; }); } });
-    list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🛏️ Sleep until morning (start Day ${S.day})`, act: () => leaveHome('bed') });
-    list.push({ x: HOME.F.car.x, y: HOME.F.car.y + 170, spot: S2.car, label: `🚗 Drive to the spa (start Day ${S.day})`, act: () => leaveHome('car') });
-    list.push({ x: HOME.F.piano.x + 85, y: HOME.F.piano.y + 140, spot: S2.piano, label: '🎹 Play the piano', act: () => { playMelody(); toast('🎹 You play a soft melody. The whole house listens.'); } });
-    list.push({ x: 445, y: 1520, spot: S2.tv, label: world.tvOn ? '📺 Turn the TV off' : '📺 Turn the TV on', act: () => { world.tvOn = !world.tvOn; } });
-    if (dist(homeCat.x, homeCat.y, player.x, player.y) < 160) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: '🐱 Pet Mochi', act: () => petCat() });
-  }
-  return list;
-}
 function homeObjective() {
   const e = homeDate();
   if (e && e.state === 'homeWait') return { x: e.x, y: e.y };
@@ -3699,9 +3652,7 @@ function buildHome3D() {
   for (const x of [dn.x + 150, dn.x + 230]) { cyl(x, dn.y + 65, 3, 3, 0.77, 0.22, lam('#f4efe0'), 8); const f = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 6), fireMat); f.position.set(x * U, 1.02, (dn.y + 65) * U); add(f); f.userData.dyn = true; R3.homeFlames.push(f); }
   for (const [x, y] of [[dn.x + 190, dn.y + 30], [dn.x + 190, dn.y + 100]]) cyl(x, y, 13, 13, 0.77, 0.015, lam('#ffffff'), 18);
   // garage & car
-  const car = F2.car, paint = lam('#9a1f2b'); box(car.x + 10, car.y + 20, car.w - 20, car.h - 40, 0.25, 0.55, paint); box(car.x + 25, car.y + 120, car.w - 50, 170, 0.8, 0.42, lam('#1d2633')); box(car.x + 25, car.y + 120, car.w - 50, 170, 1.22, 0.05, paint);
-  for (const [dx, dy] of [[0, 70], [car.w - 22, 70], [0, car.h - 90], [car.w - 22, car.h - 90]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.22, 18), lam('#111111')); w.rotation.z = Math.PI / 2; w.position.set((car.x + dx + 11) * U, 0.33, (car.y + dy) * U); add(w); }
-  for (const dx of [35, car.w - 35]) { box(car.x + dx - 12, car.y + car.h - 22, 24, 4, 0.6, 0.1, glowWarm); box(car.x + dx - 12, car.y + 18, 24, 4, 0.6, 0.1, new THREE.MeshBasicMaterial({ color: '#ff3a3a' })); }
+  { const car = F2.car, cm = carModel(car.x + 8, car.y + 10, car.w - 16, car.h - 20, '#8f1d2a', false); add(cm); cm.userData.dyn = true; }
   box(2830, 1878, 290, 4, 0.2, 2.6, lam('#cfcac0'));
   // game room: big TV, bean bags, arcade, billiards
   box(560, 720, 300, 6, 1.0, 1.4, lam('#111216')); const gTV = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.3), new THREE.MeshBasicMaterial({ map: tvTex })); gTV.position.set(7.1, 1.72, 7.275); add(gTV); gTV.userData.dyn = true;
@@ -3736,7 +3687,7 @@ function buildHome3D() {
   const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.022, 0.3, 6), furD); tail.position.set(-0.24, 0.3, 0); tail.rotation.z = 0.6; cat.add(tail);
   add(cat); cat.userData.dyn = true; R3.homeCat = { g: cat, legs, tail, head };
   const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#ff8fb8' })); add(mk); mk.userData.dyn = true; R3.homeMarker = mk;
-  mergeStatic(scene);
+  mergeStatic(scene); buildHomeUpgrades3D();
 }
 function animHome() {
   if (!R3.homeScene) return;
@@ -3761,6 +3712,7 @@ function animHome() {
   const C = R3.homeCat; C.g.position.set(homeCat.x * U, 0, homeCat.y * U); C.g.rotation.y = -homeCat.ang;
   C.legs.forEach((l, i) => l.rotation.z = homeCat.moving ? Math.sin(homeCat.ph + (i % 2 ? Math.PI : 0) + (i > 1 ? Math.PI / 2 : 0)) * 0.6 : 0);
   C.tail.rotation.x = Math.sin(time * 2.2) * 0.4; C.head.rotation.y = homeCat.held > 0 ? Math.sin(time * 3) * 0.3 : 0;
+  animHomeUpgrades();
   // objective marker
   const tg = homeObjective(); R3.homeMarker.visible = !!tg && state === 'world';
   if (tg) { R3.homeMarker.position.set(tg.x * U, 2.2 + Math.sin(time * 3) * 0.06, tg.y * U); R3.homeMarker.rotation.y = time * 2; }
@@ -3797,6 +3749,341 @@ function renderHome2D() {
     g.fillStyle = 'rgba(12,16,18,.85)'; rr(g, px, py, w, 28, 14); g.fill(); g.strokeStyle = '#ff8fb8'; g.lineWidth = 1.5; g.stroke(); g.fillStyle = '#fff'; g.fillText(txt, px + 11, py + 19); }
   g.setTransform(K, 0, 0, K, 0, 0);
 }
+
+// =====================================================================
+//  Grown-up life: moods, living together, engagement & weddings,
+//  mansion renovations, a home bar, blackjack, bills
+// =====================================================================
+const COMMITTED = ['partner', 'engaged', 'spouse'];
+function isCommitted(p) { return !!p && COMMITTED.includes(p.status); }
+function liveInPartner() { return Object.values(S.people || {}).find(p => p.livesIn && isCommitted(p)); }
+
+// ---------- everyone has their own day ----------
+const MOODS = { great: { label: '😄 Great day', w: 2 }, good: { label: '🙂 Good mood', w: 5 }, tired: { label: '🥱 Tired', w: 2 }, stressed: { label: '😣 Stressed', w: 2 }, sad: { label: '😢 Feeling down', w: 1 } };
+function moodOf(p) { if (p.moodDay !== S.day) { p.moodDay = S.day; p.mood = weighted(Object.fromEntries(Object.entries(MOODS).map(([k, v]) => [k, v.w]))); } return p.mood; }
+const MOOD_TALK = {
+  great: { line: 'Guess what? I got amazing news at work today. I can\'t stop smiling!', opts: [['That\'s incredible! Tell me everything.', 6, 'laugh'], ['Nice, congrats.', 2, 'happy'], ['Cool. Anyway, what should we do?', -4, 'annoyed']] },
+  tired: { line: 'Sorry if I\'m a bit quiet… it was a really long day.', opts: [['Let\'s take it easy tonight. No pressure.', 5, 'bliss'], ['Want me to make you a coffee?', 2, 'happy'], ['Come on, wake up, it\'s date night!', -4, 'annoyed']] },
+  stressed: { line: 'Honestly, today was rough. Work was chaos and my landlord called again…', opts: [['I\'m here. Want to talk about it?', 6, 'bliss'], ['Let\'s get your mind off it.', 3, 'happy'], ['Everyone has bad days. Cheer up.', -5, 'annoyed']] },
+  sad: { line: '…Sorry, I\'m not great tonight. I got some sad news from home.', opts: [['Come here. You don\'t have to be okay right now.', 7, 'bliss'], ['Do you want to talk, or be distracted?', 4, 'happy'], ['Well, at least you\'re here now. Let\'s have fun!', -5, 'annoyed']] },
+};
+function moodTalk(e, next) {
+  const p = S.people[e.pid], m = p && moodOf(p), T = m && MOOD_TALK[m];
+  if (!T) { next(); return; }
+  e.expr = m === 'great' ? 'laugh' : m === 'tired' ? 'neutral' : 'wince';
+  dlg(e.c.name, T.line, T.opts.slice().sort(() => Math.random() - 0.5).map(([txt, d, ex]) => [txt, () => {
+    if (world.dateInfo) world.dateInfo.gained += d; e.expr = ex; setEmote(e, d >= 5 ? 'heart' : d > 0 ? 'note' : 'dots', 2.5);
+    dlg(e.c.name, d >= 5 ? pick(['Thank you. I really needed that.', 'You\'re really good at this, you know?', '…Yeah. Thank you. Seriously.']) : d > 0 ? pick(['Yeah… okay. Thanks.', 'Mm, maybe.']) : pick(['…Right.', 'Wow. Okay.']), [['Continue ▸', next]]);
+  }]));
+}
+
+// ---------- body variety: builds and ages like real people ----------
+const BUILDS = {
+  slim: { label: 'Slim', soft: [0.05, 0.3], sw: -3, ww: -3, hw: -3, Hk: 1.0 },
+  average: { label: 'Average', soft: [0.25, 0.55], sw: 0, ww: 0, hw: 0, Hk: 1.0 },
+  athletic: { label: 'Athletic', soft: [0.05, 0.25], sw: 5, ww: -2, hw: 0, Hk: 1.01, muscle: true },
+  curvy: { label: 'Curvy', soft: [0.5, 0.8], sw: 0, ww: 2, hw: 8, Hk: 0.99 },
+  plus: { label: 'Plus-size', soft: [0.8, 1.0], sw: 4, ww: 12, hw: 9, Hk: 0.99 },
+  muscular: { label: 'Muscular', soft: [0.1, 0.3], sw: 10, ww: 2, hw: 1, Hk: 1.02, muscle: true },
+  petite: { label: 'Petite', soft: [0.2, 0.5], sw: -5, ww: -3, hw: -3, Hk: 0.93 },
+  tall: { label: 'Tall', soft: [0.1, 0.45], sw: 2, ww: 0, hw: 0, Hk: 1.07 },
+  stocky: { label: 'Stocky', soft: [0.4, 0.7], sw: 6, ww: 8, hw: 2, Hk: 0.95 },
+};
+const BUILD_W = {
+  masc: { average: 4, athletic: 3, muscular: 2, slim: 2, stocky: 2, plus: 1, tall: 2 },
+  fem: { average: 4, curvy: 3, slim: 3, petite: 2, athletic: 2, plus: 2, tall: 1 },
+  femboy: { slim: 4, petite: 3, average: 3, athletic: 1, curvy: 1 },
+  enby: { average: 3, slim: 2, athletic: 2, curvy: 1, plus: 1, petite: 1, tall: 1, stocky: 1 },
+};
+function applyBuild(c) {
+  const b = c.body, k = c.idKey, grp = b.masc ? 'masc' : k === 'femboy' ? 'femboy' : k === 'nonbinary' || k === 'genderfluid' ? 'enby' : 'fem';
+  const key = weighted(BUILD_W[grp]), B = BUILDS[key];
+  b.build = key; b.Hk = B.Hk; b.soft = rand(...B.soft); if (B.muscle) b.muscle = true;
+  b.sw += B.sw; b.ww = Math.min(b.ww + B.ww + b.soft * 3, b.sw - 10); b.hw = Math.min(96, b.hw + B.hw);
+  const r = Math.random(); b.age = r < 0.45 ? randi(21, 30) : r < 0.75 ? randi(31, 42) : r < 0.92 ? randi(43, 55) : randi(56, 68);
+  if (b.age >= 50 && Math.random() < 0.65) b.hairColor = mixHex(b.hairColor, '#c8c8cc', b.age >= 60 ? 0.75 : 0.45);
+  if (b.age >= 45) b.soft = Math.min(1, b.soft + 0.08);
+  c.buildLabel = B.label;
+}
+
+// ---------- mansion renovations ----------
+const HOME_SHOP = [
+  { id: 'bar', name: '🍸 Home Bar', price: 1500, desc: 'A real bar in the living room. New date activity: drinks (wine, cocktails or mocktails).' },
+  { id: 'cinema', name: '🎬 Home Cinema', price: 2500, desc: 'A huge projector screen and speakers. Movie nights are better (+3 affection).' },
+  { id: 'telescope', name: '🔭 Telescope', price: 800, desc: 'On the terrace by the fire pit. Stargazing dates are better (+3).' },
+  { id: 'roses', name: '🌹 Rose Garden', price: 600, desc: 'Rose beds by the front steps. New date activity: pick a rose for them.' },
+  { id: 'art', name: '🖼️ Art Collection', price: 1200, desc: 'Paintings in the foyer. Guests are impressed (+1) and painting dates are better (+2).' },
+  { id: 'chef', name: '👨‍🍳 Chef\'s Kitchen', price: 1800, desc: 'Pro range, copper pots, wine fridge. Cooking (+3) and dinner (+2) dates are better.' },
+  { id: 'koi', name: '🐟 Koi Pond', price: 900, desc: 'A koi pond in the front garden. Guests are impressed (+1).' },
+  { id: 'casino', name: '🃏 Blackjack Table', price: 1000, desc: 'A felt card table in the game room. Play blackjack for real (in-game) money.' },
+  { id: 'supercar', name: '🏎️ Sports Car', price: 6000, desc: 'A low, loud supercar in the driveway. Guests are VERY impressed (+3).' },
+];
+function homeOwned(id) { return !!(S.home && S.home[id]); }
+const HOME_UPG_KEYS = ['bar', 'telescope', 'roses1', 'roses2', 'koiPond', 'cards', 'supercar'];
+function homeUpgradeSolids() {
+  for (const k of HOME_UPG_KEYS) if (HOME.F[k]) { const r = HOME.F[k]; delete HOME.F[k]; for (const arr of [HOME.solids, solids]) { const i = arr.indexOf(r); if (i >= 0) arr.splice(i, 1); } }
+  const add = (k, x, y, w, h) => { if (HOME.F[k]) return; const r = { x, y, w, h }; HOME.F[k] = r; HOME.solids.push(r); if (world.loc === 'home') solids.push(r); };
+  if (homeOwned('bar')) add('bar', 460, 1820, 300, 50);
+  if (homeOwned('telescope')) add('telescope', 2140, 350, 24, 24);
+  if (homeOwned('roses')) { add('roses1', 1280, 1950, 160, 60); add('roses2', 1760, 1950, 160, 60); }
+  if (homeOwned('koi')) add('koiPond', 480, 2000, 320, 200);
+  if (homeOwned('casino')) add('cards', 450, 960, 140, 90);
+  if (homeOwned('supercar')) add('supercar', 2925, 2020, 170, 380);
+  if (world.loc === 'home') rebuildGrid();
+}
+function showHomeShop(back) {
+  S.home = S.home || {};
+  showModal(`<h2>🏗️ Renovate your mansion</h2><p>Balance: <b>$${S.money}</b>. Upkeep grows a little with each renovation (paid weekly).</p>
+    <div class="shop">${HOME_SHOP.map(it => { const own = homeOwned(it.id); return `<div class="item"><div class="t">${it.name}</div><div class="d">${it.desc}</div><button data-hbuy="${it.id}" class="${own ? '' : 'primary'}" ${own || S.money < it.price ? 'disabled' : ''}>${own ? 'Owned ✔' : '$' + it.price}</button></div>`; }).join('')}</div>`,
+    [['🧖 Spa upgrades', () => showShop(() => showHomeShop(back)), ''], ['← Back', back, '']]);
+  $('modal').querySelectorAll('[data-hbuy]').forEach(b => b.onclick = () => {
+    const it = HOME_SHOP.find(x => x.id === b.dataset.hbuy); if (!it || homeOwned(it.id) || S.money < it.price) return;
+    S.money -= it.price; S.home[it.id] = true; saveGame(); cashSound(); homeUpgradeSolids(); if (R3 && R3.homeScene) buildHomeUpgrades3D(); homeC.built = false; if (world.loc === 'home') buildHome2D();
+    toast(`🏗️ ${it.name} installed!`); showHomeShop(back);
+  });
+}
+function buildHomeUpgrades3D() {
+  const scene = R3.homeScene; if (!scene) return;
+  if (R3.homeUpg) { scene.remove(R3.homeUpg); R3.homeUpg.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
+  const g = new THREE.Group(); R3.homeUpg = g; scene.add(g); g.userData.dyn = true; R3.homeKoi = [];
+  const add = m => { g.add(m); return m; };
+  const box = (x, y, w, h, y0, ht, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.001, w * U), ht, Math.max(0.001, h * U)), mat); m.position.set((x + w / 2) * U, y0 + ht / 2, (y + h / 2) * U); return add(m); };
+  const cyl = (x, y, r1, r2, y0, ht, mat, seg) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1 * U, r2 * U, ht, seg || 16), mat); m.position.set(x * U, y0 + ht / 2, y * U); return add(m); };
+  const sph = (x, y, r, y0, mat, sx, sy, sz) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * U, 12, 9), mat); m.position.set(x * U, y0, y * U); if (sx) m.scale.set(sx, sy, sz); return add(m); };
+  const glow = c => new THREE.MeshBasicMaterial({ color: c });
+  if (homeOwned('bar')) { // counter, stools, back shelf of bottles, pendant glow
+    box(460, 1820, 300, 50, 0, 1.05, lam('#3a2418')); box(455, 1815, 310, 60, 1.05, 0.05, lam('#c9b48a'));
+    for (let i = 0; i < 4; i++) { cyl(495 + i * 75, 1790, 15, 15, 0.72, 0.06, lam('#7a2f2f')); cyl(495 + i * 75, 1790, 3, 3, 0, 0.72, lam('#b8bcc2'), 8); }
+    box(460, 1874, 300, 6, 1.15, 1.2, lam('#2a1a12')); for (let r = 0; r < 2; r++) { box(460, 1856, 300, 18, 1.2 + r * 0.5, 0.03, lam('#5a3a28')); for (let i = 0; i < 12; i++) { const c = lam(['#5a1f2b', '#2f6b3a', '#c9a24a', '#e8e2d0', '#3a5a8a', '#8a3a1a'][(i + r) % 6]); cyl(475 + i * 24, 1865, 4, 4, 1.23 + r * 0.5, 0.24, c, 10); cyl(475 + i * 24, 1865, 1.5, 2, 1.47 + r * 0.5, 0.08, c, 8); } }
+    for (const x of [540, 680]) sph(x, 1845, 10, 2.1, glow('#ffcf8a'));
+  }
+  if (homeOwned('cinema')) { // big screen over the TV wall, speakers, projector
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.9), new THREE.MeshBasicMaterial({ map: R3.homeTV.t })); scr.position.set(4.36, 1.9, 15.25); scr.rotation.y = Math.PI / 2; add(scr);
+    box(421, 1400, 6, 250, 0.9, 2.1, lam('#0c0c10')); for (const y of [1330, 1720]) box(430, y, 40, 40, 0, 1.3, lam('#1d1d22'));
+    box(950, 1500, 40, 40, 3.3, 0.2, lam('#222228'));
+  }
+  if (homeOwned('telescope')) { const t = new THREE.Group(); for (let i = 0; i < 3; i++) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.2, 6), lam('#2a2a2e')); l.position.set(Math.cos(i * 2.1) * 0.18, 0.55, Math.sin(i * 2.1) * 0.18); l.rotation.set(Math.sin(i * 2.1) * 0.3, 0, -Math.cos(i * 2.1) * 0.3); t.add(l); }
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.9, 14), lam('#f2f2f2')); tube.position.y = 1.25; tube.rotation.z = 0.9; t.add(tube); t.position.set(21.52, 0, 3.62); add(t); }
+  if (homeOwned('roses')) for (const [x0, y0] of [[1280, 1950], [1760, 1950]]) { box(x0, y0, 160, 60, 0, 0.18, lam('#5a3f2a')); for (let i = 0; i < 14; i++) { const x = x0 + 12 + (i % 7) * 22, y = y0 + 15 + Math.floor(i / 7) * 28; sph(x, y, 14, 0.42, lam('#2f5a2a'), 1, 0.9, 1); sph(x + 4, y - 3, 6, 0.58, lam(['#c8203a', '#f06a8a', '#ffffff'][i % 3])); } }
+  if (homeOwned('art')) { const art = (x, z, ry, hue) => { const t = canvasTex(160, 120, (c, w, h) => { const gr = c.createLinearGradient(0, 0, w, h); gr.addColorStop(0, `hsl(${hue},60%,55%)`); gr.addColorStop(1, `hsl(${(hue + 120) % 360},50%,30%)`); c.fillStyle = gr; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(255,255,255,.35)'; for (let i = 0; i < 5; i++) { c.beginPath(); c.arc(30 + i * 25, 40 + (i % 2) * 40, 12 + i * 3, 0, 7); c.fill(); } c.strokeStyle = '#c9a25c'; c.lineWidth = 8; c.strokeRect(0, 0, w, h); });
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.9), lam('#ffffff', { map: t })); m.position.set(x, 2.0, z); m.rotation.y = ry; add(m); };
+    art(13.235, 17.8, Math.PI / 2, 20); art(18.985, 17.8, -Math.PI / 2, 200); }
+  if (homeOwned('chef')) { box(2745, 1640, 50, 120, 0, 0.9, lam('#b8bcc2')); for (let i = 0; i < 4; i++) cyl(2770, 1170 + i * 20, 8, 7, 1.7, 0.16, lam('#b8743a'), 12); box(2402, 1189, 76, 2, 0.2, 1.5, glow('#7fd0ff')); }
+  if (homeOwned('koi')) { box(475, 1995, 330, 210, 0, 0.12, lam('#8a857c')); const w = new THREE.Mesh(new THREE.PlaneGeometry(3.1, 1.9), new THREE.MeshPhongMaterial({ color: '#1d6a80', shininess: 90, specular: '#aaddee' })); w.rotation.x = -Math.PI / 2; w.position.set(6.4, 0.13, 21.0); add(w);
+    for (let i = 0; i < 5; i++) { const k = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 6), lam(i % 2 ? '#f08a3c' : '#f4f0e6')); k.scale.set(1, 0.35, 0.45); add(k); R3.homeKoi.push(k); } }
+  if (homeOwned('casino')) { box(450, 960, 140, 90, 0, 0.76, lam('#3a2418')); box(455, 965, 130, 80, 0.76, 0.03, lam('#1d6b3f')); for (let i = 0; i < 4; i++) box(480 + i * 22, 990, 14, 20, 0.795, 0.005, lam('#ffffff')); for (let i = 0; i < 6; i++) cyl(560, 1020, 6, 6, 0.79 + i * 0.012, 0.01, lam(['#c43a3a', '#2b5ab8', '#111111'][i % 3]), 12); }
+  if (homeOwned('supercar')) add(carModel(2935, 2040, 150, 345, '#f2c12e', true));
+}
+
+function carModel(x, y, w, len, color, sporty) { // a car pointing toward -y (front at y)
+  const g = new THREE.Group(), paint = new THREE.MeshPhongMaterial({ color, shininess: 90, specular: '#ffffff' }), dark = lam('#121216'), glass = new THREE.MeshPhongMaterial({ color: '#1a2533', shininess: 120, specular: '#9fb8d8' });
+  const bx = (x0, y0, ww, ll, z0, ht, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(ww * U, ht, ll * U), mat); m.position.set((x0 + ww / 2) * U, z0 + ht / 2, (y0 + ll / 2) * U); g.add(m); return m; };
+  const slab = (x0, ww, y1, h1, y2, h2, th, mat) => { const dz = (y2 - y1) * U, L = Math.hypot(dz, h2 - h1), m = new THREE.Mesh(new THREE.BoxGeometry(ww * U, th, L), mat); m.position.set((x0 + ww / 2) * U, (h1 + h2) / 2, ((y1 + y2) / 2) * U); m.rotation.x = -Math.atan2(h2 - h1, dz); g.add(m); return m; };
+  const lo = sporty ? 0.16 : 0.24, belt = sporty ? 0.52 : 0.78, roof = sporty ? 1.02 : 1.42, f = len;
+  bx(x, y + f * 0.02, w, f * 0.96, lo, belt - lo, paint);                                   // body
+  bx(x - 3, y + f * 0.15, w + 6, f * 0.7, lo - 0.06, 0.1, dark);                            // sills
+  slab(x + 4, w - 8, y + f * 0.02, belt - 0.06, y + f * 0.3, belt + 0.02, 0.06, paint);       // hood
+  slab(x + 10, w - 20, y + f * 0.3, belt, y + f * (sporty ? 0.47 : 0.42), roof, 0.03, glass); // windshield
+  bx(x + 10, y + f * (sporty ? 0.47 : 0.42), w - 20, f * (sporty ? 0.2 : 0.3), roof - 0.03, 0.05, paint); // roof
+  slab(x + 10, w - 20, y + f * (sporty ? 0.67 : 0.72), roof, y + f * (sporty ? 0.86 : 0.8), belt + 0.04, 0.03, glass); // rear window
+  for (const s of [0, 1]) bx(x + (s ? w - 11 : 1), y + f * 0.34, 10, f * (sporty ? 0.48 : 0.42), belt, roof - belt - 0.04, glass); // side windows
+  if (sporty) { for (const dx of [18, w - 24]) bx(x + dx, y + f * 0.93, 6, 6, belt, 0.22, dark); bx(x - 4, y + f * 0.9, w + 8, f * 0.08, belt + 0.2, 0.04, dark); bx(x + w * 0.3, y + f * 0.38, w * 0.4, 6, belt + 0.01, 0.02, dark); }
+  for (const [dx, dy] of [[-4, f * 0.18], [w - 18, f * 0.18], [-4, f * 0.8], [w - 18, f * 0.8]]) { const r = sporty ? 0.33 : 0.34, wh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.24, 20), dark); wh.rotation.z = Math.PI / 2; wh.position.set((x + dx + 11) * U, r, (y + dy) * U); g.add(wh);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.6, r * 0.6, 0.25, 14), lam('#c9ccd2')); rim.rotation.z = Math.PI / 2; rim.position.copy(wh.position); g.add(rim); }
+  for (const dx of [12, w - 34]) { bx(x + dx, y - 1, 22, 3, belt - 0.16, 0.08, new THREE.MeshBasicMaterial({ color: '#eef6ff' })); bx(x + dx, y + f - 2, 22, 3, belt - 0.14, 0.07, new THREE.MeshBasicMaterial({ color: '#ff2a2a' })); }
+  return g;
+}
+function animHomeUpgrades() {
+  if (!R3.homeKoi) return;
+  R3.homeKoi.forEach((k, i) => { const a = time * (0.4 + i * 0.06) + i * 1.3; k.position.set((640 + Math.cos(a) * (110 - i * 12)) * U, 0.15, (2100 + Math.sin(a) * (60 - i * 6)) * U); k.rotation.y = -a - Math.PI / 2; });
+}
+
+// ---------- blackjack ----------
+function playBlackjack(back) {
+  const deck = []; for (const s of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) deck.push({ r, s });
+  deck.sort(() => Math.random() - 0.5);
+  const val = h => { let t = 0, a = 0; for (const c of h) { t += c.r === 'A' ? 11 : 'JQK'.includes(c.r) ? 10 : +c.r; if (c.r === 'A') a++; } while (t > 21 && a) { t -= 10; a--; } return t; };
+  const show = h => h.map(c => `<span style="display:inline-block;min-width:34px;padding:6px 8px;margin:2px;border-radius:6px;background:#fff;color:${'♥♦'.includes(c.s) ? '#c42a3a' : '#111'};font-weight:800">${c.r}${c.s}</span>`).join('');
+  const betUI = () => showModal(`<h2>🃏 Blackjack</h2><p>Balance: <b>$${S.money}</b>. Dealer stands on 17. Blackjack pays 3:2.</p>`,
+    [...[50, 100, 500, 1000].map(b => [`Bet $${b}`, () => { if (S.money < b) { toast('Not enough cash for that bet.'); return; } deal(b); }, b === 100 ? 'primary' : '']), ['← Leave the table', back, '']]);
+  const deal = bet => {
+    const P = [deck.pop(), deck.pop()], D = [deck.pop(), deck.pop()]; if (deck.length < 15) { deck.length = 0; for (const s of ['♠', '♥', '♦', '♣']) for (const r of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) deck.push({ r, s }); deck.sort(() => Math.random() - 0.5); }
+    let doubled = false;
+    const finish = msg => { saveGame(); showModal(`<h2>🃏 ${msg}</h2><p>Dealer: ${show(D)} <b>${val(D)}</b></p><p>You: ${show(P)} <b>${val(P)}</b></p><p>Balance: <b>$${S.money}</b></p>`, [['Play again', betUI, 'primary'], ['← Leave the table', back, '']]); };
+    const settle = () => { while (val(D) < 17) D.push(deck.pop()); const p = val(P), d = val(D), b = doubled ? bet * 2 : bet;
+      if (p > 21) { S.money -= b; finish(`Bust! −$${b}`); } else if (d > 21 || p > d) { S.money += b; cashSound(); finish(`You win! +$${b}`); } else if (p === d) finish('Push. Bet returned.'); else { S.money -= b; finish(`Dealer wins. −$${b}`); } };
+    const turn = () => {
+      if (val(P) === 21 && P.length === 2) { if (val(D) === 21) { finish('Both blackjack. Push.'); return; } S.money += Math.round(bet * 1.5); cashSound(); finish(`Blackjack! +$${Math.round(bet * 1.5)}`); return; }
+      if (val(P) > 21) { settle(); return; }
+      showModal(`<h2>🃏 Blackjack · bet $${doubled ? bet * 2 : bet}</h2><p>Dealer: ${show([D[0]])} <span style="display:inline-block;min-width:34px;padding:6px 8px;border-radius:6px;background:#3a5a8a">?</span></p><p>You: ${show(P)} <b>${val(P)}</b></p>`,
+        [['Hit', () => { P.push(deck.pop()); turn(); }, 'primary'], ['Stand', settle, ''], ...(P.length === 2 && S.money >= bet * 2 ? [['Double down', () => { doubled = true; P.push(deck.pop()); settle(); }, '']] : [])]);
+    };
+    turn();
+  };
+  betUI();
+}
+
+// ---------- engagement & wedding ----------
+function proposeTo(p, back) {
+  if (!(S.gifts.ring > 0)) { toast('💍 Buy an engagement ring in the gift shop first.'); return; }
+  const yes = p.aff >= 95 && !p.upset;
+  if (yes) { S.gifts.ring--; p.status = 'engaged'; p.weddingDay = S.day + 3; saveGame(); chime(); setTimeout(chime, 300);
+    showModal(`<h2>💍 ${esc(p.c.name)} said YES!</h2><div class="intro"><canvas id="propP" width="300" height="300"></canvas><div style="flex:1;min-width:220px"><div class="req">“Yes! Yes, a thousand times yes! I can't believe this is happening!”</div><p>You're engaged. The wedding is in 3 days.</p></div></div>`, [['💞 Back', () => showPeople(back), 'primary']]);
+    drawPortrait(p.c, 'laugh', 1, false); const cv2 = $('propP'); if (cv2) cv2.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
+  } else { p.aff = Math.max(0, p.aff - 3); saveGame(); showModal(`<h2>${esc(p.c.name)} takes a deep breath…</h2><div class="req">“I love you. I do. I'm just… not ready yet. Ask me again someday?”</div><p class="d">Needs 95+ affection and no unresolved fights.</p>`, [['OK', () => showPeople(back), '']]); }
+}
+function maybeWedding() {
+  const p = Object.values(S.people || {}).find(q => q.status === 'engaged' && S.day >= (q.weddingDay || 1e9)); if (!p) return;
+  state = 'modal';
+  const done = (cost, rep5) => { S.money -= cost; p.status = 'spouse'; p.aff = 100; p.livesIn = true; for (let i = 0; i < rep5; i++) S.ratings.push(5); saveGame(); chime(); setTimeout(chime, 250); setTimeout(chime, 500);
+    showModal(`<h2>💞 Just married!</h2><p>Under an arch of white flowers, ${esc(p.c.name)} squeezes your hands and says “I do.” Everyone you know cheers, Mochi included. ${esc(p.c.name)} lives at the mansion with you now.</p>`, [['Back to work, newlywed 💍', () => { hideModal(); state = 'world'; }, 'primary']]); };
+  showModal(`<h2>💒 Today is your wedding day!</h2><div class="intro"><canvas id="wedP" width="300" height="300"></canvas><div style="flex:1;min-width:220px"><p>You and <b>${esc(p.c.name)}</b> are getting married. What kind of wedding?</p></div></div>`,
+    [['🌸 Grand garden wedding at the mansion ($5,000, word spreads: +reputation)', () => done(5000, 4), 'primary'], ['💍 Small, intimate ceremony ($800)', () => done(800, 1), '']]);
+  drawPortrait(p.c, 'bliss', 1, false); const cv2 = $('wedP'); if (cv2) cv2.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
+}
+
+// ---------- the spa's new upgrades, made visible ----------
+function spaExtras3D(add, box, cyl, plane, textTex) {
+  if (S.owned.products) { box(380, 582, 180, 30, 0, 1.7, lam('#f3efe6')); for (let r = 0; r < 3; r++) for (let i = 0; i < 8; i++) cyl(392 + i * 21, 597, 5, 5, 0.3 + r * 0.5, 0.18, lam(['#f2b6c8', '#b79be6', '#86c9a3', '#f2a65a'][(i + r) % 4]), 10); }
+  if (S.owned.sound) for (const [x, y] of [[1085, 590], [615, 1065], [1765, 135]]) box(x, y, 14, 14, 2.2, 0.3, lam('#1d1d22'));
+  if (S.owned.ads) plane(1.3, 0.5, new THREE.MeshBasicMaterial({ map: textTex('📱 @SerenityHands · 4.9★', 520, 200, '#f4e6ff', '#6a3a9a', '800 46px Nunito, system-ui') }), 8.6, 1.6, 10.785, Math.PI);
+  if (S.owned.steam) plane(1.1, 0.3, new THREE.MeshBasicMaterial({ map: textTex('🧖 STEAM ROOM', 440, 120, '#2f4a4f', '#e8f4f2', '800 44px Nunito, system-ui') }), 6.6, 2.2, 5.59, Math.PI);
+}
+
+// ---------- extra date activities unlocked by renovations ----------
+Object.assign(ACTS, {
+  drinks: { label: '🍷 Drinks at the bar', need: 'bar', topic: 'food', spot: { x: 610, y: 1745 }, at: { x: 610, y: 1840 }, me: { x: 610, y: 1765, yaw: Math.PI / 2 - 0.6 }, date: { x: 700, y: 1768, ang: Math.PI, pose: 'drink' }, exit: { x: 610, y: 1700 }, pre: 'drinks',
+    open: ['A bar? In your living room? Okay, bartender, impress me.', 'Cheers to a beautiful night.'], after: ['Okay, that was a great pour.', 'I\'m having the best time.'] },
+  rose: { label: '🌹 Pick a rose for them', need: 'roses', topic: 'art', spot: { x: 1360, y: 2060 }, at: { x: 1360, y: 1980 }, me: { x: 1340, y: 2050, yaw: -Math.PI / 2 + 0.6 }, date: { x: 1425, y: 2035, ang: 3.0 }, exit: { x: 1360, y: 2080 }, bonus: 3,
+    open: ['For me? Oh… it smells amazing.', 'You grow these yourself? Okay, that\'s very charming.'], after: ['I\'m keeping this one forever.', 'Nobody has ever given me a rose like that.'] },
+});
+const BOOST = { movie: ['cinema', 3], stars: ['telescope', 3], cook: ['chef', 3], dinner: ['chef', 2], paint: ['art', 2] };
+Object.assign(POSES, { drink: { phone: true, nod: 0.05 }, kiss: {} });
+
+function impressLine() {
+  const bits = []; let pts = 0;
+  if (homeOwned('supercar')) { bits.push('is that a SPORTS CAR in your driveway?!'); pts += 3; }
+  if (homeOwned('koi')) { bits.push('you have a koi pond?'); pts += 1; }
+  if (homeOwned('roses')) { bits.push('those roses smell incredible'); pts += 1; }
+  if (homeOwned('art')) { bits.push('your art is gorgeous'); pts += 1; }
+  return { text: bits.length ? ' And ' + bits.slice(0, 2).join(', and ') + '!' : '', pts };
+}
+function greetHomeDate(e) {
+  fp.yaw = Math.atan2(e.y - player.y, e.x - player.x); fp.pitch = pitchToFace(e);
+  const p = S.people[e.pid] || {}, info = world.dateInfo, go = () => { e.state = 'follow'; e.waveT = time + 1.5; player.trail = [{ x: e.x, y: e.y }]; setEmote(e, 'heart', 2);
+    moodTalk(e, () => dlg(e.c.name, e.live ? 'So… what do you want to do tonight?' : 'Lead the way! What should we do first?', [['Continue ▸', () => toast('💡 Walk to a spot and press E to do something together. Say goodnight when you\'re done.')]])); };
+  if (p.upset) {
+    e.expr = 'annoyed';
+    dlg(e.c.name, 'We need to talk about what happened.', [['I\'m sorry. I mean it, and it won\'t happen again.', () => { const ok = p.aff >= 25 || Math.random() < 0.5; if (ok) { p.upset = false; info.gained += 3; e.expr = 'neutral'; } else info.gained -= 2;
+      dlg(e.c.name, ok ? '…Okay. I believe you. Let\'s try to have a nice night.' : 'Sorry isn\'t enough right now. But I\'m here, so… let\'s just see.', [['Continue ▸', go]]); }],
+      ['Can we not do this tonight?', () => { info.gained -= 4; dlg(e.c.name, 'Fine. Whatever.', [['Continue ▸', go]]); }]]);
+    return;
+  }
+  if (e.live) {
+    dlg(e.c.name, pick(['Welcome home! How was work?', 'There you are! I missed you today.', 'Hey you. Long day?']), [
+      ['Long day, but seeing you makes it better.', () => { info.gained += 3; e.expr = 'bliss'; setEmote(e, 'heart', 2.5); go(); }],
+      ['Busy! The spa was packed.', () => { info.gained += 1; e.expr = 'happy'; go(); }],
+      ['Don\'t ask.', () => { info.gained -= 2; e.expr = 'neutral'; go(); }]]);
+    return;
+  }
+  const im = impressLine(); info.gained += im.pts;
+  const first = !p.visitedHome;
+  dlg(e.c.name, (first ? pick(['Hi! Wow… you live HERE? This place is like a palace!', 'Okay, I was not ready for a fountain AND columns. Hi!']) : pick(['Hey you! Missed this place. And you.', 'I brought snacks. Hi!'])) + im.text,
+    [['Come on in, let me show you around.', () => { if (S.people[e.pid]) S.people[e.pid].visitedHome = true; go(); }],
+     ['You look amazing tonight.', () => { info.gained += 2; e.expr = 'happy'; setEmote(e, 'heart', 2.5); if (S.people[e.pid]) S.people[e.pid].visitedHome = true; dlg(e.c.name, 'Stop it, you\'re making me blush… You don\'t look so bad yourself.', [['Come on in.', go]]); }]]);
+}
+function runActivityTalk(A, key, e) {
+  const p = S.people[e.pid], info = world.dateInfo; if (!p || !info) return;
+  const talk = () => dlg(e.c.name, pick(A.open), [['Continue ▸', () => {
+    let tid = A.topic; if (info.asked.includes(tid)) tid = TOPICS.map(t => t.id).find(id => !info.asked.includes(id)) || tid;
+    info.asked.push(tid); const T = TOPICS.find(t => t.id === tid), liked = p.likes.includes(tid);
+    const b = BOOST[key], boost = (b && homeOwned(b[0]) ? b[1] : 0) + (A.bonus || 0);
+    const enjoy = (p.likes.includes(A.topic) ? 4 : p.dislike === A.topic ? -3 : 2) + boost;
+    const opts = [['great', T.great], ['ok', T.ok], ['bad', T.bad]].sort(() => Math.random() - 0.5);
+    dlg(e.c.name, T.ask, opts.map(([k, txt]) => [txt, () => {
+      const d = (k === 'great' ? (liked ? 9 : 5) : k === 'ok' ? (liked ? 3 : 2) : (liked ? -8 : -6)) + enjoy;
+      info.gained += d; e.expr = d >= 7 ? 'laugh' : d >= 3 ? 'happy' : d > 0 ? 'neutral' : 'annoyed'; setEmote(e, d >= 7 ? 'heart' : d >= 3 ? 'note' : d > 0 ? '' : 'dots', 2.5);
+      const react = d >= 7 ? pick(['Okay, you get me. Like, really get me.', '*laughs* Same!! Oh my gosh.', 'That\'s honestly really sweet.']) : d >= 3 ? pick(['Mm, fair enough!', 'Ha, I like that.']) : d > 0 ? pick(['Hm. Okay.', 'Fair.']) : pick(['…Oh. Okay then.', 'Huh. We\'re different there.']);
+      const note = boost >= 3 ? ' (Also, this setup is AMAZING.)' : p.likes.includes(A.topic) ? ' (This is so my thing, by the way.)' : p.dislike === A.topic ? ' (Not really my thing, honestly.)' : '';
+      dlg(e.c.name, react + note, [['Continue ▸', () => dlg(e.c.name, pick(A.after), [['Continue ▸', () => endActivity(A, key, e)]])]]);
+    }]));
+  }]]);
+  if (A.pre === 'drinks') {
+    dlg(e.c.name, 'So, bartender, what are we having?', [
+      ['🍷 Two glasses of red wine.', () => { info.gained += 2; e.expr = 'happy'; dlg(e.c.name, '*clink* Mm, that\'s really good wine.', [['Continue ▸', talk]]); }],
+      ['🍸 I\'ll shake us a couple of cocktails.', () => { info.gained += 3; e.expr = 'laugh'; setEmote(e, 'note', 2); dlg(e.c.name, 'Look at you with the shaker! Okay, that\'s impressive.', [['Continue ▸', talk]]); }],
+      ['🧃 Mocktails. Keeping it chill tonight.', () => { info.gained += 2; e.expr = 'happy'; dlg(e.c.name, 'Honestly? Perfect. These are delicious.', [['Continue ▸', talk]]); }]]);
+    return;
+  }
+  talk();
+}
+function endHomeDate() {
+  const e = homeDate(), info = world.dateInfo; if (!e || !info) return;
+  const p = S.people[e.pid]; if (!p) return;
+  const gained = clamp(info.gained, -20, 30), great = gained >= 18, fine = gained >= 8, romantic = ['dating', ...COMMITTED].includes(p.status) || great;
+  world.scene = { key: 'bye' }; state = 'modal'; $('fade').classList.add('on');
+  setTimeout(() => {
+    if (e.live) { Object.assign(player, { x: 2200, y: 1040, pose: '', path: null }); fp.yaw = 0; Object.assign(e, { state: 'date', x: 2275, y: 1040, ang: Math.PI }); }
+    else { Object.assign(player, { x: HOME.SPOT.door.x, y: HOME.SPOT.door.y - 25, pose: '', path: null }); fp.yaw = Math.PI / 2; Object.assign(e, { state: 'date', x: HOME.SPOT.door.x, y: HOME.SPOT.door.y + 52, ang: -Math.PI / 2 }); }
+    Object.assign(e, { pose: 'stand', expr: great ? 'bliss' : fine ? 'happy' : 'neutral' }); fp.pitch = pitchToFace(e);
+    state = 'world'; $('fade').classList.remove('on');
+    const line = e.live ? (great ? 'Tonight was perfect. I love our life, you know that?' : fine ? 'That was a nice night. Ready for bed?' : 'Long night. Let\'s get some sleep.')
+      : !info.done.length ? 'Leaving already? Okay… thanks for having me, I guess.' : great ? 'Tonight was perfect. I don\'t really want it to end.' : fine ? 'I had a really nice time tonight. Thank you.' : 'Thanks for having me. It was… a nice house.';
+    const finish = () => {
+      p.dates++; p.aff = clamp(p.aff + gained, 0, 100);
+      if (fine && (p.status === 'friend' || p.status === 'acquaintance')) p.status = 'dating';
+      S.lastDateDay = S.day; S.homeNight = S.day; saveGame(); if (great) chime();
+      toast(`💞 ${p.c.name}: affection ${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100 · ${STATUS_LABEL[p.status]}`);
+      if (e.live) { e.state = 'gone'; world.scene = null; setTimeout(() => { toast('🌙 You both turn in for the night.'); leaveHome('bed'); }, 1800); return; }
+      e.state = 'homeLeave'; e.pose = null; e.path = null; e.tasks = [{ x: HOME.SPOT.porch.x, y: HOME.SPOT.porch.y }, { x: HOME.SPOT.gate.x, y: HOME.SPOT.gate.y - 5 }]; world.scene = null;
+      setEmote(e, great ? 'heart' : fine ? 'note' : 'dots', 4);
+      const caught = !isCommitted(p) ? checkCheating(p, { id: 'home' }) : null;
+      if (caught) setTimeout(() => { state = 'modal'; partnerReaction(caught, p, () => { hideModal(); state = 'world'; }); }, 2500);
+    };
+    const kiss = () => { e.pose = 'kiss'; e.expr = 'bliss'; e.y = player.y + (e.live ? 0 : 50); if (e.live) e.x = player.x + 50; fp.pitch = pitchToFace(e) - 0.04; setEmote(e, 'heart', 3); chime();
+      const f = $('fade'); f.style.background = '#ffb6d0'; f.style.opacity = ''; f.classList.add('on'); setTimeout(() => { f.classList.remove('on'); setTimeout(() => f.style.background = '', 400); }, 900);
+      setTimeout(() => dlg(e.c.name, e.live ? '…Goodnight, love. 💕' : '…Wow. Okay. Goodnight. Text me, okay? 💕', [['Goodnight. 💕', finish]]), 1100); };
+    const opts = [];
+    if (great && romantic) opts.push(['💋 Kiss goodnight', kiss]);
+    if (great || e.live) opts.push(['🤗 Hug', () => { e.pose = 'hug'; e.expr = 'bliss'; e.y = player.y + (e.live ? 0 : 46); if (e.live) e.x = player.x + 46; fp.pitch = pitchToFace(e) - 0.05; setEmote(e, 'heart', 3); dlg(e.c.name, e.live ? 'Mm. Best part of my day.' : 'Text me when you wake up tomorrow, okay? Goodnight. 💕', [['Goodnight. 💕', finish]]); }]);
+    opts.push([e.live ? '🌙 Call it a night' : '👋 Wave goodnight', () => { e.pose = e.live ? 'stand' : 'wave'; dlg(e.c.name, e.live ? 'Night night.' : fine ? 'Goodnight! Let\'s do this again.' : 'Goodnight.', [[e.live ? 'Lights out 🌙' : 'Bye!', finish]]); }]);
+    dlg(e.c.name, line, opts);
+  }, 400);
+}
+function spawnLiveIn(p) {
+  const c = clientFromPerson(p); c.look = Object.assign({}, c.look, { mood: '', top3: c.body.masc ? 'sweater' : pick(['sweater', 'tee', 'hoodie']), bot3: 'pants', skirt: false });
+  const e = { c, homeDate: true, live: true, pid: p.id, x: HOME.SPOT.foyerWait.x, y: HOME.SPOT.foyerWait.y, dir: 'down', ph: 0, moving: false, path: null, seat: -1, state: 'homeWait', wait: 0, uid: ++uidN, ang: Math.PI / 2, tasks: [], emote: 'heart', emoteT: 3, expr: 'happy' };
+  ents.push(e); world.dateInfo = { pid: p.id, done: [], asked: [], gained: 0 }; S.homeNight = S.day;
+}
+function homeInteractables() {
+  const list = [], e = homeDate(), S2 = HOME.SPOT;
+  if (world.scene) return list;
+  if (e && e.state === 'homeWait') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: e.live ? `Say hi to ${e.c.name}` : `Welcome ${e.c.name} in`, act: () => greetHomeDate(e), ent: e });
+  const dating = e && e.state === 'follow';
+  if (dating) {
+    for (const [k, A] of Object.entries(ACTS)) {
+      if (A.need && !homeOwned(A.need)) continue;
+      const lab = `${A.label} with ${e.c.name}${world.dateInfo.done.includes(k) ? ' ✔' : ''}`;
+      if (k === 'cat') { if (dist(homeCat.x, homeCat.y, player.x, player.y) < 200) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: lab, act: () => startActivity(k) }); continue; }
+      list.push({ x: A.at.x, y: A.at.y, spot: A.spot, label: lab, act: () => startActivity(k) });
+    }
+    if (e.live) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🌙 Call it a night with ${e.c.name}`, act: () => endHomeDate() });
+    else list.push({ x: S2.door.x, y: S2.door.y + 60, spot: S2.door, label: `👋 Walk ${e.c.name} out and say goodnight`, act: () => endHomeDate() });
+  } else {
+    const live = liveInPartner();
+    if (!e) list.push({ x: HOME.F.console.x + 20, y: HOME.F.console.y + 60, spot: S2.phone, label: world.dateArriveT > 0 ? '📱 Your guest is on the way' : live ? `📱 Phone (you live with ${live.c.name})` : '📱 Invite someone over', act: () => { if (world.dateArriveT > 0) return; state = 'modal'; showPeople(() => { hideModal(); state = 'world'; }); } });
+    list.push({ x: HOME.F.console.x + 20, y: HOME.F.console.y + 100, spot: { x: S2.phone.x, y: S2.phone.y + 40 }, label: '🏗️ Renovate the mansion', act: () => { state = 'modal'; showHomeShop(() => { hideModal(); state = 'world'; }); } });
+    if (!e) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🛏️ Sleep until morning (start Day ${S.day})`, act: () => leaveHome('bed') });
+    list.push({ x: HOME.F.car.x, y: HOME.F.car.y + 170, spot: S2.car, label: `🚗 Drive to the spa (start Day ${S.day})`, act: () => leaveHome('car') });
+    list.push({ x: HOME.F.piano.x + 85, y: HOME.F.piano.y + 140, spot: S2.piano, label: '🎹 Play the piano', act: () => { playMelody(); toast('🎹 You play a soft melody. The whole house listens.'); } });
+    list.push({ x: 445, y: 1520, spot: S2.tv, label: world.tvOn ? '📺 Turn the TV off' : '📺 Turn the TV on', act: () => { world.tvOn = !world.tvOn; } });
+    if (HOME.F.cards) list.push({ x: 520, y: 1005, spot: { x: 520, y: 1080 }, label: '🃏 Play blackjack', act: () => { state = 'modal'; playBlackjack(() => { hideModal(); state = 'world'; }); } });
+    if (dist(homeCat.x, homeCat.y, player.x, player.y) < 160) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: '🐱 Pet Mochi', act: () => petCat() });
+  }
+  return list;
+}
+
+function bodyTag(c) { const b = c.body; return b && b.build ? `<span class="tag">${BUILDS[b.build].label} · ${b.age}</span>` : ''; }
 
 // ---------- Upgrades you can see ----------
 function applyUpgradeSolids() {
@@ -3848,6 +4135,7 @@ function buildUpgrades3D() {
     const l = new THREE.PointLight('#ff6fb5', 0.4, 5, 2); l.position.set(7.2, 2.2, 11.4); add(l);
   }
   if (S.owned.gold) for (const [x, y] of [[925, 1062], [1075, 1062], [700, 600], [1020, 600]]) { cyl(x, y, 9, 13, 0, 0.6, new THREE.MeshPhongMaterial({ color: '#d4a63a', shininess: 120, specular: '#fff2c0' })); }
+  spaExtras3D(add, box, cyl, plane, textTex);
 }
 function animUpgrades3D() {
   if (!R3 || !R3.upg) return;

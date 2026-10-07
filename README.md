@@ -21,6 +21,10 @@ A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `inde
   - Invite someone over from the phone in the foyer or 💞 People (you can also invite them during the day for that night).
   - First-person dates: greet them at the door, walk them around, and do activities together (movie, video games, pool, cooking, candlelit dinner, piano, library, painting, gym, dancing, stargazing, the cat). Each activity comes with a conversation.
   - Say goodnight at the front door. Sleep in the bedroom or drive to the spa to start the next day.
+- **Real life:** people have good and bad days, and how you respond matters. Partners can move in. Buy a ring, propose, and choose a grand or small wedding. Goodnight kisses come after great dates.
+- **Renovate the mansion:** home bar (drinks dates), home cinema, telescope, rose garden, art collection, chef's kitchen, koi pond, blackjack table and a sports car.
+- **Money:** bills and an 8% income tax are due every 7 days. New spa upgrades: steam room, retail product shelf, social media ads, membership program and pro sound system.
+- **Everyone looks different:** builds (slim, average, athletic, curvy, plus-size, muscular, petite, tall, stocky), ages 21 to 68 with greying hair, and heights that vary by person.
 - **Daily events:** VIP visits, health inspections, holiday rushes and rainy days.
 - **Upgrades:** buy them in the supply cabinet. Customize your own therapist with My look.
 
