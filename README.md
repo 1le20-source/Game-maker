@@ -25,6 +25,7 @@ A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `inde
 - **Renovate the mansion:** home bar (drinks dates), home cinema, telescope, rose garden, art collection, chef's kitchen, koi pond, blackjack table and a sports car.
 - **Money:** bills and an 8% income tax are due every 7 days. New spa upgrades: steam room, retail product shelf, social media ads, membership program and pro sound system.
 - **Everyone looks different:** builds (slim, average, athletic, curvy, plus-size, muscular, petite, tall, stocky), ages 21 to 68 with greying hair, and heights that vary by person.
+- **Natural movement:** people walk like real people do. The heel lands first, the foot rolls through, the toes push off, the knee bends through the swing, and the hips rise and fall about 3 cm per step. The opposite arm swings and the stride scales with height. They lean forward to sit down or stand up, ease between poses instead of snapping, and talk with their hands.
 - **Free choices:** walk up to anyone and press E to choose what to do. With clients: small talk, offer tea, tell a joke, compliment them, swap numbers, give a gift. With staff: chat, praise or tip them. With your date: ask about their dreams or family, joke, hug, or kiss them on the cheek. At home you can sit on any sofa, chair or lounger.
 - **Daily events:** VIP visits, health inspections, holiday rushes and rainy days.
 - **Upgrades:** buy them in the supply cabinet. Customize your own therapist with My look.

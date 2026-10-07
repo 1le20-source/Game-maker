@@ -3663,7 +3663,9 @@ function dlg(name, text, choices) {
   const list = choices || [['Continue ▸', null]];
   list.forEach(([label, fn], i) => { const b = document.createElement('button'); b.textContent = (list.length > 1 ? (i + 1) + '. ' : '') + label; if (list.length === 1) b.className = 'primary';
     b.onclick = () => { initAudio(); dlg.close(); if (fn) fn(); }; box.appendChild(b); });
-  dlg.current = list; const e = homeDate(); if (e && name === e.c.name) e.talkT = time + Math.min(3, text.length * 0.045);
+  dlg.current = list; const e = homeDate(), talkT = time + Math.min(3, text.length * 0.045); if (e && name === e.c.name) e.talkT = talkT;
+  for (const x of ents) if (x.c && x.c.name === name && x.state !== 'gone') x.talkT = talkT; // whoever is speaking moves their mouth and hands
+  for (const st of staffEnts) if (st.s && st.s.c && st.s.c.name === name) st.talkT = talkT;
   try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
 }
 dlg.close = () => { const d = $('dlg'); if (d) d.hidden = true; if (dlg.current) dlg.closedAt = performance.now(); dlg.current = null; };
@@ -3840,8 +3842,7 @@ function poseDateHuman(h, e) {
   h.walkAmt += ((e.moving ? 1 : 0) - h.walkAmt) * 0.2;
   const P = POSES[e.pose || 'stand'] || {}, rel = Math.atan2(Math.sin(Math.atan2(player.y - e.y, player.x - e.x) - h.angle), Math.cos(Math.atan2(player.y - e.y, player.x - e.x) - h.angle));
   const lookP = ['sit', 'stand', 'lean', 'hug', 'wave', 'dance'].includes(e.pose || 'stand') && Math.abs(rel) < 1.8 && !(e.pose === 'sit' && world.scene && world.scene.key === 'movie' && ((time * 0.2) % 2) > 0.7) ? -rel : 0;
-  poseHuman(h, Object.assign({ walk: h.walkAmt, ph: e.ph * 0.42, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.6 + e.c.seed)), look: lookP, wave: e.waveT > time }, P));
-  poseExtra(h, e.pose);
+  poseHuman(h, Object.assign({ walk: h.walkAmt, ph: e.ph * 0.42, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.6 + e.c.seed)), look: lookP, wave: e.waveT > time, talking: e.talkT > time, extraPose: e.pose }, P));
   if (time - h.faceT > 0.06) { h.faceT = time; redrawFace(h, exprFor(e.expr || 'happy'), time, e.talkT > time); }
   setHumanEmote(h, e.emote || '');
 }
@@ -5390,7 +5391,82 @@ function setHumanEmote(h, type) {
   e.g.clearRect(0, 0, 128, 128); drawEmote(e.g, type, 64, 70, 3); e.t.needsUpdate = true;
 }
 // Pose: walk cycle, sitting, idles, table positions and touch reactions all drive the same joints.
+// ---------- Human motion: a real walking gait, smooth transitions between poses, hands that move while people talk ----------
+// One leg's stride, sampled every 10% from heel strike, in degrees: thigh angle from vertical (+ forward), knee bend, ankle (+ toes down).
+// Normal-walking lab curves, nudged so the standing foot stays on the floor and the swinging toes clear it.
+const GAIT = { thigh: [20, 16.5, 9, 0, -9, -15.5, -7.5, 8.5, 20.5, 22], knee: [4.5, 16.5, 13, 8.5, 2, 16, 41, 62.5, 52, 20], ankle: [-1, 5.5, -3.5, -6.5, -8.5, -6.5, 12.5, 9.5, 2, 0] };
+function gaitKey(a, u) { // smooth periodic curve through the samples, in radians
+  const n = a.length, x = (u - Math.floor(u)) * n, i = Math.floor(x), f = x - i, p0 = a[(i + n - 1) % n], p1 = a[i % n], p2 = a[(i + 1) % n], p3 = a[(i + 2) % n];
+  return (p1 + 0.5 * f * (p2 - p0 + f * (2 * p0 - 5 * p1 + 4 * p2 - p3 + f * (3 * (p1 - p2) + p3 - p0)))) * Math.PI / 180;
+}
+function legReach(h, hp, kn, an) { // how far the lowest point of the foot (heel, or the ball once the heel lifts) hangs below the hip joint
+  const H = h.H, th = hp.rotation.x, sh = th + kn.rotation.x, ft = sh + an.rotation.x, c = Math.cos(ft), s = Math.sin(ft);
+  return (h.yHip - h.yKnee) * Math.cos(th) + (h.yKnee - h.yAnk) * Math.cos(sh) + Math.max(0.04 * H * c - 0.012 * H * s, 0.04 * H * c + 0.075 * H * s);
+}
+function applyGait(h, p) {
+  const walk = clamp(p.walk || 0, 0, 1); if (walk < 0.01 || p.sit || p.lie) return;
+  const J = h.j, ph = p.ph || 0, H = h.H, fem = h.sp && !h.sp.masc ? 1 : 0;
+  for (const s of [1, -1]) {
+    const L = s > 0 ? 'L' : 'R', hp = J['hip' + L], kn = J['kn' + L], an = J['an' + L], sh = J['sh' + L], el = J['el' + L];
+    const legPh = s > 0 ? ph : ph + Math.PI, armPh = s > 0 ? ph + Math.PI : ph, u = legPh / (2 * Math.PI) - 0.25; // u = 0 at this foot's heel strike
+    hp.rotation.x += (Math.sin(legPh) * 0.45 - gaitKey(GAIT.thigh, u)) * walk; // replace the plain sine swing with the real curve
+    kn.rotation.x += (gaitKey(GAIT.knee, u) - 0.08 - 0.65 * Math.max(0, Math.sin(legPh + 1.3))) * walk;
+    an.rotation.x += gaitKey(GAIT.ankle, u) * walk; // heel first, roll over the foot, push off the toes, lift them to clear
+    const fwd = Math.sin(armPh);
+    sh.rotation.x -= fwd * 0.05 * walk; sh.rotation.z += s * 0.04 * walk; // arms swing opposite the legs, hands clearing the hips
+    el.rotation.x -= (0.05 + 0.14 * Math.max(0, fwd)) * walk; // the elbow bends more as the arm comes forward
+  }
+  const side = -Math.cos(ph), drop = side * (0.05 + 0.02 * fem) * walk; // weight over the standing leg; the other hip dips a little
+  h.pelvis.rotation.z += drop; h.pelvis.position.x += side * 0.012 * H * walk;
+  h.pelvis.rotation.y -= Math.sin(ph) * (0.11 + 0.015 * fem) * walk; // the hip swings forward with its leg...
+  h.spine.rotation.y += Math.sin(ph) * 0.16 * walk; // ...and the shoulders turn the other way (no more twist than the shirt hem can hide)
+  h.spine.rotation.z -= drop * 0.1; J.head.rotation.z -= drop * 0.8; // the shoulders ride with the hips (the spine is one joint here); the head stays level
+  J.head.rotation.y -= (h.pelvis.rotation.y + h.spine.rotation.y) * 0.9 * walk; // eyes stay on where they're going
+  const tz = Math.sin(h.pelvis.rotation.z); let reach = -9; // the hips ride as high as the standing leg holds them: lowest as weight passes between feet
+  for (const L of ['L', 'R']) reach = Math.max(reach, legReach(h, J['hip' + L], J['kn' + L], J['an' + L]) - J['hip' + L].position.x * tz);
+  h.pelvis.position.y += (h.yHip + reach - (h.yHip - h.yAnk + 0.04 * H) - h.pelvis.position.y) * walk;
+}
+function talkGesture(h, p) { // the hands move with the words: one hand lifts, palm turning up, with small beats on stressed words; a few nods
+  const J = h.j, t = time, sd = h.seedPh || 0, s = Math.floor(sd * 7) % 2 ? 1 : -1, L = s > 0 ? 'L' : 'R', O = s > 0 ? 'R' : 'L';
+  const lift = 0.6 + 0.4 * Math.sin(t * 0.8 + sd), beat = Math.max(0, Math.sin(t * 5.3 + sd)) * (0.55 + 0.45 * Math.sin(t * 1.7 + sd * 3));
+  const sh = J['sh' + L], el = J['el' + L], wr = J['wr' + L];
+  if (p.sit) { sh.rotation.x -= 0.12 * lift + 0.06 * beat; el.rotation.x -= 0.3 * lift + 0.18 * beat; }
+  else { sh.rotation.x -= 0.22 * lift + 0.08 * beat; sh.rotation.z += s * 0.1 * lift; el.rotation.x -= 0.85 * lift + 0.22 * beat; }
+  if (wr) wr.rotation.z -= s * 0.35 * lift;
+  const other = Math.max(0, Math.sin(t * 0.55 + sd * 2)); // now and then the other hand joins in
+  if (!p.sit) { J['sh' + O].rotation.x -= 0.12 * other; J['el' + O].rotation.x -= 0.5 * other; }
+  J.head.rotation.x += beat * 0.05 - 0.02; J.head.rotation.z += Math.sin(t * 1.1 + sd) * 0.04;
+}
+const BLEND_KEYS = ['head', 'shL', 'shR', 'elL', 'elR', 'wrL', 'wrR', 'fgL', 'fgR', 'hipL', 'hipR', 'knL', 'knR', 'anL', 'anR'];
+const smooth01 = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+function blendPose(h, p) { // every joint eases toward its new pose instead of snapping: slow to start, slow to settle, like a real body
+  const now = performance.now() / 1000;
+  if (!h._bl) { h._bl = [h.pelvis, h.spine, ...BLEND_KEYS.map(k => h.j[k]).filter(Boolean)].map(o => ({ o, q1: o.quaternion.clone(), q2: o.quaternion.clone(), p1: o.position.clone(), p2: o.position.clone() })); h._blT = time; h._blR = now; return; }
+  const dt = clamp(Math.max(time - h._blT, now - h._blR), 0, 1); h._blT = time; h._blR = now;
+  const gait = p.sit || p.lie ? 0 : clamp(p.walk || 0, 0, 1), y0 = h._bl[0].p2.y;
+  for (const b of h._bl) {
+    const tq = b.o.quaternion, tp = b.o.position;
+    const kq = 1 - Math.exp(-dt * Math.max(22 - 16 * smooth01((b.q2.angleTo(tq) - 0.15) / 0.35), 34 * gait)); // big moves (sitting down, lifting an arm) take their time; small ones follow closely
+    b.q1.slerp(tq, kq); b.q2.slerp(b.q1, kq); tq.copy(b.q2);
+    const kp = 1 - Math.exp(-dt * Math.max(22 - 18 * smooth01((b.p2.distanceTo(tp) - 0.03) / 0.09), 34 * gait));
+    b.p1.lerp(tp, kp); b.p2.lerp(b.p1, kp); tp.copy(b.p2);
+  }
+  if (dt > 0) h.spine.rotation.x += clamp(Math.abs(h._bl[0].p2.y - y0) / dt * 0.6, 0, 0.45) * (1 - gait); // lean forward to sit down or get up
+}
+function moveHuman(h, p) { // runs inside poseHuman, after the base pose and before hair and skin follow it
+  applyGait(h, p);
+  if (p.extraPose) poseExtra(h, p.extraPose);
+  if (p.talking && !p.lie && !p.work && !p.phone && !p.cross && !p.wave && !p.stretch && (!p.extraPose || ['stand', 'sit', 'sitback'].includes(p.extraPose))) talkGesture(h, p);
+  blendPose(h, p);
+}
+function seatEase(h, on, ang) { // 0 standing … 1 seated, eased like the joints: the hips travel back onto the seat as the knees bend, so the feet stay put
+  const now = performance.now() / 1000, tgt = on ? 1 : 0; if (on) h._skA = ang;
+  if (h._sk === undefined) { h._sk = h._sk1 = tgt; h._skT = time; h._skR = now; h._skA = ang; return tgt; }
+  const dt = clamp(Math.max(time - h._skT, now - h._skR), 0, 1), k = 1 - Math.exp(-dt * 6); h._skT = time; h._skR = now;
+  h._sk1 += (tgt - h._sk1) * k; h._sk += (h._sk1 - h._sk) * k; return h._sk;
+}
 function poseHuman(h, p) {
+  if (p.ph) p.ph *= 2.24 / h.H; // stride in step with height: about 1.05 m for an average adult
   const J = h.j, H = h.H, walk = p.walk || 0, ph = p.ph || 0, br = p.breath || 0, t = time;
   h.pelvis.position.set(0, h.yHip + Math.abs(Math.cos(ph)) * 0.012 * walk, 0); h.pelvis.rotation.set(0, Math.sin(ph) * 0.06 * walk, 0);
   const idle = p.lie || p.sit ? 0 : 1 - walk, sd = h.seedPh ?? (h.seedPh = Math.random() * 20), w8 = Math.sin(t * 0.33 + sd) * 0.8 + Math.sin(t * 0.11 + sd * 2) * 0.2;
@@ -5421,6 +5497,7 @@ function poseHuman(h, p) {
     }
   }
   if (p.sit) h.pelvis.position.y = 0.47; // hips rest on the cushion
+  moveHuman(h, p);
   poseHair(h, p);
   const under = !!(p.lie && h.sheet && h.sheet.visible); // under the sheet a skirt and the seat settle flatter so nothing pokes up through it
   if (h.skirtBits) for (const m of h.skirtBits) { m.scale.z = (m.userData.sz || 1) * (under ? 0.6 : 1); m.scale.x = under ? 0.8 : 1; }
@@ -5487,15 +5564,15 @@ function syncHumans(third) {
     if (h.sheet) h.sheet.visible = false; setTableDress(h, false);
     if (e.homeDate && (e.state === 'date' || e.state === 'homeWait')) { poseDateHuman(h, e); continue; }
     const seated = e.state === 'seated', mf = moodFor(e), ang = seated ? (e.seatAng ?? Math.PI / 2) : (e.ang ?? -Math.PI / 2);
-    h.angle = seated ? ang : h.angle == null ? ang : lerpAngle(h.angle, ang, 0.18);
+    h.angle = h.angle == null ? ang : lerpAngle(h.angle, ang, seated ? 0.12 : 0.18); // turn around before sitting down
     const dc = dist(e.x, e.y, player.x, player.y); h.root.visible = dc < 3200;
-    h.root.position.set((seated ? e.x - Math.cos(ang) * 36 : e.x) * U, 0, (seated ? e.y - Math.sin(ang) * 36 : e.y) * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
+    const sk = seatEase(h, seated, ang), sa = h._skA ?? ang; h.root.position.set((e.x - Math.cos(sa) * 36 * sk) * U, 0, (e.y - Math.sin(sa) * 36 * sk) * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
     if (dc > 1500 && h.posed) { setHumanEmote(h, e.emote || ''); continue; } h.posed = true; // far away: keep the last pose, save the work
     h.walkAmt += ((e.moving ? 1 : 0) - h.walkAmt) * 0.2;
     const dp = dist(e.x, e.y, player.x, player.y), rel = Math.atan2(Math.sin(Math.atan2(player.y - e.y, player.x - e.x) - h.angle), Math.cos(Math.atan2(player.y - e.y, player.x - e.x) - h.angle));
     poseHuman(h, { walk: h.walkAmt, ph: e.ph * 0.42, sit: seated, phone: mf.opts.phone, cross: mf.opts.cross, tap: mf.opts.tap, stretch: e.stretchT > time && !e.moving, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.7 + e.c.seed)),
-      look: dp < 320 && Math.abs(rel) < 1.9 ? -rel : 0, nod: mf.opts.phone ? 0.38 : 0, wave: e.state === 'follow' && e.waveT > time });
-    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, exprFor(mf.mood), time, false); }
+      look: dp < 320 && Math.abs(rel) < 1.9 ? -rel : 0, nod: mf.opts.phone ? 0.38 : 0, wave: e.state === 'follow' && e.waveT > time, talking: e.talkT > time });
+    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, exprFor(mf.mood), time, e.talkT > time); }
     setHumanEmote(h, e.emote || '');
   }
   for (const st of staffEnts) {
@@ -5505,8 +5582,8 @@ function syncHumans(third) {
     h.walkAmt += ((st.moving ? 1 : 0) - h.walkAmt) * 0.2;
     const busy = st.state === 'work' || st.state === 'clean', inc = st.incident && st.incident.type;
     poseHuman(h, { walk: h.walkAmt, ph: st.ph * 0.42, work: busy && inc !== 'phone', lean: st.state === 'work' ? 0.3 : st.state === 'clean' ? 0.4 : inc === 'nap' ? 0.25 : 0, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * (inc === 'nap' ? 0.9 : 1.6))),
-      cross: (st.s.role === 'manager' && st.state === 'idle') || inc === 'rude', phone: inc === 'phone', nod: inc === 'phone' ? 0.38 : inc === 'nap' ? 0.55 : 0, tilt: inc === 'nap' ? 0.25 : 0 });
-    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, inc === 'nap' ? 'bliss' : inc === 'rude' ? 'annoyed' : inc === 'phone' ? 'neutral' : busy ? 'bliss' : 'happy', time, false); }
+      cross: (st.s.role === 'manager' && st.state === 'idle') || inc === 'rude', phone: inc === 'phone', nod: inc === 'phone' ? 0.38 : inc === 'nap' ? 0.55 : 0, tilt: inc === 'nap' ? 0.25 : 0, talking: st.talkT > time });
+    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, inc === 'nap' ? 'bliss' : inc === 'rude' ? 'annoyed' : inc === 'phone' ? 'neutral' : busy ? 'bliss' : 'happy', time, st.talkT > time); }
     setHumanEmote(h, st.emote || '');
   }
   // you
@@ -5522,7 +5599,7 @@ function syncHumans(third) {
   me.headShape.visible = third; // in first person the camera sits in your head
   me.root.position.set(player.x * U, 0, player.y * U); me.root.rotation.set(0, Math.PI / 2 - fp.yaw, 0);
   me.walkAmt += ((player.moving ? 1 : 0) - me.walkAmt) * 0.25;
-  poseHuman(me, Object.assign({ walk: me.walkAmt, ph: player.ph * 0.42, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.5)) }, POSES[player.pose] || {})); poseExtra(me, player.pose);
+  poseHuman(me, Object.assign({ walk: me.walkAmt, ph: player.ph * 0.42, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.5)), extraPose: player.pose }, POSES[player.pose] || {}));
   if (third && time - me.faceT > 0.1) { me.faceT = time; redrawFace(me, 'neutral', time, false); }
   for (const [k, h] of R3.humans) if (!h.seen) { disposeHuman(h); R3.humans.delete(k); }
   return me;
