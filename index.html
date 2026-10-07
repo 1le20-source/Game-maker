@@ -93,6 +93,20 @@ body:not(.world) #worldPanel,body:not(.world) #worldTools{display:none!important
 .qi .bar{flex:1;height:6px;margin:0}.qi .bar>div{background:linear-gradient(90deg,var(--red),var(--gold),var(--green))}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40}
 #fade.on{opacity:1}
+#w3d{position:absolute;inset:0;display:none;touch-action:none;cursor:crosshair}
+body.world.fp3d #w3d{display:block} body.world.fp3d #game{display:none}
+#hud3d{position:absolute;inset:0;pointer-events:none;display:none} body.world.fp3d #hud3d{display:block}
+#prompt3d{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);background:rgba(12,16,18,.86);border:1.5px solid var(--gold);padding:9px 18px;border-radius:999px;font-weight:800;white-space:nowrap;font-size:15px}
+.k{background:var(--gold);color:#2a1f08;border-radius:6px;padding:1px 7px;font-size:12px;opacity:1;margin:0 4px 0 0}
+#cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 0 1.5px rgba(0,0,0,.45)}
+#minimap{position:absolute;right:12px;top:12px;width:150px;height:150px;border-radius:50%;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#lookHint{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);background:rgba(12,16,18,.75);padding:6px 14px;border-radius:999px;font-size:13px;white-space:nowrap}
+#joy{position:absolute;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35)}
+#joyKnob{position:absolute;left:33px;top:33px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.6)}
+.fbar{height:8px;border-radius:6px;background:linear-gradient(90deg,var(--red),#6b6b6b 50%,var(--green));position:relative;margin-top:6px}
+#feelMark{position:absolute;top:-4px;width:5px;height:16px;background:#fff;border-radius:3px;left:50%;margin-left:-2px;transition:left .2s;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+#feelTxt{font-size:13px;line-height:1.4;min-height:36px}
+@media (max-width:820px){#minimap{width:104px;height:104px}#lookHint{display:none}}
 .quote{font-style:italic;text-align:center;color:#d6e2df;margin:8px 0}
 @media (max-width:820px){
   #main{flex-direction:column}
@@ -132,7 +146,7 @@ window.addEventListener('error', function (e) {
         <h4>Waiting room</h4>
         <div id="queueList"></div>
         <h4>Controls</h4>
-        <div class="ctl"><b>WASD</b> / arrows to walk · <b>Shift</b> to run<br><b>E</b> / Space to interact<br>Or click / tap anywhere to walk there</div>
+        <div class="ctl"><b>WASD</b> to walk · <b>Shift</b> to run<br><b>Mouse</b> (click first) or <b>Q</b>/<b>←→</b> to look<br><b>E</b> / Space / click to interact · <b>V</b> camera view<br>Phone: left thumb moves, right thumb looks, tap to interact</div>
       </div>
       <div id="sessPanel">
       <canvas id="portrait" width="320" height="320"></canvas>
@@ -141,16 +155,18 @@ window.addEventListener('error', function (e) {
       <div class="req" id="cReq">Loading…</div>
       <div class="meter"><div class="lbl"><span>😌 Relaxation</span><span id="relaxPct">0%</span></div><div class="bar"><div id="relaxFill"></div></div></div>
       <div class="meter"><div class="lbl"><span>💗 Comfort</span><span id="comfortPct">0%</span></div><div class="bar"><div id="comfortFill"></div></div></div>
+      <h4>What they feel</h4>
+      <div id="feelBox"><div id="feelTxt">Touch them to find out how it feels.</div><div class="fbar"><div id="feelMark"></div></div></div>
       <h4>Focus areas</h4>
       <div id="focusList"></div>
       <h4>What you know</h4>
       <div id="knowList"></div>
       </div>
     </aside>
-    <div id="stage"><canvas id="game"></canvas><div id="toast"></div></div>
+    <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div></div><div id="toast"></div></div>
   </div>
   <div id="toolbar">
-    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bShopW">🛍️ Upgrades</button></div>
+    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bView">📷 View<kbd>V</kbd></button><button id="bShopW">🛍️ Upgrades</button></div>
     <div class="grp sessOnly"><span class="gl">Tool</span>
       <button id="tHands" class="on">✋ Hands<kbd>Q</kbd></button>
       <button id="tOil">💧 Oil<kbd>W</kbd></button>
@@ -175,6 +191,7 @@ window.addEventListener('error', function (e) {
 <div id="fade"></div>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#141a1c;color:#eef3f1;font:18px sans-serif;padding:24px;text-align:center">Serenity Hands needs JavaScript. Open this file in Chrome, Edge, Firefox or Safari.</div></noscript>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 'use strict';
 /* =========================================================
@@ -210,7 +227,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // ---------- Save data ----------
 const SAVE_KEY = 'serenityHands_v1';
 const DEFAULT_SAVE = () => ({ money: 120, day: 1, clientNo: 0, ratings: [], owned: {}, music: true,
-  stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 4 });
+  stats: { clients: 0, earned: 0, fiveStars: 0, knots: 0 }, dayLog: [], todayTotal: 4, staff: [], cands: null, candDay: 0 });
 let S = DEFAULT_SAVE();
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY); } catch (e) { return false; } }
 function loadGame() {
@@ -338,6 +355,7 @@ function makeClient() {
     pref, favScent: pick(scents), ticklish: Math.random() < 0.3, hairOil: Math.random() < 0.35,
     chatty: Math.random() < 0.6, seed: rand(0, 10), bg: pick([['#3b4f6b', '#25303f'], ['#5b3b5f', '#2f2234'], ['#2f5a52', '#1d3330'], ['#6a4b35', '#3a2a1f'], ['#4d3f6e', '#28213a']]),
   };
+  c.feel = genFeel(c);
   c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1));
   return c;
 }
@@ -453,6 +471,7 @@ function resize() {
     for (const c of [cv, bodyC, roomC, baseC]) { c.width = Math.round(W * K); c.height = Math.round(H * K); }
     buildRoom(); buildWorld(); if (ses) drawBodyBase();
   }
+  if (typeof resize3D === 'function') resize3D();
 }
 
 // ---------- Room rendering (cached) ----------
@@ -564,6 +583,7 @@ function startSession(c) {
     stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
+    head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
     tissue: [], contact: null, breathPh: rand(0, 6), breathAmt: 0, sigh: 0, painT: 0,
     shift: { x: 0, y: 0, vx: 0, vy: 0 }, hair: { a: 0, v: 0 }, twitch: { T: 0, B: 0 } };
   bubble = null; particles.length = 0; floaters.length = 0;
@@ -706,8 +726,21 @@ function updateBodySim(dt, active, z) {
   const hr = ses.hair, ht = sh.y * 1.4 + Math.sin(time * 0.5) * 0.8 + ses.breathAmt * 60;
   hr.v += (14 * (ht - hr.a) - 1.6 * hr.v) * dt; hr.a += hr.v * dt;
   for (const k of ['T', 'B']) ses.twitch[k] = Math.max(0, ses.twitch[k] - dt * 1.4);
+  // head turns/lifts, hands clench or relax, shoulders hunch or drop, goosebumps fade
+  const hd = ses.head, htg = (ses.painT > 0 ? -0.045 : 0) + ses.melt * 0.03; hd.v += (55 * (htg - hd.a) - 8 * hd.v) * dt; hd.a = clamp(hd.a + hd.v * dt, -0.14, 0.14);
+  ses.tense = Math.max(0, ses.tense - dt * 0.8); if (!ptr.down) ses.melt = Math.max(0, ses.melt - dt * 0.05);
+  for (const k of ['T', 'B']) ses.handTw[k] = Math.max(0, ses.handTw[k] - dt * 1.2);
+  for (const z in ses.goose) ses.goose[z] = Math.max(0, ses.goose[z] - dt * 0.5);
+  ses.feelT -= dt; ses.thoughtCd -= dt; if (ses.thought) ses.thought.t -= dt;
 }
 
+function bodyLanguage(fl, z, dt) {
+  const side = z.endsWith('B') ? 'B' : 'T', h = ses.head;
+  if (fl.kind === 'pain') { ses.tense = Math.min(1, ses.tense + dt * 3); if (!ses.painReact || time - ses.painReact > 1.2) { ses.painReact = time; h.v += (ptr.y < CY ? 1 : -1) * 1.6; ses.handTw.T = ses.handTw.B = 1; } }
+  else if (fl.kind === 'tickle') { h.v += Math.sin(time * 23) * dt * 30; ses.handTw[side] = 0.7; ses.goose[z] = 1; ses.shift.vy += Math.sin(time * 19) * dt * 120; }
+  else if (fl.kind === 'bliss' || fl.kind === 'melt') { ses.melt = Math.min(1, ses.melt + dt * 0.25); if (Math.random() < dt * 0.15) ses.sigh = Math.max(ses.sigh, 0.6); if (pressure === 1) ses.goose[z] = Math.max(ses.goose[z] || 0, 0.45); }
+  else if (fl.kind === 'relief') { if (Math.random() < dt * 0.12) ses.sigh = Math.max(ses.sigh, 0.5); if (Math.random() < dt * 0.3) ses.handTw[side] = Math.max(ses.handTw[side], 0.35); }
+}
 function massage(z, move, dt) {
   const c = ses.c, P = pressure, pref = c.pref;
   const oiled = ses.oil[z] > 0.15, needsOil = NEEDS_OIL.has(z);
@@ -715,6 +748,9 @@ function massage(z, move, dt) {
   if (needsOil && !oiled) eff *= 0.55;
   if (P < pref) eff *= P === pref - 1 ? 0.7 : 0.45;
   if (oiled && c.favScent === ses.oilScent?.[z]) eff *= 1.1;
+  const fl = feelingFor(z, move); ses.feel = fl; ses.feelT = 0.8;
+  if (ses.thoughtCd <= 0 && fl.thought !== ses.lastThought) { ses.thought = { text: fl.thought, t: 3.2 }; ses.thoughtCd = 4.5; ses.lastThought = fl.thought; }
+  bodyLanguage(fl, z, dt);
   const before = ses.tension[z];
   ses.tension[z] = Math.max(0, before - eff * 1.0);
   ses.red[z] = Math.min(1, ses.red[z] + eff * 0.012 * P);
@@ -736,6 +772,9 @@ function massage(z, move, dt) {
   if (P > pref) {
     ses.comfort -= dt * (P - pref) * 7; ses.painT = 1.2;
     if (ses.complainCd <= 0) { say(pick(LINES.hard(PNAME[pref])), 'wince', true); ses.complainCd = 5; ses.known.pref = true; flinch(0.6 + 0.4 * (P - pref)); }
+  } else if (c.feel[z].kind === 'tender' && P >= 2) {
+    ses.comfort -= dt * 4; ses.painT = 1.2;
+    if (ses.complainCd <= 0) { say(pick(["Ah— careful, that spot's really tender.", "Ow, gently there… it's sensitive."]), 'wince', true); ses.complainCd = 5; flinch(0.5); }
   } else if (z.startsWith('foot') && c.ticklish && P === 1 && move > 2) {
     ses.comfort -= dt * 5; ses.twitch[z.slice(-1)] = 1;
     if (ses.complainCd <= 0) { say(pick(LINES.tickle), 'laugh', true); ses.complainCd = 5; ses.known.tickle = true; flinch(0.35); }
@@ -743,7 +782,8 @@ function massage(z, move, dt) {
     ses.comfort -= dt * 1.8;
     if (ses.complainCd <= 0) { say(pick(LINES.dry), 'neutral', true); ses.complainCd = 7; }
   } else {
-    ses.comfort += dt * (1.6 + (P === pref ? 1.4 : 0));
+    ses.comfort += dt * (1.6 + (P === pref ? 1.4 : 0) + (c.feel[z].kind === 'loves' ? 2 : 0));
+    if (c.feel[z].kind === 'loves' && !ses.lovedSaid) { ses.lovedSaid = true; say(pick(["Oh my god… that's my favorite spot.", "Nobody ever massages there… that's amazing."]), 'bliss', true); }
     if (P < pref && ses.complainCd <= 0 && Math.random() < dt * 0.25) { say(pick(LINES.soft(PNAME[pref])), 'neutral', true); ses.complainCd = 8; ses.known.pref = true; }
     else if (!ses.zoneLineDone[z] && LINES.zone[z] && before > 20 && Math.random() < dt * 0.5) { ses.zoneLineDone[z] = true; say(LINES.zone[z], 'bliss'); }
     else if (Math.random() < dt * 0.12) say(pick(LINES.good), 'bliss');
@@ -862,13 +902,14 @@ function showResults(res, quote) {
 }
 function showDayEnd() {
   state = 'dayEnd';
-  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent();
-  S.money -= rent; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
+  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + b.wage, 0);
+  S.money -= rent + wages; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
   const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
   showModal(`<h2>🌙 End of Day ${S.day - 1}</h2>
-    <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)} ${l.left ? '<span style="color:var(--muted)">left before being seen</span>' : starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
+    <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)}${l.by ? ` <span style="color:var(--muted)">(${esc(l.by)})</span>` : ''} ${l.left ? '<span style="color:var(--muted)">left before being seen</span>' : starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
     <div class="row"><span>Earnings</span><b>$${earned}</b></div>
     <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
+    ${wages ? `<div class="row"><span>Staff wages</span><b>−$${wages}</b></div>` : ''}
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
     <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
     [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => startDayWorld(), 'primary']]);
@@ -1020,9 +1061,10 @@ function drawBody() { // per-frame: cached body + dynamic redness / oil / heat o
   const g = bctx, { Z } = ses.L;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bodyC.width, bodyC.height); g.drawImage(baseC, 0, 0);
   const b = ses.c.body, br = ses.breathAmt;
-  if (br > 0) for (let x = 300; x < 600; x += 6) { // ribcage expands most, lower back a little
-    const prof = Math.exp(-(((x - 430) / 95) ** 2)) + 0.35 * Math.exp(-(((x - 540) / 40) ** 2)), sc = 1 + br * prof, h = b.hw + 52;
-    g.drawImage(baseC, x * K, (CY - h) * K, 6 * K, 2 * h * K, x * K, (CY - h * sc) * K, 6 * K, 2 * h * sc * K);
+  const hunch = ses.tense * 4 - ses.melt * 1.5; // shoulders creep toward the ears when tense, drop when melting
+  if (br > 0 || Math.abs(hunch) > 0.05) for (let x = 300; x < 600; x += 6) { // ribcage expands most, lower back a little
+    const prof = Math.exp(-(((x - 430) / 95) ** 2)) + 0.35 * Math.exp(-(((x - 540) / 40) ** 2)), sc = 1 + br * prof, h = b.hw + 52, dx = -hunch * Math.exp(-(((x - 360) / 45) ** 2));
+    g.drawImage(baseC, x * K, (CY - h) * K, 6 * K, 2 * h * K, (x + dx) * K, (CY - h * sc) * K, 6 * K, 2 * h * sc * K);
   }
   g.setTransform(K, 0, 0, K, 0, 0);
   for (const k of ['T', 'B']) { // feet twitch around the ankle
@@ -1032,6 +1074,16 @@ function drawBody() { // per-frame: cached body + dynamic redness / oil / heat o
     sctx.drawImage(bodyC, 1036 * K, (fy - 36) * K, 80 * K, 72 * K, 0, 0, 80 * K, 72 * K);
     g.clearRect(1036, fy - 36, 80, 72); g.save(); g.translate(1040, fy); g.rotate(a);
     g.drawImage(scrC, 0, 0, 80 * K, 72 * K, -4, -36, 80, 72); g.restore();
+  }
+  for (const k of ['T', 'B']) { // hands clench or relax at the wrist
+    const tw = ses.handTw[k]; if (tw <= 0.02) continue;
+    const hy = CY + (k === 'T' ? -1 : 1) * (b.hw + 30), a = (k === 'T' ? 1 : -1) * 0.12 * tw * (0.5 + 0.5 * Math.sin(time * 26));
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 320, 320); sctx.drawImage(bodyC, 626 * K, (hy - 26) * K, 64 * K, 52 * K, 0, 0, 64 * K, 52 * K);
+    g.clearRect(626, hy - 26, 64, 52); g.save(); g.translate(630, hy); g.rotate(a); g.drawImage(scrC, 0, 0, 64 * K, 52 * K, -4, -26, 64, 52); g.restore();
+  }
+  if (Math.abs(ses.head.a) > 0.002) { // head turns or lifts in the face cradle
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 320, 320); sctx.drawImage(bodyC, 180 * K, (CY - 64) * K, 120 * K, 128 * K, 0, 0, 120 * K, 128 * K);
+    g.clearRect(180, CY - 64, 120, 128); g.save(); g.translate(296, CY); g.rotate(ses.head.a); g.drawImage(scrC, 0, 0, 120 * K, 128 * K, -116, -64, 120, 128); g.restore();
   }
   g.save(); g.globalCompositeOperation = 'source-atop';
   for (const z of ZONES) {
@@ -1046,6 +1098,10 @@ function drawBody() { // per-frame: cached body + dynamic redness / oil / heat o
       }
     }
   }
+  for (const z in ses.goose) { const gv = ses.goose[z]; if (gv < 0.05) continue; const zc = Z[z]; // goosebumps
+    for (let i = 0; i < 36; i++) { const a = i * 2.39996, r = Math.sqrt((i + 0.5) / 36), ox = Math.cos(a) * r * zc.rx * 0.9, oy = Math.sin(a) * r * zc.ry * 0.9;
+      const x = zc.x + ox * Math.cos(zc.rot) - oy * Math.sin(zc.rot), y = zc.y + ox * Math.sin(zc.rot) + oy * Math.cos(zc.rot);
+      g.fillStyle = `rgba(255,255,255,${0.35 * gv})`; g.beginPath(); g.arc(x - 0.5, y - 0.5, 1, 0, 7); g.fill(); g.fillStyle = `rgba(120,50,40,${0.25 * gv})`; g.beginPath(); g.arc(x + 0.5, y + 0.6, 0.9, 0, 7); g.fill(); } }
   if (heatView) for (const z of ZONES) { const t = ses.tension[z] / 100; blob(g, Z[z], heatColor(t, 0.6), 1.0); }
   g.restore();
   for (const t of ses.tissue) if (Math.abs(t.d) > 0.025) tissueLens(g, t.x, t.y, t.d, t.sx, t.sy, b.soft);
@@ -1106,7 +1162,8 @@ function drawHair() {
   const lock = (x1, y1, cx1, cy1, cx2, cy2, x2, y2, w) => {
     g.beginPath(); g.moveTo(x1, y1 - w); g.bezierCurveTo(cx1, cy1 - w, cx2, cy2 - w * 0.4, x2, y2); g.bezierCurveTo(cx2, cy2 + w * 0.4, cx1, cy1 + w, x1, y1 + w); g.closePath(); g.fill(); g.stroke();
   };
-  g.save(); g.lineWidth = 1.4; g.strokeStyle = dk; g.fillStyle = col;
+  g.save(); g.translate(296, CY); g.rotate(ses.head.a); g.translate(-296, -CY); // hair moves with the head
+  g.lineWidth = 1.4; g.strokeStyle = dk; g.fillStyle = col;
   const sway = ses.hair.a; g.save(); g.transform(1, -sway / 100, 0, 1, 0, 2.4 * sway); // loose hair lags & swings from the head
   if (st === 'long') { // hair draped forward through the face cradle
     const hg = g.createLinearGradient(240, 0, 120, 0); hg.addColorStop(0, col); hg.addColorStop(1, dk);
@@ -1309,6 +1366,7 @@ function drawParticles() {
   g.restore();
 }
 function render() {
+  if (view === 'world' && R3) { render3D(); return; }
   const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0);
   g.drawImage(roomC, 0, 0);
   g.setTransform(K, 0, 0, K, 0, 0);
@@ -1322,7 +1380,7 @@ function render() {
     g.restore();
     if (time - (ses.pT || 0) > 1 / 30) { ses.pT = time; drawPortrait(ses.c, ses.curExpr || 'happy', time, !!bubble && bubble.t > 1.4); }
     if (ses.emoteT > 0) { ses.emoteT -= 1 / 60; drawEmote(g, ses.emote, 300 + ses.shift.x, CY - 70 - Math.abs(Math.sin(time * 5)) * 5, 1.5); }
-    drawParticles(); drawBubble(); drawPlayerHands(); drawHoverTag();
+    drawParticles(); drawBubble(); drawThought(); drawPlayerHands(); drawHoverTag();
   } else {
     g.fillStyle = 'rgba(255,255,255,.5)'; g.font = '800 26px Nunito, system-ui'; g.textAlign = 'center';
     g.fillText('The table is ready…', W / 2, CY + 8); g.textAlign = 'left';
@@ -1518,7 +1576,7 @@ function drawPerson(g, x, y, L, dir, ph, moving, pose, mood, o) {
   g.translate(!moving && !sit ? Math.sin(t * 0.8 + seed) * 0.5 : 0, moving ? -Math.abs(cv2) * (o.bouncy ? 3 : 1.5) : 0);
   if (dir === 'left') g.scale(-1, 1);
   const top = L.top, topS = mixHex(shade(top, -0.25), '#40306a', 0.12), out = shade(top, -0.55), bot = L.bottom, botS = shade(bot, -0.28), botO = shade(bot, -0.55);
-  const sw = L.sw, ww = L.ww, hw = L.hw, hipY = -45, waistY = -57, chestY = -65, shY = -72, headY = -86;
+  const fem = L.masc ? 1 : 1.08, sw = L.sw, ww = L.ww, hw = L.hw, hipY = -45, waistY = -57, chestY = -65, shY = -72, headY = -86;
   const legCol = L.skirt ? sk : bot, legO = L.skirt ? ln : botO;
   // ---- legs (thigh + shin with a knee)
   if (sit) {
@@ -1532,15 +1590,15 @@ function drawPerson(g, x, y, L, dir, ph, moving, pose, mood, o) {
   } else if (!side) {
     for (const s of [-1, 1]) {
       const lift = Math.max(0, s * sv) * 5, hx = s * hw * 0.45, kx = s * hw * 0.5, fx = s * hw * 0.42;
-      capsuleStroke(g, kx, -23 - lift * 0.5, fx, -3 - lift, 6.2, legCol, legO);
+      limbFill(g, [{ x: kx, y: -23 - lift * 0.5, r: 3 }, { x: (kx + fx) / 2 + s * 0.5, y: -15 - lift * 0.75, r: 3.5 }, { x: fx, y: -3.5 - lift, r: 2 }], legCol, legO);
       g.fillStyle = L.shoe; g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 0.9; g.beginPath(); g.ellipse(fx, -1.8 - lift, 4.2, 2.8, 0, 0, 7); g.fill(); g.stroke();
-      capsuleStroke(g, hx, hipY + 2, kx, -23 - lift * 0.5, 7.8, bot, botO);
+      limbFill(g, [{ x: hx, y: hipY + 2, r: 4.7 * fem }, { x: (hx + kx) / 2 + s * 0.3, y: (hipY - 21) / 2, r: 4.1 * fem }, { x: kx, y: -23 - lift * 0.5, r: 3 }], bot, botO);
     }
   } else {
     for (const s of [1, -1]) {
       const p = s * sv, lift = moving ? Math.max(0, s * cv2) * 4 : 0, kx = p * 6 + 1.5, fx = p * 10;
-      capsuleStroke(g, 0, hipY + 2, kx, -23 - lift * 0.4, 7.8, s > 0 ? botS : bot, botO);
-      capsuleStroke(g, kx, -23 - lift * 0.4, fx, -3 - lift, 6.2, s > 0 && !L.skirt ? botS : legCol, legO);
+      limbFill(g, [{ x: 0, y: hipY + 2, r: 4.6 * fem }, { x: kx / 2 + 0.4, y: (hipY - 21) / 2, r: 4 * fem }, { x: kx, y: -23 - lift * 0.4, r: 3 }], s > 0 ? botS : bot, botO);
+      limbFill(g, [{ x: kx, y: -23 - lift * 0.4, r: 3 }, { x: (kx + fx) / 2 - 0.9, y: -15 - lift * 0.6, r: 3.5 }, { x: fx, y: -3.5 - lift, r: 2 }], s > 0 && !L.skirt ? botS : legCol, legO);
       g.fillStyle = L.shoe; g.beginPath(); g.ellipse(fx + 2, -1.8 - lift, 4.8, 2.6, 0, 0, 7); g.fill();
     }
   }
@@ -1577,8 +1635,8 @@ function drawPerson(g, x, y, L, dir, ph, moving, pose, mood, o) {
       g.fillStyle = '#1d2228'; rr(g, -3.4, -57, 6.8, 9, 1.2); g.fill(); g.fillStyle = rgba('#8fd0ff', 0.75 + Math.sin(t * 3) * 0.1); rr(g, -2.6, -56.2, 5.2, 7, 0.8); g.fill();
     } else for (const s of [-1, 1]) {
       const el = { x: s * (sw + 1.3), y: -58 + armSwing(s) * 0.4 }, hd = { x: s * (sw + 0.4), y: -45 + armSwing(s) - (sit ? 2 : 0) };
-      capsuleStroke(g, s * (sw - 1.2), shY + 2.5, el.x, el.y, 5.6, s > 0 ? topS : top, out);
-      capsuleStroke(g, el.x, el.y, hd.x, hd.y, 4.4, s > 0 ? skS : sk, ln);
+      limbFill(g, [{ x: s * (sw - 1.2), y: shY + 2.5, r: 3.2 }, { x: (s * (sw - 1.2) + el.x) / 2 + s * 0.4, y: (shY + 2.5 + el.y) / 2, r: 3 }, { x: el.x, y: el.y, r: 2.5 }], s > 0 ? topS : top, out);
+      limbFill(g, [{ x: el.x, y: el.y, r: 2.4 }, { x: (el.x + hd.x) / 2 + s * 0.2, y: (el.y + hd.y) / 2 - 1, r: 2.5 }, { x: hd.x, y: hd.y, r: 1.7 }], s > 0 ? skS : sk, ln);
       g.fillStyle = sk; g.beginPath(); g.ellipse(hd.x, hd.y + 1.6, 2.4, 2.9, 0, 0, 7); g.fill(); g.strokeStyle = ln; g.lineWidth = 0.6; g.stroke();
     }
   } else { capsuleStroke(g, 1, shY + 3, sv * 5, -58, 5.6, top, out); capsuleStroke(g, sv * 5, -58, sv * 7.5, -46, 4.4, sk, ln); g.fillStyle = sk; g.beginPath(); g.arc(sv * 7.5, -44.6, 2.5, 0, 7); g.fill(); }
@@ -1686,6 +1744,9 @@ function refreshUI(full) {
   // portrait expression
   let e = ses.exprT > 0 && ses.expr ? ses.expr : ses.comfort > 80 ? 'bliss' : ses.comfort > 55 ? 'happy' : ses.comfort > 30 ? 'neutral' : 'annoyed';
   ses.curExpr = e; c._comfort = ses.comfort;
+  const fl = ses.feel && ses.feelT > 0 ? ses.feel : null;
+  $('feelTxt').textContent = fl ? fl.text : ses.comfort > 80 ? 'Calm and relaxed, waiting for your hands.' : ses.comfort > 45 ? 'Settled on the table. Touch a spot to see how it feels.' : 'Tense and uneasy.';
+  $('feelMark').style.left = (fl ? (fl.val + 1) / 2 * 100 : ses.comfort) + '%';
 }
 function showModal(html, buttons) {
   $('modal').innerHTML = html + `<div class="btns">${buttons.map((b, i) => `<button data-i="${i}" class="${b[2] || ''}">${b[0]}</button>`).join('')}</div>`;
@@ -1818,6 +1879,8 @@ $('bPause').onclick = () => state === 'paused' ? resume() : pause();
 $('bEnd').onclick = () => endSession(true);
 $('bInteract').onclick = () => { initAudio(); interact(); };
 $('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
+$('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
+$('bView').onclick = () => { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); };
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'SELECT') return;
   const k = e.key.toLowerCase();
@@ -1825,6 +1888,8 @@ window.addEventListener('keydown', e => {
   if (state === 'world') {
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
     if (k === 'e' || k === ' ' || k === 'enter') { if (!e.repeat) interact(); return; }
+    if (k === 'p') { openStaffWorld(); return; }
+    if (k === 'v') { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); return; }
     if (k === 'm') { initAudio(); toggleMusic(); return; }
     keys.add(k); return;
   }
@@ -1857,7 +1922,7 @@ const F = {
   fountain: SR(600, 950, 84, 84), plantL1: SR(232, 1030, 40, 40), plantL2: SR(1050, 590, 36, 36),
   table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1730, 540, 40, 44),
   tea: SR(1600, 782, 172, 56), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
-  lockers: SR(240, 122, 400, 42), lounger1: SR(770, 230, 74, 160), lounger2: SR(900, 230, 74, 160), bench: SR(300, 420, 180, 46), plantC: SR(1050, 130, 40, 40),
+  lockers: SR(240, 122, 400, 42), lounger1: SR(770, 230, 74, 160), lounger2: SR(900, 230, 74, 160), bench: SR(300, 420, 180, 46), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
   pond: SR(300, 1190, 240, 140), tree1: SR(100, 1180, 44, 44), tree2: SR(1700, 1220, 44, 44), tree3: SR(1880, 300, 44, 44), tree4: SR(60, 400, 44, 44), tree5: SR(1300, 1300, 44, 44), tree6: SR(1880, 800, 44, 44),
   lantern1: SR(900, 1160, 26, 26), lantern2: SR(1074, 1160, 26, 26),
 };
@@ -2031,6 +2096,8 @@ function buildWorld() {
   g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, tb.x, tb.y, tb.w, tb.h, 22); g.fill(); g.fillStyle = '#f6f3ee'; rr(g, tb.x + 40, tb.y + 8, tb.w - 50, tb.h - 16, 12); g.fill();
   g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(tb.x + 22, tb.y + tb.h / 2, 18, 22, 0, 0, 7); g.fill(); g.fillStyle = '#d9d2c8'; g.beginPath(); g.ellipse(tb.x + 20, tb.y + tb.h / 2, 9, 11, 0, 0, 7); g.fill();
   g.fillStyle = '#e8e2d6'; rr(g, tb.x + 120, tb.y + 10, 70, tb.h - 20, 8); g.fill();
+  { const t2 = F.table2; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, t2.x + 6, t2.y + 8, t2.w, t2.h, 22); g.fill(); g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, t2.x, t2.y, t2.w, t2.h, 22); g.fill();
+    g.fillStyle = '#f6f3ee'; rr(g, t2.x + 40, t2.y + 8, t2.w - 50, t2.h - 16, 12); g.fill(); g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(t2.x + 22, t2.y + t2.h / 2, 18, 22, 0, 0, 7); g.fill(); }
   const ca = F.cart; g.fillStyle = '#8a6b52'; rr(g, ca.x, ca.y, ca.w, ca.h, 10); g.fill();
   for (let i = 0; i < 3; i++) { g.fillStyle = '#f3efe6'; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 11, 0, 7); g.fill(); g.strokeStyle = '#d8d0c2'; g.lineWidth = 1.5; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 6, 0, 6); g.stroke(); }
   g.fillStyle = '#c9b06b'; g.beginPath(); g.arc(ca.x + 104, ca.y + 29, 9, 0, 7); g.fill();
@@ -2056,7 +2123,7 @@ function buildWorld() {
   for (const [x, y, r] of [[430, 760, 220], [860, 860, 260], [1450, 300, 280], [1450, 690, 200], [1450, 930, 240], [660, 340, 260], [1000, 1180, 160]]) {
     const lg = g.createRadialGradient(x, y, 10, x, y, r); lg.addColorStop(0, 'rgba(255,200,130,.16)'); lg.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'RELAXATION ROOM', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
+  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'TREATMENT ROOM 2', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
 }
 
 // ---------- World simulation ----------
@@ -2067,7 +2134,7 @@ function spawnClient() {
   const seat = freeSeat(); if (seat < 0) return false;
   const c = makeClient(); c.look = lookFor(c);
   const e = { c, x: SPOT.door.x + rand(-10, 10), y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat, state: 'arrive', wait: 0,
-    patience: 140, maxPatience: 140, tasks: [{ to: SPOT.desk, wait: 0.5, say: 'checkin' }, { to: { x: SPOT.seats[seat].x, y: SPOT.seatFrontY }, then: 'sit' }], emote: null, emoteT: 0 };
+    patience: hasStaff('reception') ? 224 : 140, maxPatience: hasStaff('reception') ? 224 : 140, uid: ++uidN, ang: -Math.PI / 2, tasks: [{ to: SPOT.desk, wait: 0.5, say: 'checkin' }, { to: { x: SPOT.seats[seat].x, y: SPOT.seatFrontY }, then: 'sit' }], emote: null, emoteT: 0 };
   ents.push(e); world.spawned++;
   toast(`🔔 ${c.name} just arrived`); return true;
 }
@@ -2076,7 +2143,7 @@ function walkEnt(e, dt, speed) {
   if (!e.path || !e.path.length) { e.moving = false; return true; }
   const t = e.path[0], dx = t.x - e.x, dy = t.y - e.y, d = Math.hypot(dx, dy), st = speed * dt;
   if (d <= st) { e.x = t.x; e.y = t.y; e.path.shift(); } else { e.x += dx / d * st; e.y += dy / d * st; }
-  e.moving = true; e.ph += dt * speed * 0.11;
+  e.moving = true; e.ph += dt * speed * 0.11; e.ang = Math.atan2(dy, dx);
   e.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
   return !e.path.length;
 }
@@ -2087,7 +2154,7 @@ function updateEnt(e, dt) {
     if (!e.path) { const t = e.tasks[0]; if (!t) return; e.path = findPath(e.x, e.y, t.to.x, t.to.y); }
     if (walkEnt(e, dt, 150)) {
       const t = e.tasks.shift(); e.path = null;
-      if (t.wait) { e.wait = t.wait; e.dir = 'up'; if (t.say === 'checkin') setEmote(e, '📋', 1.2); if (t.say === 'pay') setEmote(e, '💵', 1.4); }
+      if (t.wait) { e.wait = t.wait; e.dir = 'up'; e.ang = -Math.PI / 2; if (t.say === 'checkin') setEmote(e, '📋', 1.2); if (t.say === 'pay') setEmote(e, '💵', 1.4); }
       if (t.then === 'sit') { e.state = 'seated'; e.x = SPOT.seats[e.seat].x; e.y = SPOT.seats[e.seat].y; e.dir = 'down'; setEmote(e, 'excl', 2.5); }
       if (t.then === 'gone') e.state = 'gone';
     }
@@ -2099,6 +2166,9 @@ function updateEnt(e, dt) {
       S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); saveGame();
       toast(`😞 ${e.c.name} got tired of waiting and left`);
     }
+  } else if (e.state === 'followStaff') {
+    const L = e.leader, d = dist(e.x, e.y, L.x, L.y);
+    if (d > 60) { e.repath = (e.repath || 0) - dt; if (!e.path || !e.path.length || e.repath <= 0) { e.path = findPath(e.x, e.y, L.x, L.y); e.repath = 0.6; } walkEnt(e, dt, 160); } else e.moving = false;
   } else if (e.state === 'follow') {
     const tr = player.trail, tgt = tr[Math.max(0, tr.length - 5)] || player;
     const d = dist(e.x, e.y, tgt.x, tgt.y);
@@ -2131,14 +2201,24 @@ function playerMove(dt) {
 }
 function interactables() {
   const list = [], f = follower();
-  for (const e of ents) if (e.state === 'seated' || e.state === 'arrive') list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? { x: e.x, y: SPOT.seatFrontY } : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
+  for (const e of ents) if ((e.state === 'seated' || e.state === 'arrive') && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? { x: e.x, y: SPOT.seatFrontY } : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
   list.push({ x: SPOT.table.x, y: 290, spot: SPOT.table, label: f ? `Start ${f.c.name}'s massage` : 'Bring a client here to start a massage', act: () => f ? beginMassage(f) : toast('Greet a client in the waiting area first.') });
+  list.push({ x: F.desk.x + 125, y: F.desk.y + 28, spot: SPOT.desk, label: 'Manage staff (hire / let go)', act: () => openStaffWorld() });
   list.push({ x: F.cabinet.x + 23, y: F.cabinet.y + 75, spot: SPOT.cabinet, label: 'Supply cabinet (upgrades)', act: () => openShopWorld() });
   list.push({ x: F.tea.x + 86, y: F.tea.y + 28, spot: SPOT.tea, label: S.teaBuff ? 'Tea is ready (+comfort next session)' : 'Brew calming tea', act: () => brewTea() });
   return list;
 }
 let nearCache = null;
 function nearInteract() {
+  if (R3 && view === 'world') { // first person: what you're facing, within reach
+    let best = null, bs = 1e9;
+    for (const it of interactables()) {
+      const d = Math.min(dist(player.x, player.y, it.spot.x, it.spot.y), dist(player.x, player.y, it.x, it.y));
+      const da = Math.abs(Math.atan2(Math.sin(Math.atan2(it.y - player.y, it.x - player.x) - fp.yaw), Math.cos(Math.atan2(it.y - player.y, it.x - player.x) - fp.yaw)));
+      if (d < 175 && (da < 0.85 || d < 60)) { const sc = d + da * 90; if (sc < bs) { bs = sc; best = it; } }
+    }
+    nearCache = best; return best;
+  }
   let best = null, bd = 72;
   for (const it of interactables()) { const d = Math.min(dist(player.x, player.y, it.spot.x, it.spot.y), dist(player.x, player.y, it.x, it.y)); if (d < bd) { bd = d; best = it; } }
   nearCache = best; return best;
@@ -2163,6 +2243,7 @@ function greet(e) {
 function beginMassage(e) {
   if (dist(e.x, e.y, SPOT.table.x, SPOT.table.y) > 260) { toast(`Wait for ${e.c.name} to catch up.`); return; }
   state = 'modal'; $('fade').classList.add('on');
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
   setTimeout(() => {
     world.curEnt = e; e.state = 'onTable';
     view = 'massage'; document.body.classList.remove('world'); resize();
@@ -2178,7 +2259,7 @@ function returnToWorld() {
     const e = world.curEnt; world.curEnt = null;
     if (e) { e.state = 'leaving'; e.x = SPOT.table.x + 50; e.y = SPOT.table.y; e.path = null; e.tasks = [{ to: SPOT.desk, wait: 1.2, say: 'pay' }, { to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
       const st = S.ratings[S.ratings.length - 1]; setEmote(e, st >= 4 ? 'heart' : st >= 3 ? 'note' : 'dots', 3.5); e.c.look.mood = st >= 4 ? 'happy' : st >= 3 ? '' : 'impatient'; }
-    player.x = SPOT.table.x; player.y = SPOT.table.y + 10; player.dir = 'down'; player.path = null; player.trail = [];
+    player.x = SPOT.table.x; player.y = SPOT.table.y + 10; player.dir = 'down'; player.path = null; player.trail = []; fp.yaw = Math.PI / 2; fp.pitch = -0.04;
     ses = null; $('fade').classList.remove('on'); refreshUI(true);
   }, 380);
 }
@@ -2190,17 +2271,18 @@ function openShopWorld() { state = 'modal'; showShop(() => { hideModal(); state 
 function startDayWorld() {
   hideModal(); view = 'world'; document.body.classList.add('world'); state = 'world';
   ents.length = 0; world.curEnt = null; world.spawned = S.clientNo; world.spawnT = 0.6; ses = null;
-  player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = [];
-  buildWorld(); resize(); refreshUI(true);
+  player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = []; fp.yaw = -Math.PI / 2; fp.pitch = -0.04;
+  spawnStaff(); buildWorld(); resize(); refreshUI(true);
   toast(`☀️ Day ${S.day} — the spa is open!`);
 }
 function updateWorld(dt) {
-  playerMove(dt);
+  if (R3) playerMoveFP(dt); else playerMove(dt);
   for (const e of ents) updateEnt(e, dt);
+  updateStaff(dt);
   for (let i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'gone') ents.splice(i, 1);
   world.spawnT -= dt;
-  if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = rand(5, 9); else world.spawnT = 1; }
-  if (world.spawned >= todayTotal() && S.clientNo >= todayTotal() && !ents.length && state === 'world') { showDayEnd(); return; }
+  if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = hasStaff('reception') ? rand(3.5, 6) : rand(5, 9); else world.spawnT = 1; }
+  if (world.spawned >= todayTotal() && S.clientNo >= todayTotal() && !ents.length && staffEnts.every(st => !st.client) && state === 'world') { showDayEnd(); return; }
   const c = world.cam, tx = clamp(player.x - W / 2, 0, WW - W), ty = clamp(player.y - H / 2, 0, WH - H);
   c.x += (tx - c.x) * Math.min(1, dt * 6); c.y += (ty - c.y) * Math.min(1, dt * 6);
   refreshWorldUI();
@@ -2210,14 +2292,16 @@ function refreshWorldUI() {
   const now = performance.now(); if (now - lastWUI < 200) return; lastWUI = now;
   const f = follower(), seated = ents.filter(e => e.state === 'seated');
   let obj;
-  if (f) obj = `Lead <b>${esc(f.c.name)}</b> to the <b>Treatment Room</b> and press <b>E</b> at the table.`;
+  const free = seated.filter(e => !e.claimed);
+  if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
+  else if (free.length) obj = `<b>${esc(free[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (seated.length) obj = `<b>${esc(seated[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (ents.some(e => e.state === 'arrive')) obj = `<b>${esc(ents.find(e => e.state === 'arrive').c.name)}</b> just walked in. Go say hi (press <b>E</b> next to them).`;
   else if (world.spawned < todayTotal()) obj = 'A client is on the way. Brew tea in the lounge or check the supply cabinet while you wait.';
   else obj = 'That was the last booking. Wait for everyone to leave to close up for the day.';
   $('objective').innerHTML = obj;
   $('queueList').innerHTML = ents.filter(e => e.state !== 'gone').map(e => {
-    const st = { arrive: 'Checking in', seated: 'Waiting', follow: 'Following you', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
+    const st = { arrive: 'Checking in', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
     const p = e.state === 'seated' ? clamp(e.patience / e.maxPatience, 0, 1) : 1;
     return `<div class="qi"><span class="dot" style="background:${e.c.look.top}"></span><span style="width:70px">${esc(e.c.name)}</span><span style="width:86px;color:var(--muted)">${st}</span>${e.state === 'seated' ? `<div class="bar"><div style="width:${p * 100}%"></div></div>` : ''}</div>`;
   }).join('') || '<div class="ctl">Nobody here yet.</div>';
@@ -2239,7 +2323,8 @@ function renderWorld() {
   for (const [x, y] of [[1620, 560], [1290, 560], [1700, 220]]) { const f = 1 + Math.sin(time * 12 + x) * 0.15; const gl = g.createRadialGradient(x, y, 1, x, y, 30 * f); gl.addColorStop(0, 'rgba(255,190,90,.35)'); gl.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x, y, 30 * f, 0, 7); g.fill(); g.fillStyle = '#f5ecd9'; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.fillStyle = '#ffd36e'; g.beginPath(); g.arc(x, y, 2.6 * f, 0, 7); g.fill(); }
   if (S.teaBuff) for (let i = 0; i < 3; i++) { const t = (time * 0.6 + i / 3) % 1; g.fillStyle = `rgba(255,255,255,${0.3 * (1 - t)})`; g.beginPath(); g.arc(F.tea.x + 40 + Math.sin(time * 2 + i) * 3, F.tea.y + 22 - t * 26, 4 + t * 5, 0, 7); g.fill(); }
   // people, depth-sorted
-  const people = ents.filter(e => e.state !== 'onTable').map(e => ({ y: e.y, draw: () => {
+  const people = staffEnts.map(st => ({ y: st.y, draw: () => { drawPerson(g, st.x, st.y, st.look, dirFromAng(st.ang), st.ph, st.moving, '', st.state === 'work' ? 'bliss' : 'happy', {}); if (st.emote) drawEmote(g, st.emote, st.x, st.y - 160, 1.2); } }));
+  people.push(...ents.filter(e => e.state !== 'onTable' && e.state !== 'staffTable').map(e => ({ y: e.y, draw: () => {
     const seatedNow = e.state === 'seated', imp = seatedNow && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
     const mood = seatedNow ? (imp ? 'impatient' : near ? 'happy' : '') : e.state === 'follow' ? 'happy' : e.state === 'leaving' ? (e.c.look.mood || '') : '';
     drawPerson(g, e.x, e.y, e.c.look, e.dir, e.ph, e.moving, seatedNow ? 'sit' : '', mood,
@@ -2247,7 +2332,7 @@ function renderWorld() {
     if (e.state === 'seated') { const p = clamp(e.patience / e.maxPatience, 0, 1); g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 4; g.beginPath(); g.arc(e.x + 24, e.y - 150, 7, 0, 7); g.stroke(); g.strokeStyle = p > 0.5 ? '#6fd08c' : p > 0.25 ? '#e8c37a' : '#e86a5f'; g.lineWidth = 3; g.beginPath(); g.arc(e.x + 24, e.y - 150, 7, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); g.stroke(); }
     if (e.emote) drawEmote(g, e.emote, e.x, e.y - 160 - Math.abs(Math.sin(time * 5)) * 4, 1.25);
     if (dist(e.x, e.y, player.x, player.y) < 260) { g.font = '800 12px Nunito, system-ui'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,.5)'; g.fillText(e.c.name, e.x + 1, e.y + 21); g.fillStyle = '#fff'; g.fillText(e.c.name, e.x, e.y + 20); g.textAlign = 'left'; }
-  } }));
+  } })));
   people.push({ y: player.y, draw: () => drawPerson(g, player.x, player.y, PLAYER_LOOK, player.dir, player.ph, player.moving, '', '', {}) });
   people.sort((a, b) => a.y - b.y).forEach(p => p.draw());
   // click-to-walk marker
@@ -2269,14 +2354,431 @@ function renderWorld() {
   }
 }
 
+// ---------- Feelings: what each spot feels like for this client ----------
+function genFeel(c) {
+  const f = {};
+  for (const z of ZONES) f[z] = { kind: 'normal' };
+  c.req.focus.forEach((z, i) => { f[z] = { kind: i % 2 ? 'sore' : 'knotted' }; });
+  if (c.ticklish) { f.footT = { kind: 'ticklish' }; f.footB = { kind: 'ticklish' }; }
+  const free = () => ZONES.filter(z => f[z].kind === 'normal');
+  if (free().length) f[pick(free())] = { kind: 'loves' };
+  if (Math.random() < 0.55 && free().length) f[pick(free())] = { kind: 'tender' };
+  return f;
+}
+function feelingFor(z, move) {
+  const c = ses.c, k = c.feel[z].kind, P = pressure, pref = c.pref, oiled = ses.oil[z] > 0.15, t = ses.tension[z] / Math.max(1, ses.init[z]);
+  const w = ZLABEL[z].toLowerCase();
+  if (k === 'tender' && P >= 2) return { val: -0.7, kind: 'pain', text: `Tender ${w}: it stings under that much pressure`, thought: '(ow… that spot is bruised)' };
+  if (P > pref) return { val: -0.85, kind: 'pain', text: `Sharp pain in the ${w}. Too much pressure`, thought: pick(['(too hard… breathe through it)', '(ngh— that really hurts)']) };
+  if (k === 'ticklish' && P === 1 && move > 2) return { val: -0.3, kind: 'tickle', text: 'Ticklish! Squirming and trying not to laugh', thought: '(hehe— no no no!)' };
+  if (NEEDS_OIL.has(z) && !oiled && move > 3) return { val: -0.25, kind: 'dry', text: `Skin dragging on the ${w}. It needs oil`, thought: '(a bit rough… some oil maybe?)' };
+  if (k === 'loves') return { val: 1, kind: 'bliss', text: `Pure bliss: the ${w} is their favorite spot`, thought: pick(['(oh wow… yes… right there…)', '(nobody ever does this spot… heaven)']) };
+  if (k === 'knotted' && t > 0.35) return P < pref ? { val: 0.1, kind: 'weak', text: `Not quite reaching the knots in the ${w}`, thought: '(a little deeper…)' } : { val: 0.6, kind: 'relief', text: `Deep ache in the ${w} melting into relief`, thought: pick(['(that hurts so good…)', '(oh… it\'s letting go)']) };
+  if (k === 'sore' && t > 0.35) return { val: 0.45, kind: 'relief', text: `Sore ${w} slowly easing`, thought: "(mm… it's loosening up)" };
+  if (k === 'tender') return { val: 0.25, kind: 'ok', text: `Tender ${w}. Gentle touch feels okay`, thought: '(careful there… that\'s nice though)' };
+  if (t < 0.3) return { val: 0.8, kind: 'melt', text: `The ${w} feels warm, loose and heavy`, thought: pick(['(I could fall asleep…)', '(melting into the table…)']) };
+  return { val: 0.4, kind: 'ok', text: `Pleasant pressure on the ${w}`, thought: "(that's nice)" };
+}
+function drawThought() {
+  if (!ses || !ses.thought || ses.thought.t <= 0) return;
+  const g = ctx, a = Math.min(1, ses.thought.t * 2); g.save(); g.globalAlpha = a; g.font = 'italic 600 15px Nunito, system-ui, sans-serif';
+  const txt = ses.thought.text, w = g.measureText(txt).width + 34, x = 560, y = CY - 238, h = 38;
+  g.fillStyle = 'rgba(255,250,255,.95)'; g.strokeStyle = 'rgba(120,90,150,.5)'; g.lineWidth = 1.5;
+  for (let i = 0; i <= Math.ceil(w / 22); i++) { g.beginPath(); g.arc(x + 10 + i * (w - 20) / Math.ceil(w / 22), y + (i % 2 ? 2 : -1), 13, 0, 7); g.fill(); g.stroke(); g.beginPath(); g.arc(x + 10 + i * (w - 20) / Math.ceil(w / 22), y + h - (i % 2 ? 1 : -2), 13, 0, 7); g.fill(); g.stroke(); }
+  rr(g, x, y, w, h, 18); g.fill();
+  for (const [cx, cy, r] of [[x + 6, y + h + 14, 7], [x - 14, y + h + 32, 5], [x - 34, y + h + 48, 3.5]]) { g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill(); g.stroke(); }
+  g.fillStyle = '#5a4470'; g.fillText(txt, x + 17, y + h / 2 + 5); g.restore();
+}
+
+// ---------- Shared people helpers ----------
+let uidN = 0;
+function dirFromAng(a) { const c = Math.cos(a), s = Math.sin(a); return Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : (s > 0 ? 'down' : 'up'); }
+function limbFill(g, pts, col, out) { const p = limbPath(pts); g.fillStyle = col; g.fill(p); g.strokeStyle = out; g.lineWidth = 0.7; g.stroke(p); }
+function moodFor(e) {
+  const seatedNow = e.state === 'seated', imp = seatedNow && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
+  const mood = seatedNow ? (imp ? 'impatient' : near ? 'happy' : '') : (e.state === 'follow' || e.state === 'followStaff') ? 'happy' : e.state === 'leaving' ? (e.c.look.mood || '') : '';
+  return { mood, opts: { look: near ? (player.x - e.x) / 120 : 0, phone: seatedNow && !imp && !near && ((time + e.c.seed * 7) % 14) > 8, cross: imp, tap: imp, bouncy: e.state === 'leaving' && e.c.look.mood === 'happy' } };
+}
+
+// ---------- Staff: receptionist & therapist ----------
+const ROLES = {
+  reception: { label: 'Receptionist', desc: 'Checks clients in, brings them in sooner and keeps them patient (+60% patience).' },
+  therapist: { label: 'Massage therapist', desc: 'Treats waiting clients in Treatment Room 2 on their own. Higher skill means better ratings and tips.' },
+};
+const STAFF_SPOT = { desk: { x: 425, y: 796 }, room2: { x: 440, y: 398 } };
+const staffEnts = [];
+function hasStaff(role) { return S.staff.some(s => s.role === role); }
+function genCandidates() {
+  S.cands = []; S.candDay = S.day;
+  for (const role of ['reception', 'therapist', pick(['reception', 'therapist'])]) {
+    const c = makeClient(), skill = +rand(0.45, 0.97).toFixed(2);
+    S.cands.push({ id: 's' + Math.random().toString(36).slice(2, 9), role, skill, wage: Math.round(role === 'reception' ? 28 + skill * 34 : 50 + skill * 90),
+      c: { name: c.name, pron: c.pron, idLabel: c.idLabel, body: c.body, seed: c.seed, bg: c.bg } });
+  }
+}
+function staffLook(s) {
+  const look = lookFor(s.c);
+  Object.assign(look, s.role === 'reception' ? { top: '#7a5aa0', bottom: '#2c2c36', skirt: false, neck: 'round' } : { top: '#2d6a6e', bottom: '#24494c', skirt: false, neck: 'v' });
+  return look;
+}
+function spawnStaff() {
+  staffEnts.length = 0;
+  for (const s of S.staff) {
+    const sp = s.role === 'reception' ? STAFF_SPOT.desk : STAFF_SPOT.room2;
+    staffEnts.push({ s, look: staffLook(s), x: sp.x, y: sp.y, ang: Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN });
+  }
+}
+function updateStaff(dt) {
+  for (const st of staffEnts) {
+    st.emoteT -= dt; if (st.emoteT <= 0) st.emote = null;
+    if (st.s.role === 'reception') {
+      st.moving = false;
+      const a = ents.find(e => e.state === 'arrive' && dist(e.x, e.y, SPOT.desk.x, SPOT.desk.y) < 220);
+      st.ang = a ? Math.atan2(a.y - st.y, a.x - st.x) : Math.PI / 2;
+      if (a && !a.welcomed) { a.welcomed = true; setEmote(st, 'note', 1.6); }
+      continue;
+    }
+    if (st.state === 'idle') {
+      st.moving = false; st.ang = Math.PI / 2;
+      const target = ents.find(e => e.state === 'seated' && !e.claimed);
+      if (target) { target.claimed = st; st.client = target; st.state = 'fetch'; st.path = findPath(st.x, st.y, target.x, SPOT.seatFrontY); }
+    } else if (st.state === 'fetch') {
+      const e = st.client;
+      if (!e || e.state !== 'seated') { if (e) e.claimed = null; st.client = null; st.state = 'return'; st.path = findPath(st.x, st.y, STAFF_SPOT.room2.x, STAFF_SPOT.room2.y); continue; }
+      if (walkEnt(st, dt, 165)) {
+        e.state = 'followStaff'; e.leader = st; e.seat = -1; e.path = null; setEmote(e, 'note', 2); setEmote(st, 'note', 1.5);
+        st.state = 'lead'; st.path = findPath(st.x, st.y, STAFF_SPOT.room2.x, STAFF_SPOT.room2.y);
+      }
+    } else if (st.state === 'lead') {
+      const e = st.client;
+      if (dist(e.x, e.y, st.x, st.y) > 200) { st.moving = false; continue; } // wait for the client to catch up
+      if (walkEnt(st, dt, 140) && dist(e.x, e.y, st.x, st.y) < 110) {
+        e.state = 'staffTable'; st.state = 'work'; st.total = st.timer = 26 + e.c.duration * 0.22; st.ang = -Math.PI / 2;
+      }
+    } else if (st.state === 'work') {
+      st.timer -= dt; st.moving = false; st.ph += dt * 5;
+      if (Math.random() < dt * 0.25) setEmote(st, 'sparkle', 1);
+      if (st.timer <= 0) finishStaffSession(st);
+    } else if (st.state === 'return') { if (walkEnt(st, dt, 150)) st.state = 'idle'; }
+  }
+}
+function finishStaffSession(st) {
+  const e = st.client, c = e.c, sk = st.s.skill;
+  const stars = clamp(Math.round((2.3 + sk * 2.7 + rand(-0.5, 0.5)) * 2) / 2, 1, 5);
+  const pay = c.price, tip = stars >= 4 ? Math.round(c.price * (0.08 + (stars - 4) * 0.12)) : 0;
+  S.money += pay + tip; S.clientNo++; S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift();
+  S.stats.clients++; S.stats.earned += pay + tip;
+  S.dayLog.push({ name: c.name, stars, total: pay + tip, by: st.s.c.name }); saveGame();
+  e.state = 'leaving'; e.x = STAFF_SPOT.room2.x + 40; e.y = STAFF_SPOT.room2.y; e.path = null;
+  e.tasks = [{ to: SPOT.desk, wait: 1, say: 'pay' }, { to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
+  e.c.look.mood = stars >= 4 ? 'happy' : stars >= 3 ? '' : 'impatient'; setEmote(e, stars >= 4 ? 'heart' : stars >= 3 ? 'note' : 'dots', 3);
+  st.client = null; st.state = 'idle'; cashSound();
+  toast(`💆 ${st.s.c.name} finished with ${c.name}: ${stars}★ · +$${pay + tip}`);
+}
+function showStaff(back) {
+  if (S.candDay !== S.day || !S.cands) genCandidates();
+  const card = (s, i, hired) => {
+    const full = !hired && hasStaff(s.role);
+    return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pi="${hired ? 'h' : 'c'}${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
+      <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}%</div><div class="d">Wage $${s.wage}/day</div></div></div>
+      <div class="d">${ROLES[s.role].desc}</div>
+      ${hired ? `<button data-fire="${i}" class="danger">Let go</button>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? 'Position filled' : 'Hire'}</button>`}</div>`;
+  };
+  showModal(`<h2>👥 Your team</h2>
+    <p>Staff are paid at the end of each day. You can have one receptionist and one therapist.</p>
+    <div class="shop">${S.staff.length ? S.staff.map((s, i) => card(s, i, true)).join('') : '<div class="ctl">Nobody hired yet.</div>'}</div>
+    <h2 style="margin-top:16px">Applicants today</h2><div class="shop">${S.cands.map((s, i) => card(s, i, false)).join('')}</div>`, [['← Back', back, '']]);
+  $('modal').querySelectorAll('canvas[data-pi]').forEach(cv2 => {
+    const k = cv2.dataset.pi, s = k[0] === 'h' ? S.staff[+k.slice(1)] : S.cands[+k.slice(1)];
+    drawPortrait(s.c, 'happy', 1, false); cv2.getContext('2d').drawImage(pcv, 0, 0, 120, 120);
+  });
+  $('modal').querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
+    const s = S.cands[+b.dataset.hire]; if (!s || hasStaff(s.role)) return;
+    S.staff.push(s); S.cands.splice(+b.dataset.hire, 1); saveGame(); spawnStaff(); chime(); toast(`🤝 ${s.c.name} joined as your ${ROLES[s.role].label.toLowerCase()}`); showStaff(back);
+  });
+  $('modal').querySelectorAll('[data-fire]').forEach(b => b.onclick = () => {
+    const s = S.staff[+b.dataset.fire]; if (!s) return;
+    const st = staffEnts.find(x => x.s === s); if (st && st.client) { toast(`${s.c.name} is with a client right now.`); return; }
+    S.staff.splice(+b.dataset.fire, 1); saveGame(); spawnStaff(); toast(`${s.c.name} has left the team.`); showStaff(back);
+  });
+}
+function openStaffWorld() { state = 'modal'; showStaff(() => { hideModal(); state = 'world'; }); }
+
+// ---------- First-person 3D spa (three.js) ----------
+const U = 0.01, EYE = 1.62;
+const fp = { third: false, yaw: -Math.PI / 2, pitch: -0.04, joy: { x: 0, y: 0, id: null, ox: 0, oy: 0 }, look: null, drag: null, tapStart: 0 };
+let R3 = null;
+const lam = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
+function canvasTex(w, h, paint) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); paint(c.getContext('2d'), c.width, c.height); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
+function init3D() {
+  if (R3) return true; if (!window.THREE) return false;
+  try {
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio || 1));
+    renderer.domElement.id = 'w3d'; renderer.domElement.style.display = ''; $('stage').insertBefore(renderer.domElement, $('stage').firstChild);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#bcd9ea'); scene.fog = new THREE.Fog('#d5e6ef', 16, 44);
+    const camera = new THREE.PerspectiveCamera(70, 16 / 9, 0.05, 90);
+    R3 = { renderer, scene, camera, people: new Map(), flames: [], water: [] };
+    build3D(); bind3DInput(); resize3D();
+    return true;
+  } catch (e) { console.warn('3D view unavailable, using the map view', e); R3 = null; const c = document.getElementById('w3d'); if (c) c.remove(); return false; }
+}
+function resize3D() {
+  if (!R3) return; const st = $('stage'), w = Math.max(50, st.clientWidth), h = Math.max(50, st.clientHeight);
+  R3.renderer.setSize(w, h, false); R3.renderer.domElement.style.width = '100%'; R3.renderer.domElement.style.height = '100%';
+  R3.camera.aspect = w / h; R3.camera.updateProjectionMatrix();
+}
+function build3D() {
+  const { scene } = R3, add = m => { scene.add(m); return m; };
+  const box = (x, y, w, h, y0, ht, mat) => { const m = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.001, w * U), ht, Math.max(0.001, h * U)), mat); m.position.set((x + w / 2) * U, y0 + ht / 2, (y + h / 2) * U); return add(m); };
+  const cyl = (x, y, r1, r2, y0, ht, mat, seg) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r1 * U, r2 * U, ht, seg || 22), mat); m.position.set(x * U, y0 + ht / 2, y * U); return add(m); };
+  const sph = (x, y, r, y0, mat, sx, sy, sz) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r * U, 18, 12), mat); m.position.set(x * U, y0, y * U); if (sx) m.scale.set(sx, sy, sz); return add(m); };
+  const flat = (x, y, w, h, y0, mat) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w * U, h * U), mat); m.rotation.x = -Math.PI / 2; m.position.set((x + w / 2) * U, y0, (y + h / 2) * U); return add(m); };
+  const painted = (x, y, w, h, paint, y0, res) => { const k = res || 0.5; const t = canvasTex(w * k, h * k, (g, cw, ch) => { g.scale(cw / w, ch / h); g.translate(-x, -y); paint(g); }); return flat(x, y, w, h, y0, lam('#ffffff', { map: t })); };
+  // light: soft sky fill, a warm sun, and warm room lamps
+  add(new THREE.HemisphereLight('#fff7ea', '#7d6a55', 0.78));
+  const sun = new THREE.DirectionalLight('#fff0d8', 0.5); sun.position.set(6, 14, 20); add(sun);
+  for (const [x, y] of [[430, 760], [860, 860], [1450, 330], [1450, 690], [1450, 930], [450, 330], [1000, 1010]]) { const l = new THREE.PointLight('#ffd6a0', 0.55, 8, 1.6); l.position.set(x * U, 2.5, y * U); add(l); }
+  // grounds: lawn, gravel apron, stepping stones, pond, trees, lanterns, bamboo fence
+  painted(0, 0, WW, WH, g => { g.fillStyle = '#4f8a4a'; g.fillRect(0, 0, WW, WH); let sd = 11; const sr = () => (sd = (sd * 9301 + 49297) % 233280) / 233280;
+    for (let x = 0; x < WW; x += 80) { g.fillStyle = (x / 80) % 2 ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)'; g.fillRect(x, 0, 80, WH); }
+    g.strokeStyle = 'rgba(30,70,30,.4)'; g.lineWidth = 2; for (let i = 0; i < 3000; i++) { const x = sr() * WW, y = sr() * WH; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 2, y - 6); g.stroke(); } }, -0.004, 0.35);
+  painted(170, 70, 1660, 1060, g => { g.fillStyle = '#b9ae98'; g.fillRect(170, 70, 1660, 1060); let sd = 5; const sr = () => (sd = (sd * 9301 + 49297) % 233280) / 233280; for (let i = 0; i < 4000; i++) { g.fillStyle = sr() < 0.5 ? 'rgba(0,0,0,.1)' : 'rgba(255,255,255,.12)'; g.fillRect(170 + sr() * 1660, 70 + sr() * 1060, 3, 3); } }, -0.002, 0.35);
+  const stone = lam('#a9a39a'), stoneD = lam('#8d8a83');
+  for (let y = 1120; y < WH; y += 46) { const m = cyl(1000 + (y % 92 ? 6 : -6), y, 44, 46, 0, 0.04, stone, 24); m.scale.z = 0.42; }
+  const pb = F.pond; const pond = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.MeshPhongMaterial({ color: '#2a6a80', shininess: 90, specular: '#88bbcc' }));
+  pond.rotation.x = -Math.PI / 2; pond.scale.set(pb.w / 2 * U, pb.h / 2 * U, 1); pond.position.set((pb.x + pb.w / 2) * U, 0.02, (pb.y + pb.h / 2) * U); add(pond); R3.water.push(pond);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 8, 40), stoneD); rim.rotation.x = -Math.PI / 2; rim.scale.set((pb.w / 2 + 6) * U, (pb.h / 2 + 6) * U, 1.2); rim.position.copy(pond.position); add(rim);
+  R3.koi = []; for (let i = 0; i < 4; i++) { const k = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 6), lam(i % 2 ? '#f08a3c' : '#f4f0e6')); k.scale.set(1, 0.35, 0.4); add(k); R3.koi.push(k); }
+  const trunk = lam('#6b4a32'), leafA = lam('#3c8247'), leafB = lam('#4f9a55');
+  for (const k of ['tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6']) { const t = F[k], cx = t.x + 22, cy = t.y + 22; cyl(cx, cy, 10, 13, 0, 1.7, trunk);
+    for (let i = 0; i < 5; i++) { const a = i * 1.3; sph(cx + Math.cos(a) * 34, cy + Math.sin(a) * 34, 62 - i * 4, 2.1 + (i % 3) * 0.35, i % 2 ? leafA : leafB); } }
+  const lanternMat = lam('#a6a39b'), glow = new THREE.MeshBasicMaterial({ color: '#ffd98a' });
+  for (const k of ['lantern1', 'lantern2']) { const b = F[k]; box(b.x, b.y, b.w, b.h, 0, 0.5, lanternMat); box(b.x + 4, b.y + 4, b.w - 8, b.h - 8, 0.5, 0.22, glow); box(b.x - 4, b.y - 4, b.w + 8, b.h + 8, 0.72, 0.08, lanternMat); }
+  const bamboo = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.06, 0.06, 1.2, 8), lam('#b5a465'), 150); let bi = 0; const mtx = new THREE.Matrix4();
+  for (let x = 0; x < WW && bi < 150; x += 14) { if (x > 930 && x < 1070) continue; mtx.makeTranslation(x * U, 0.6, (WH - 10) * U); bamboo.setMatrixAt(bi++, mtx); } bamboo.count = bi; add(bamboo);
+  // floors
+  painted(220, 580, 880, 500, g => tileFloor(g, 220, 580, 880, 500, '#e7dccb', 80), 0.004);
+  painted(220, 120, 880, 440, g => woodFloor(g, 220, 120, 880, 440, '#c69c6d', 36), 0.004);
+  painted(1120, 620, 660, 140, g => woodFloor(g, 1120, 620, 660, 140, '#6b4630', 30), 0.004);
+  painted(1120, 120, 660, 480, g => woodFloor(g, 1120, 120, 660, 480, '#8a5d3f', 34), 0.004);
+  painted(1120, 780, 660, 300, g => tatami(g, 1120, 780, 660, 300), 0.004);
+  painted(940, 1080, 120, 20, g => { g.fillStyle = '#9a8a74'; g.fillRect(940, 1080, 120, 20); }, 0.004); painted(1400, 600, 100, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(1400, 600, 100, 20); }, 0.004);
+  painted(1400, 760, 100, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(1400, 760, 100, 20); }, 0.004); painted(600, 560, 120, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(600, 560, 120, 20); }, 0.004); painted(1100, 620, 20, 120, g => { g.fillStyle = '#7a5a40'; g.fillRect(1100, 620, 20, 120); }, 0.004);
+  // rugs
+  const rug = (x, y, w, h, base, border) => painted(x, y, w, h, g => { g.fillStyle = base; g.fillRect(x, y, w, h); g.strokeStyle = border; g.lineWidth = 6; g.strokeRect(x + 12, y + 12, w - 24, h - 24); g.lineWidth = 2; g.strokeRect(x + 24, y + 24, w - 48, h - 48); }, 0.009, 1);
+  rug(700, 600, 320, 220, '#9a8166', '#d9c6a3'); rug(1150, 655, 600, 70, '#8c2f2f', '#e6be78'); rug(1250, 180, 400, 260, '#d9c9ac', '#b39a74'); rug(930, 980, 140, 80, '#7d5b48', '#a88468');
+  // walls, baseboards, door frames, lintels, ceiling
+  const plaster = lam('#efe6d6'), woodD = lam('#5a3a28'), wood = lam('#7a5a40'), woodL = lam('#a07a58');
+  for (const b of solids) if (b.kind === 'wall') { box(b.x, b.y, b.w, b.h, 0, 2.8, plaster); box(b.x - 1.5, b.y - 1.5, b.w + 3, b.h + 3, 0, 0.12, woodD); }
+  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20], [1100, 620, 20, 120]]) {
+    box(x, y, w, h, 2.15, 0.65, plaster);
+    if (w > h) { box(x - 5, y - 2, 5, h + 4, 0, 2.2, wood); box(x + w, y - 2, 5, h + 4, 0, 2.2, wood); box(x - 5, y - 2, w + 10, h + 4, 2.12, 0.08, wood); }
+    else { box(x - 2, y - 5, w + 4, 5, 0, 2.2, wood); box(x - 2, y + h, w + 4, 5, 0, 2.2, wood); box(x - 2, y - 5, w + 4, h + 10, 2.12, 0.08, wood); }
+  }
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(16, 10), lam('#f4eee4')); ceil.rotation.x = Math.PI / 2; ceil.position.set(10, 2.8, 6); add(ceil);
+  const lampMat = new THREE.MeshBasicMaterial({ color: '#fff3d6' });
+  for (const [x, y] of [[430, 760], [860, 860], [1450, 330], [1450, 690], [1450, 930], [450, 330], [860, 330], [1000, 1010]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), lampMat); d.rotation.x = Math.PI / 2; d.position.set(x * U, 2.79, y * U); add(d); }
+  const winMat = new THREE.MeshBasicMaterial({ color: '#d4ecf8' });
+  for (const x of [320, 520, 820, 1260, 1560]) { box(x, 120, 90, 1, 0.9, 1.3, winMat); box(x - 4, 120, 98, 2, 0.86, 0.05, woodL); box(x - 4, 120, 98, 2, 2.2, 0.05, woodL); box(x + 43, 120, 4, 2, 0.9, 1.3, woodL); }
+  for (const x of [400, 700, 1300, 1600]) { box(x, 1079, 90, 1, 0.9, 1.3, winMat); }
+  // signs
+  const sign = (text, x, y, w, rotY, y0, big) => { const t = canvasTex(w * 2, big ? 80 : 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = '#c9a25c'; g.lineWidth = 4; g.strokeRect(4, 4, cw - 8, ch - 8); g.fillStyle = '#f1dca8'; g.font = `800 ${big ? 40 : 30}px Nunito, system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, cw / 2, ch / 2 + 2); });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w * U, (big ? 80 : 64) / 2 * U), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x * U, y0, y * U); m.rotation.y = rotY; add(m); };
+  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('TREATMENT ROOM 2', 660, 581.5, 180, 0, 2.45);
+  sign('SERENITY HANDS SPA', 1000, 1101.5, 300, 0, 2.45, true);
+  { const t = canvasTex(320, 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.fillStyle = '#f1dca8'; g.font = '800 30px Nunito, system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RECEPTION', cw / 2, ch / 2 + 2); });
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.32), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide })); m.position.set(4.25, 2.35, 7.6); add(m); }
+  // ---- furniture
+  const d = F.desk; box(d.x, d.y, d.w, d.h, 0, 1.0, woodD); box(d.x - 4, d.y - 4, d.w + 8, d.h + 8, 1.0, 0.05, lam('#efe7d8'));
+  box(d.x + 40, d.y + 14, 60, 5, 1.05, 0.34, lam('#22272c')); box(d.x + 66, d.y + 22, 8, 10, 1.05, 0.12, lam('#22272c'));
+  sph(d.x + 150, d.y + 34, 7, 1.09, lam('#d4a63a'), 1, 0.7, 1); cyl(d.x + 210, d.y + 30, 8, 7, 1.05, 0.12, lam('#e8e2d6')); for (let i = 0; i < 5; i++) sph(d.x + 204 + (i % 3) * 7, d.y + 24 + Math.floor(i / 3) * 8, 5, 1.32 + (i % 2) * 0.06, lam('#efe6f2'));
+  const sage = lam('#6f8c83'), sageD = lam('#56706a'), cream = lam('#e6d6b8');
+  const so = F.sofa; box(so.x, so.y + 22, so.w, so.h - 22, 0, 0.44, sage); box(so.x, so.y, so.w, 22, 0, 0.92, sageD); box(so.x, so.y, 18, so.h, 0, 0.64, sageD); box(so.x + so.w - 18, so.y, 18, so.h, 0, 0.64, sageD);
+  for (let i = 0; i < 3; i++) box(so.x + 20 + i * 74, so.y + 24, 70, so.h - 26, 0.44, 0.1, lam('#7d9a90')); box(so.x + 30, so.y + 20, 26, 12, 0.6, 0.26, cream); box(so.x + so.w - 56, so.y + 20, 26, 12, 0.6, 0.26, cream);
+  const ct = F.coffee; box(ct.x, ct.y, ct.w, ct.h, 0, 0.42, lam('#3d2b20')); box(ct.x + 14, ct.y + 10, 30, 20, 0.42, 0.04, lam('#e0d4c0')); cyl(ct.x + 90, ct.y + 20, 6, 5, 0.42, 0.1, lam('#f1efe8'));
+  const cb = F.cabinet; box(cb.x, cb.y, cb.w, cb.h, 0, 1.9, lam('#6a4a35')); for (let i = 0; i < 4; i++) cyl(cb.x + 23, cb.y + 20 + i * 36, 6, 6, 1.9, 0.24, lam(Object.values(SCENT_COLOR)[i]));
+  for (let i = 1; i < 4; i++) box(cb.x + cb.w, cb.y + 4, 1, cb.h - 8, i * 0.47, 0.02, lam('#3a2a1f'));
+  const fo = F.fountain; cyl(fo.x + 42, fo.y + 42, 44, 48, 0, 0.45, stone); const wtr = cyl(fo.x + 42, fo.y + 42, 38, 38, 0.44, 0.02, new THREE.MeshPhongMaterial({ color: '#3f8fa8', shininess: 100, specular: '#aaddee' })); R3.water.push(wtr);
+  cyl(fo.x + 42, fo.y + 42, 8, 10, 0.45, 0.6, stone); cyl(fo.x + 42, fo.y + 42, 20, 10, 1.05, 0.08, stone);
+  const pot = lam('#b0704a'), leaf = lam('#4c9a58'), leafD = lam('#3a7d46');
+  const plant3 = (x, y, s) => { cyl(x, y, 16 * s, 12 * s, 0, 0.42 * s, pot); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const m = sph(x + Math.cos(a) * 12 * s, y + Math.sin(a) * 12 * s, 16 * s, (0.55 + (i % 3) * 0.18) * s, i % 2 ? leaf : leafD, 0.7, 1.9, 0.7); m.rotation.z = Math.cos(a) * 0.5; m.rotation.x = Math.sin(a) * 0.5; } };
+  for (const k of ['plantL1', 'plantL2', 'plantA', 'plantB', 'plantC']) { const b = F[k]; plant3(b.x + b.w / 2, b.y + b.h / 2, 1.3); }
+  const leather = lam(S.owned.table ? '#3d5c58' : '#4c3c35'), sheet = lam('#f6f3ee');
+  const mtable = b => { for (const [dx, dy] of [[20, 14], [b.w - 26, 14], [20, b.h - 20], [b.w - 26, b.h - 20]]) box(b.x + dx, b.y + dy, 6, 6, 0, 0.62, woodD); box(b.x, b.y, b.w, b.h, 0.62, 0.12, leather); box(b.x + 40, b.y + 6, b.w - 46, b.h - 12, 0.74, 0.02, sheet);
+    const tor = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.045, 10, 24), lam('#d9d2c8')); tor.rotation.x = -Math.PI / 2; tor.position.set((b.x + 20) * U, 0.77, (b.y + b.h / 2) * U); add(tor);
+    box(b.x + 140, b.y + 14, 50, b.h - 28, 0.76, 0.06, lam('#e8e2d6')); };
+  mtable(F.table); mtable(F.table2);
+  const ca = F.cart; box(ca.x, ca.y, ca.w, ca.h, 0, 0.82, lam('#8a6b52')); for (let i = 0; i < 3; i++) { const m = cyl(ca.x + 22 + i * 26, ca.y + 29, 10, 10, 0.82, 0.4, lam('#f3efe6')); m.rotation.z = Math.PI / 2; m.position.y = 0.92; }
+  for (const [x, y] of [[1700, 220], [1620, 560], [1290, 560]]) { cyl(x, y, 6, 6, x === 1700 ? 0.82 : 0, x === 1700 ? 0.12 : 0.9, lam('#f5ecd9')); const f = sph(x, y, 2.6, (x === 1700 ? 0.82 : 0) + (x === 1700 ? 0.15 : 0.93), new THREE.MeshBasicMaterial({ color: '#ffcf6e' }), 1, 1.8, 1); R3.flames.push(f); }
+  const sh = F.shelf; box(sh.x, sh.y, sh.w, sh.h, 0, 1.8, lam('#6a4a35')); for (let i = 0; i < 5; i++) box(sh.x + 8, sh.y + 10 + i * 28, sh.w - 16, 22, 0.3 + i * 0.3, 0.12, lam(['#f3efe6', '#e8dfcf', '#cfe0dc'][i % 3]));
+  const te = F.tea; box(te.x, te.y, te.w, te.h, 0, 0.92, woodD); box(te.x - 3, te.y - 3, te.w + 6, te.h + 6, 0.92, 0.04, lam('#d8ccb6')); sph(te.x + 40, te.y + 28, 12, 1.05, lam('#3a3a3a'), 1, 0.8, 1); for (let i = 0; i < 4; i++) cyl(te.x + 80 + i * 18, te.y + 28, 5, 4, 0.96, 0.07, lam('#7a9a5a'));
+  const lt = F.lowtable; box(lt.x, lt.y, lt.w, lt.h, 0, 0.34, lam('#3a2a1f')); for (const [cx, cy] of [[lt.x - 22, lt.y + 40], [lt.x + lt.w + 22, lt.y + 40], [lt.x + 40, lt.y - 22], [lt.x + 110, lt.y + lt.h + 22]]) box(cx - 18, cy - 18, 36, 36, 0, 0.1, lam('#8a3b3b'));
+  const zn = F.zen; box(zn.x, zn.y, zn.w, zn.h, 0, 0.12, lam('#e7dfcc')); sph(zn.x + 40, zn.y + 40, 14, 0.14, lam('#6f6b64'), 1, 0.7, 1); sph(zn.x + 100, zn.y + 70, 10, 0.14, lam('#6f6b64'), 1, 0.7, 1);
+  const lk = F.lockers; for (let i = 0; i < 10; i++) box(lk.x + i * 40, lk.y, 38, lk.h, 0, 1.9, lam(i % 2 ? '#b89a76' : '#c4a581'));
+  for (const k of ['lounger1', 'lounger2']) { const b = F[k]; box(b.x, b.y + 40, b.w, b.h - 40, 0, 0.42, lam('#f0ebe1')); const back = box(b.x, b.y, b.w, 46, 0.3, 0.12, lam('#d8cfbf')); back.rotation.x = -0.5; back.position.y = 0.6; box(b.x + 6, b.y + 90, b.w - 12, 50, 0.42, 0.04, lam('#9fc2c9')); }
+  const bn = F.bench; box(bn.x, bn.y, bn.w, bn.h, 0, 0.45, lam('#7a5a40'));
+  if (S.owned.decor) for (const [x, y] of [[480, 600], [1080, 900], [1300, 140], [1760, 400]]) plant3(x, y, 1);
+  { // a client lying face-down under a sheet on table 2 while the therapist works
+    const t2 = F.table2, gp = new THREE.Group(), sheetM = lam('#f7f4ee');
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 1.05, 18), sheetM); torso.rotation.z = Math.PI / 2; torso.scale.set(1, 1, 0.55); torso.position.set(0.55, 0, 0); gp.add(torso);
+    for (const zz of [-0.09, 0.09]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.75, 12), sheetM); leg.rotation.z = Math.PI / 2; leg.scale.set(1, 1, 0.7); leg.position.set(1.4, -0.03, zz); gp.add(leg); }
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 14), lam('#3a2a20')); head.position.set(-0.08, 0.03, 0); gp.add(head);
+    gp.position.set((t2.x + 22) * U + 0.05, 0.86, (t2.y + t2.h / 2) * U); gp.visible = false; add(gp); R3.lying = gp; R3.lyingHead = head;
+  }
+  const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#f2c45a' })); add(mk); R3.marker = mk;
+}
+function personSprite(key) {
+  let s = R3.people.get(key);
+  if (!s) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 512;
+    const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.1), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.06 }));
+    R3.scene.add(m); s = { c, g: c.getContext('2d'), t, m }; R3.people.set(key, s);
+  }
+  return s;
+}
+function relDir(ang, x, y, cx, cy) { // which side of the character the camera sees
+  const va = Math.atan2(cy - y, cx - x); let rel = ang - va; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+  return Math.abs(rel) < Math.PI / 4 ? 'down' : Math.abs(rel) > Math.PI * 0.75 ? 'up' : rel < 0 ? 'right' : 'left';
+}
+function render3D() {
+  const { renderer, scene, camera } = R3;
+  let px = player.x, py = player.y, yaw = fp.yaw, pitch = fp.pitch;
+  if (state === 'title') { yaw = time * 0.07; px = 820; py = 900; pitch = -0.05; }
+  let eye = EYE + (player.moving ? Math.sin(player.ph * 0.55) * 0.03 : Math.sin(time * 1.6) * 0.004);
+  const third = fp.third && state !== 'title';
+  if (third) { // over-the-shoulder camera that pulls in instead of clipping through walls
+    let d = 0; for (let k = 10; k <= 230; k += 10) { if (!isFree(player.x - Math.cos(yaw) * k, player.y - Math.sin(yaw) * k, 9)) break; d = k; }
+    px = player.x - Math.cos(yaw) * d; py = player.y - Math.sin(yaw) * d; eye = 1.95; pitch -= 0.16;
+  }
+  camera.position.set(px * U, eye, py * U);
+  camera.lookAt(px * U + Math.cos(yaw) * Math.cos(pitch), eye + Math.sin(pitch), py * U + Math.sin(yaw) * Math.cos(pitch));
+  const seen = new Set();
+  const person = (key, x, y, look, ang, ph, moving, pose, mood, opts, extra) => {
+    const s = personSprite(key); seen.add(key); s.m.visible = true;
+    s.m.position.set(x * U, 1.05 - 0.05, y * U); s.m.rotation.y = Math.atan2(px * U - s.m.position.x, py * U - s.m.position.z);
+    const dd = dist(px, py, x, y), every = dd < 500 ? 1 / 30 : dd < 1000 ? 1 / 15 : 1 / 6; // redraw near people often, distant ones rarely
+    if (dd > 1800 || (s.last !== undefined && time - s.last < every)) return; s.last = time;
+    const g = s.g; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 256, 512); g.setTransform(2.8, 0, 0, 2.8, 128, 499.2);
+    drawPerson(g, 0, 0, look, pose === 'sit' ? 'down' : relDir(ang, x, y, px, py), ph, moving, pose, mood, opts);
+    if (extra) extra(g);
+    s.t.needsUpdate = true;
+  };
+  for (const e of ents) {
+    if (e.state === 'onTable' || e.state === 'staffTable' || e.state === 'gone') continue;
+    if (!e.uid) e.uid = ++uidN;
+    const { mood, opts } = moodFor(e);
+    person('c' + e.uid, e.x, e.y, e.c.look, e.state === 'seated' ? Math.PI / 2 : (e.ang ?? -Math.PI / 2), e.ph, e.moving, e.state === 'seated' ? 'sit' : '', mood, opts, g => {
+      if (e.emote) drawEmote(g, e.emote, 0, -166 - Math.abs(Math.sin(time * 5)) * 3, 1.2);
+      if (e.state === 'seated') { const p = clamp(e.patience / e.maxPatience, 0, 1); g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3.5; g.beginPath(); g.arc(22, -132, 6, 0, 7); g.stroke(); g.strokeStyle = p > 0.5 ? '#6fd08c' : p > 0.25 ? '#e8c37a' : '#e86a5f'; g.lineWidth = 2.5; g.beginPath(); g.arc(22, -132, 6, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); g.stroke(); }
+    });
+  }
+  for (const st of staffEnts) person('s' + st.uid, st.x, st.y, st.look, st.ang, st.ph, st.moving, '', st.state === 'work' ? 'bliss' : 'happy', { look: 0 }, g => {
+    if (st.emote) drawEmote(g, st.emote, 0, -166, 1.1);
+    if (st.state === 'work') { const p = 1 - st.timer / st.total; g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 3.5; g.beginPath(); g.arc(-22, -132, 6, 0, 7); g.stroke(); g.strokeStyle = '#4fc1a6'; g.lineWidth = 2.5; g.beginPath(); g.arc(-22, -132, 6, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); g.stroke(); }
+  });
+  if (third) person('player', player.x, player.y, PLAYER_LOOK, fp.yaw, player.ph, player.moving, '', '', {});
+  const tc = ents.find(e => e.state === 'staffTable'); R3.lying.visible = !!tc; if (tc) R3.lyingHead.material.color.set(tc.c.body.hairColor);
+  for (const [k, s] of R3.people) if (!seen.has(k)) { if (k === 'player') { s.m.visible = false; continue; } s.m.visible = false; if (!ents.some(e => 'c' + e.uid === k) && !staffEnts.some(st => 's' + st.uid === k)) { scene.remove(s.m); s.m.geometry.dispose(); s.m.material.dispose(); s.t.dispose(); R3.people.delete(k); } }
+  // objective marker, water shimmer, candles, koi
+  const tg = objectiveTarget();
+  R3.marker.visible = !!tg && state === 'world';
+  if (tg) { R3.marker.position.set(tg.x * U, 2.15 + Math.sin(time * 3) * 0.06, tg.y * U); R3.marker.rotation.y = time * 2; }
+  for (const w of R3.water) w.material.color.setHSL(0.54, 0.45, 0.36 + Math.sin(time * 1.5) * 0.02);
+  for (const f of R3.flames) f.scale.y = 1.6 + Math.sin(time * 13 + f.position.x * 9) * 0.35;
+  const pb = F.pond; R3.koi.forEach((k, i) => { const a = time * (0.35 + i * 0.07) + i * 1.7; k.position.set((pb.x + pb.w / 2 + Math.cos(a) * (60 - i * 10)) * U, 0.03, (pb.y + pb.h / 2 + Math.sin(a) * (32 - i * 4)) * U); k.rotation.y = -a - Math.PI / 2; });
+  renderer.render(scene, camera);
+  updateHUD3D();
+}
+function objectiveTarget() {
+  const f = follower(), seated = ents.find(e => e.state === 'seated' && !e.claimed) || ents.find(e => e.state === 'arrive');
+  return f ? SPOT.table : seated ? { x: seated.x, y: seated.y } : null;
+}
+let lastMM = 0;
+function updateHUD3D() {
+  const it = state === 'world' ? nearInteract() : null, pr = $('prompt3d');
+  if (it) { pr.innerHTML = (it.label.startsWith('Bring') ? '' : '<kbd class="k">E</kbd> ') + esc(it.label); pr.hidden = false; } else pr.hidden = true;
+  $('lookHint').hidden = !(state === 'world' && !document.pointerLockElement && !fp.touchUsed);
+  const now = performance.now(); if (now - lastMM < 60) return; lastMM = now;
+  const mm = $('minimap'), g = mm.getContext('2d'), s = mm.width / WW, cx = player.x, cy = player.y, zoom = 2.2;
+  g.save(); g.clearRect(0, 0, mm.width, mm.height); g.beginPath(); g.arc(mm.width / 2, mm.height / 2, mm.width / 2 - 2, 0, 7); g.clip();
+  g.fillStyle = '#2b3a2c'; g.fillRect(0, 0, mm.width, mm.height);
+  g.translate(mm.width / 2, mm.height / 2); g.rotate(-fp.yaw - Math.PI / 2); g.scale(s * zoom, s * zoom); g.translate(-cx, -cy);
+  if (worldC.width) g.drawImage(worldC, 0, 0, WW, WH);
+  for (const e of ents) { if (['onTable', 'staffTable', 'gone'].includes(e.state)) continue; g.fillStyle = e.state === 'seated' ? '#ffd36b' : e.state === 'follow' ? '#6fd08c' : '#ffffff'; g.beginPath(); g.arc(e.x, e.y, 22, 0, 7); g.fill(); }
+  for (const st of staffEnts) { g.fillStyle = '#b48cff'; g.beginPath(); g.arc(st.x, st.y, 22, 0, 7); g.fill(); }
+  const tg = objectiveTarget(); if (tg) { g.strokeStyle = '#ffcf4a'; g.lineWidth = 10; g.beginPath(); g.arc(tg.x, tg.y, 40, 0, 7); g.stroke(); }
+  g.restore();
+  g.save(); g.translate(mm.width / 2, mm.height / 2); g.fillStyle = '#4fc1a6'; g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 6); g.lineTo(0, 3); g.lineTo(-6, 6); g.closePath(); g.fill(); g.stroke(); g.restore();
+  g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 3; g.beginPath(); g.arc(mm.width / 2, mm.height / 2, mm.width / 2 - 2, 0, 7); g.stroke();
+}
+function playerMoveFP(dt) {
+  let f = 0, sd = 0;
+  if (keys.has('w') || keys.has('arrowup')) f++; if (keys.has('s') || keys.has('arrowdown')) f--;
+  if (keys.has('d')) sd++; if (keys.has('a')) sd--;
+  if (keys.has('arrowleft') || keys.has('q')) fp.yaw -= dt * 2.1; if (keys.has('arrowright')) fp.yaw += dt * 2.1;
+  f -= fp.joy.y; sd += fp.joy.x;
+  const n = Math.hypot(f, sd); player.moving = false;
+  if (n > 0.08) {
+    const run = keys.has('shift') || Math.hypot(fp.joy.x, fp.joy.y) > 0.92, sp = (run ? 280 : 175) * Math.min(1, n) * dt;
+    const cy = Math.cos(fp.yaw), sy = Math.sin(fp.yaw), vx = (cy * f - sy * sd) / Math.max(1, n) * sp, vy = (sy * f + cy * sd) / Math.max(1, n) * sp;
+    if (isFree(player.x + vx, player.y, 20)) player.x += vx; if (isFree(player.x, player.y + vy, 20)) player.y += vy;
+    player.ph += Math.hypot(vx, vy) * 0.11; player.moving = true; player.dir = dirFromAng(fp.yaw);
+    const last = player.trail[player.trail.length - 1];
+    if (!last || dist(last.x, last.y, player.x, player.y) > 12) { player.trail.push({ x: player.x, y: player.y }); if (player.trail.length > 40) player.trail.shift(); }
+  }
+}
+function bind3DInput() {
+  const cvs = R3.renderer.domElement;
+  cvs.addEventListener('mousedown', e => {
+    initAudio(); if (state !== 'world') return;
+    if (document.pointerLockElement === cvs) { interact(); return; }
+    const it = nearInteract(); if (it && !it.label.startsWith('Bring')) { it.act(); return; }
+    fp.drag = { x: e.clientX, y: e.clientY };
+    try { const p = cvs.requestPointerLock && cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {}
+  });
+  window.addEventListener('mousemove', e => {
+    if (state !== 'world') return;
+    if (document.pointerLockElement === cvs) { fp.yaw += e.movementX * 0.0024; fp.pitch = clamp(fp.pitch - e.movementY * 0.0024, -1.1, 1.1); }
+    else if (fp.drag) { fp.yaw += (e.clientX - fp.drag.x) * 0.006; fp.pitch = clamp(fp.pitch - (e.clientY - fp.drag.y) * 0.006, -1.1, 1.1); fp.drag = { x: e.clientX, y: e.clientY }; }
+  });
+  window.addEventListener('mouseup', () => { fp.drag = null; });
+  const joy = $('joy'), knob = $('joyKnob');
+  cvs.addEventListener('touchstart', e => {
+    initAudio(); fp.touchUsed = true; if (state !== 'world') return; e.preventDefault();
+    const r = cvs.getBoundingClientRect();
+    for (const t of e.changedTouches) {
+      if (t.clientX - r.left < r.width * 0.45 && fp.joy.id === null) { fp.joy.id = t.identifier; fp.joy.ox = t.clientX; fp.joy.oy = t.clientY; joy.style.left = (t.clientX - r.left - 55) + 'px'; joy.style.top = (t.clientY - r.top - 55) + 'px'; joy.hidden = false; knob.style.transform = 'translate(0,0)'; }
+      else if (!fp.look) fp.look = { id: t.identifier, x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t0: performance.now() };
+    }
+  }, { passive: false });
+  cvs.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === fp.joy.id) { let dx = t.clientX - fp.joy.ox, dy = t.clientY - fp.joy.oy; const d = Math.hypot(dx, dy); if (d > 50) { dx *= 50 / d; dy *= 50 / d; } fp.joy.x = dx / 50; fp.joy.y = dy / 50; knob.style.transform = `translate(${dx}px,${dy}px)`; }
+      else if (fp.look && t.identifier === fp.look.id) { fp.yaw += (t.clientX - fp.look.x) * 0.007; fp.pitch = clamp(fp.pitch - (t.clientY - fp.look.y) * 0.007, -1.1, 1.1); fp.look.x = t.clientX; fp.look.y = t.clientY; }
+    }
+  }, { passive: false });
+  const end = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === fp.joy.id) { fp.joy.id = null; fp.joy.x = fp.joy.y = 0; joy.hidden = true; }
+      else if (fp.look && t.identifier === fp.look.id) { if (performance.now() - fp.look.t0 < 250 && Math.hypot(t.clientX - fp.look.sx, t.clientY - fp.look.sy) < 12) interact(); fp.look = null; }
+    }
+  };
+  cvs.addEventListener('touchend', end); cvs.addEventListener('touchcancel', end);
+}
+
 // ---------- Main loop ----------
 let lastT = performance.now();
 function frame(t) {
-  const dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+  const dt = Math.min(view === 'world' ? 0.1 : 0.05, (t - lastT) / 1000); lastT = t;
   try { update(dt); render(); } catch (err) { console.error(err); }
   requestAnimationFrame(frame);
 }
-resize(); refreshScents(); refreshUI(true); showTitle();
+resize(); refreshScents(); refreshUI(true);
+if (init3D()) { document.body.classList.add('fp3d'); resize(); }
+showTitle();
 requestAnimationFrame(frame);
 </script>
 </body>
