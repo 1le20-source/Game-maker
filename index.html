@@ -1016,7 +1016,7 @@ function showDayEnd() {
     ${bills ? `<div class="row"><span>🏠 Weekly bills (mansion upkeep, utilities, car insurance)</span><b>−$${bills}</b></div><div class="row"><span>🧾 Weekly income tax (8%)</span><b>−$${tax}</b></div>` : ''}
     ${insp ? `<div class="row"><span>${insp > 0 ? '🧾 Passed the health inspection (grant)' : '🧾 Failed the health inspection (hire staff to keep it tidy!)'}</span><b>${insp > 0 ? '+' : '−'}$${Math.abs(insp)}</b></div>` : ''}
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
-    ${S.homeDate && S.people && S.people[S.homeDate.pid] ? `<p>💕 <b>${esc(S.people[S.homeDate.pid].c.name)}</b> is coming over to your mansion tonight. Go home to meet them!</p>` : ''}
+    ${pendingHomeDate() ? `<p>💕 <b>${esc(pendingHomeDate().c.name)}</b> is coming over to your mansion tonight. Go home to meet them!</p>` : ''}
     <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
     [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], ['🏠 Go home for the night', () => goHome(), 'primary'], [`Skip to Day ${S.day} →`, () => startDayWorld(), '']]);
 }
@@ -1910,7 +1910,7 @@ function afterLoad() {
   applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
   if (!S.todayTotal) S.todayTotal = clientsToday();
-  if (S.clientNo >= todayTotal()) { state = 'dayEnd'; showDayEndAgain(); } else startDayWorld();
+  if (S.clientNo >= todayTotal()) showDayEnd(); else startDayWorld();
 }
 
 // ---------- Audio (soft ambient pad + chimes) ----------
@@ -1958,7 +1958,7 @@ cv.addEventListener('pointerdown', e => {
   initAudio(); const p = toLogical(e); ptr.x = ptr.lx = p.x; ptr.y = ptr.ly = p.y; ptr.inside = true; ptr.touch = e.pointerType !== 'mouse';
   if (e.button !== 0 && e.pointerType === 'mouse') return;
   if (view === 'world') {
-    if (state !== 'world') return;
+    if (state !== 'world' || dlg.current || world.scene) return;
     const wx = p.x + world.cam.x, wy = p.y + world.cam.y;
     let hit = null, hd = 46;
     for (const it of interactables()) { const d = Math.min(dist(wx, wy, it.x, it.y - (it.ent ? 60 : 0)), dist(wx, wy, it.spot.x, it.spot.y)); if (d < hd) { hd = d; hit = it; } }
@@ -2371,7 +2371,7 @@ function playerMove(dt) {
   } else if (player.path && player.path.length) {
     const t = player.path[0], dx = t.x - player.x, dy = t.y - player.y, d = Math.hypot(dx, dy), st = sp * dt;
     if (d <= st) { vx = dx; vy = dy; player.path.shift(); } else { vx = dx / d * st; vy = dy / d * st; }
-    if (!player.path.length && player.goal) { const gl = player.goal; player.goal = null; player.path = null; setTimeout(() => { const n = state === 'world' && nearInteract(); if (n && n.label === gl.label) n.act(); }, 0); }
+    if (!player.path.length && player.goal) { const gl = player.goal; player.goal = null; player.path = null; setTimeout(() => { if (dlg.current || world.scene) return; const n = state === 'world' && nearInteract(); if (n && n.label === gl.label) n.act(); }, 0); }
   }
   if (vx || vy) {
     if (isFree(player.x + vx, player.y, PR) && peopleFree(player.x + vx, player.y, player.x, player.y)) player.x += vx; if (isFree(player.x, player.y + vy, PR) && peopleFree(player.x, player.y + vy, player.x, player.y)) player.y += vy;
@@ -2414,7 +2414,7 @@ function nearInteract() {
   for (const it of interactables()) { const d = Math.min(dist(player.x, player.y, it.spot.x, it.spot.y), dist(player.x, player.y, it.x, it.y)); if (d < bd) { bd = d; best = it; } }
   nearCache = best; return best;
 }
-function interact() { if (state !== 'world' || dlg.current || world.scene) return; const it = nearInteract(); if (it) it.act(); else toast('Walk up to a client or object to interact.'); }
+function interact() { if (state !== 'world' || dlg.current || world.scene || performance.now() - (dlg.closedAt || 0) < 300) return; const it = nearInteract(); if (it) it.act(); else toast('Walk up to a client or object to interact.'); }
 function greet(e) {
   if (follower()) { toast(`Finish with ${follower().c.name} first.`); return; }
   const c = e.c; state = 'modal';
@@ -2461,6 +2461,7 @@ function brewTea() {
 }
 function openShopWorld() { state = 'modal'; showShop(() => { hideModal(); state = 'world'; }); }
 function startDayWorld() {
+  if (S.homeDate && S.homeDate.day < S.day) S.homeDate = null; // that night has passed
   if (world.loc === 'home') swapLocation('spa');
   dlg.close(); world.scene = null; player.pose = '';
   hideModal(); view = 'world'; document.body.classList.add('world'); state = 'world';
@@ -2649,7 +2650,8 @@ function staffLook(s) {
   return Object.assign(look, { top: '#2d6a6e', bottom: '#24494c' }, { skirt: false, neck: 'v' });
 }
 function spawnStaff() {
-  migrateStaff(); staffEnts.length = 0; const rooms = ownedRooms();
+  migrateStaff(); staffEnts.length = 0; if (world.loc === 'home') return; // they're at the spa
+  const rooms = ownedRooms();
   S.staff.forEach((s, i) => {
     const r = rooms[i] || null, sp = r ? r.home : STAFF_SPOT.lounge;
     staffEnts.push({ s, room: r ? r.room : 0, look: staffLook(s), x: sp.x, y: sp.y, ang: r ? r.ang : Math.PI / 2, ph: 0, moving: false, path: null, state: 'idle', client: null, timer: 0, total: 1, emote: null, emoteT: 0, uid: ++uidN, route: 0, lvl: Math.floor(levelOf(s) / 10) });
@@ -2822,8 +2824,8 @@ function showPeople(back) {
   const list = Object.values(S.people).sort((a, b) => b.aff - a.aff);
   const inv = GIFTS.filter(g => S.gifts[g.id] > 0);
   const card = (p, i) => {
-    const canHome = p.aff >= 45 && p.status !== 'ex' && !p.upset && !liveInPartner() && (world.loc === 'home' ? S.homeNight !== S.day && !homeDate() && !(world.dateArriveT > 0) : S.lastDateDay !== S.day && !S.homeDate);
-    const canDate = p.aff >= 45 && S.lastDateDay !== S.day && p.status !== 'ex' && !p.upset, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
+    const canHome = p.aff >= 45 && p.status !== 'ex' && !p.upset && !liveInPartner() && (world.loc === 'home' ? S.homeNight !== S.day && !homeDate() && !(world.dateArriveT > 0) : S.lastDateDay !== S.day && !(S.homeDate && S.homeDate.day === S.day));
+    const canDate = world.loc !== 'home' && p.aff >= 45 && S.lastDateDay !== S.day && p.status !== 'ex' && !p.upset, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pp="${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
       <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]}${p.livesIn ? ' · lives with you 🏡' : ''} · ${MOODS[moodOf(p)].label} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
       <div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
@@ -2834,7 +2836,7 @@ function showPeople(back) {
         ${canAsk ? `<button data-ask="${i}" class="primary">💍 Be my partner?</button>` : ''}
         <button data-home="${i}" class="primary" ${canHome ? '' : 'disabled'} title="${p.aff < 45 ? 'Needs 45+ affection' : ''}">🏰 ${world.loc === 'home' ? 'Invite over now' : 'Invite to your mansion tonight'}</button>
         ${isCommitted(p) && p.aff >= 90 && !p.livesIn && !p.upset && !liveInPartner() ? `<button data-movein="${i}" class="primary">🏡 Ask to move in</button>` : ''}${p.livesIn && p.status === 'partner' ? `<button data-propose="${i}" class="primary">💍 Propose</button>` : ''}
-        ${['dating', ...COMMITTED].includes(p.status) || p.upset ? `<button data-talk="${i}">💬 Talk</button>` : ''}
+        ${(['dating', ...COMMITTED].includes(p.status) || p.upset) && !(homeDate() && homeDate().pid === p.id) ? `<button data-talk="${i}">💬 Talk</button>` : ''}
       </div>${isCommitted(p) ? `<div class="d">${p.upset ? '😠 Still upset with you.' : p.open ? '🤝 Open relationship: they are fine with you dating others.' : '💡 Dating someone else risks them finding out.'}</div>` : ''}<div style="display:none">
       </div></div>`;
   };
@@ -2865,6 +2867,7 @@ function showPeople(back) {
   });
 }
 function pickDateSpot(p, back) {
+  if (world.loc === 'home') { toast('You\'re home for the night. Invite them over instead!'); return; }
   showModal(`<h2>💌 Where should you take ${esc(p.c.name)}?</h2><div class="shop">${DATE_SPOTS.map(d => `<div class="item"><div class="t">${d.name}</div><div class="d">${d.scene}</div><button data-spot="${d.id}" class="primary" ${S.money < d.cost ? 'disabled' : ''}>$${d.cost}</button></div>`).join('')}</div>`, [['← Back', () => showPeople(back), '']]);
   $('modal').querySelectorAll('[data-spot]').forEach(b => b.onclick = () => { const d = DATE_SPOTS.find(x => x.id === b.dataset.spot); if (S.money < d.cost) return; S.money -= d.cost; S.lastDateDay = S.day; saveGame(); runDate(p, d, back); });
 }
@@ -3091,7 +3094,7 @@ function partnerReaction(p, other, back) {
   if (t === 'open') { line = `“I saw you with ${other.c.name}. Honestly? I'm not the jealous type. Just be honest with me from now on.”`; p.open = true; res = 'They are fine with an open relationship.'; }
   else if (t === 'jealous') { p.aff = Math.max(0, p.aff - 30); p.upset = true; line = `“You went out with ${other.c.name}?! I can't believe you. Don't talk to me right now.”`; res = 'They are hurt (−30). An apology and a gift might help.'; }
   else if (t === 'forgiving') { p.aff = Math.max(0, p.aff - 15); line = `“That really hurt… but I want to make this work. Please don't do it again.”`; res = 'They forgive you, barely (−15).'; }
-  else if (t === 'toxic') { p.aff = Math.max(0, p.aff - 25); p.upset = true; S.drama = { pid: p.id, day: S.day }; line = `“Oh, you think you can just do that to me? We'll see about that. You'll see.”`; res = 'They are furious (−25) and might show up at your spa to make a scene.'; }
+  else if (t === 'toxic') { p.aff = Math.max(0, p.aff - 25); p.upset = true; S.drama = { pid: p.id, day: world.loc === 'home' ? S.day - 1 : S.day }; line = `“Oh, you think you can just do that to me? We'll see about that. You'll see.”`; res = 'They are furious (−25) and might show up at your spa to make a scene.'; }
   else { p.status = 'ex'; p.livesIn = false; p.aff = 5; line = `“We're done. Don't call me.”`; res = 'They broke up with you.'; }
   saveGame();
   showModal(`<h2>💔 ${esc(p.c.name)} found out</h2><div class="intro"><canvas id="dramaP" width="300" height="300"></canvas><div style="flex:1;min-width:220px"><div class="req">${esc(line)}</div><p>${esc(res)}</p><p class="d">${esc(p.c.name)} is ${TEMPERS[t]}.</p></div></div>`, [['OK', () => showPeople(back), 'primary']]);
@@ -3362,7 +3365,7 @@ function dlg(name, text, choices) {
   dlg.current = list; const e = homeDate(); if (e && name === e.c.name) e.talkT = time + Math.min(3, text.length * 0.045);
   try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
 }
-dlg.close = () => { const d = $('dlg'); if (d) d.hidden = true; dlg.current = null; };
+dlg.close = () => { const d = $('dlg'); if (d) d.hidden = true; if (dlg.current) dlg.closedAt = performance.now(); dlg.current = null; };
 dlg.pick = i => { const c = dlg.current; if (!c || !c[i]) return; dlg.close(); if (c[i][1]) c[i][1](); };
 
 // ---------- going home & back ----------
@@ -3370,7 +3373,7 @@ world.loc = 'spa';
 function swapLocation(to) {
   if (world.loc === to) return;
   if (R3) { for (const h of R3.humans.values()) disposeHuman(h); R3.humans.clear(); }
-  ents.length = 0; staffEnts.length = 0; dlg.close(); world.scene = null; player.pose = '';
+  ents.length = 0; staffEnts.length = 0; dlg.close(); world.scene = null; player.pose = ''; clearTimeout(world.byeT); world.dateArriveT = 0;
   if (to === 'home') {
     world.spaSolids = solids.splice(0, solids.length); solids.push(...HOME.solids);
     if (R3) { if (!R3.homeScene) buildHome3D(); R3.scene = R3.homeScene; R3.marker = R3.homeMarker; }
@@ -3382,6 +3385,7 @@ function swapLocation(to) {
   world.loc = to; rebuildGrid(); nearCache = null;
 }
 function homeDate() { return world.loc === 'home' ? ents.find(e => e.homeDate && !['homeLeave', 'gone'].includes(e.state)) : null; }
+function pendingHomeDate() { const h = S.homeDate, p = h && S.people && S.people[h.pid]; return p && h.day === S.day - 1 && p.status !== 'ex' && !p.upset ? p : null; }
 function goHome() {
   hideModal(); state = 'modal'; $('fade').classList.add('on');
   setTimeout(() => {
@@ -3390,17 +3394,18 @@ function goHome() {
     homeUpgradeSolids(); homeC.built = false; swapLocation('home'); if (R3 && R3.homeScene) buildHomeUpgrades3D(); if (!homeC.built) buildHome2D();
     Object.assign(player, { x: HOME.SPOT.arrive.x, y: HOME.SPOT.arrive.y, path: null, goal: null, trail: [], pose: '' }); fp.yaw = Math.atan2(1880 - HOME.SPOT.arrive.y, 1600 - HOME.SPOT.arrive.x); fp.pitch = 0.1;
     world.dateInfo = null; world.dateArriveT = 0; homeCat.x = 1610; homeCat.y = 1650; homeCat.path = null;
-    const live = liveInPartner(); let hp = S.homeDate && S.homeDate.day === S.day - 1 && S.people && S.people[S.homeDate.pid];
+    const live = liveInPartner(); let hp = pendingHomeDate();
     if (live && hp && hp.id !== live.id) { hp.aff = Math.max(0, hp.aff - 5); setTimeout(() => toast(`📱 You texted ${hp.c.name} to cancel tonight. ${live.c.name} is home.`), 3500); hp = null; }
-    if (live) spawnLiveIn(live); else if (hp) { world.dateArriveT = 10; world.dateArrivePid = hp.id; S.homeNight = S.day; } S.homeDate = null; saveGame();
+    if (live) spawnLiveIn(live); else if (hp) { world.dateArriveT = 10; world.dateArrivePid = hp.id; S.homeNight = S.day; } if (!hp) S.homeDate = null; saveGame();
     state = 'world'; resize(); refreshUI(true); lastHUI = 0; refreshHomeUI(); $('fade').classList.remove('on');
     toast(live ? `🏡 Home sweet home. ${live.c.name} is waiting for you in the foyer.` : hp ? `🏰 Home sweet home. ${hp.c.name} is coming over tonight!` : '🏰 Welcome home! Explore the mansion, invite someone over, or sleep to start tomorrow.');
   }, 420);
 }
 function leaveHome(how) {
-  const e = homeDate(); if (e) { toast(`Say goodnight to ${e.c.name} at the front door first.`); return; }
+  const e = homeDate(); if (e) { toast(`Say goodnight to ${e.c.name} first.`); return; }
+  if (world.dateArriveT > 0) { toast('Your guest is on the way. Wait for the doorbell!'); return; }
   state = 'modal'; $('fade').classList.add('on');
-  setTimeout(() => { swapLocation('spa'); applyUpgradeSolids(); startDayWorld(); $('fade').classList.remove('on'); toast(how === 'car' ? `🚗 You drive to the spa. Day ${S.day} begins!` : `☀️ You wake up refreshed. Day ${S.day} begins!`); }, 480);
+  setTimeout(() => { swapLocation('spa'); applyUpgradeSolids(); if (R3) buildUpgrades3D(); startDayWorld(); $('fade').classList.remove('on'); toast(how === 'car' ? `🚗 You drive to the spa. Day ${S.day} begins!` : `☀️ You wake up refreshed. Day ${S.day} begins!`); }, 480);
 }
 function inviteHome(p, back) {
   const live = liveInPartner(); if (live) { toast(live.id === p.id ? `${p.c.name} lives here with you!` : `🏡 You live with ${live.c.name}. Inviting someone else over would end badly.`); return; }
@@ -3414,7 +3419,7 @@ function inviteHome(p, back) {
   toast(`📱 ${p.c.name}: “On my way! See you in a few minutes 💕”`);
 }
 function spawnHomeDate() {
-  const p = S.people && S.people[world.dateArrivePid]; if (!p) return;
+  const p = S.people && S.people[world.dateArrivePid]; S.homeDate = null; if (!p || p.status === 'ex') return;
   const c = clientFromPerson(p); c.look = Object.assign({}, c.look, { mood: '' });
   if (!c.body.masc && Math.random() < 0.5) { c.look.top3 = 'dress'; c.look.skirt = true; } else if (c.look.top3 === 'tank' || c.look.top3 === 'hoodie') c.look.top3 = pick(['blouse', 'polo', 'sweater']);
   const e = { c, homeDate: true, pid: p.id, x: HOME.SPOT.gate.x, y: HOME.SPOT.gate.y - 10, dir: 'up', ph: 0, moving: false, path: null, seat: -1, state: 'homeArrive', wait: 0, uid: ++uidN, ang: -Math.PI / 2, tasks: [], emote: null, emoteT: 0, expr: 'happy' };
@@ -3442,10 +3447,11 @@ function startActivity(key) {
   world.scene = { key }; keys.clear(); state = 'modal'; $('fade').classList.add('on');
   setTimeout(() => {
     if (key === 'cat') {
-      Object.assign(player, { x: homeCat.x - Math.cos(fp.yaw) * 90, y: homeCat.y - Math.sin(fp.yaw) * 90 });
-      if (!isFree(player.x, player.y, 18)) { player.x = homeCat.x; player.y = homeCat.y + 90; }
-      fp.yaw = Math.atan2(homeCat.y - player.y, homeCat.x - player.x); fp.pitch = -0.45; homeCat.held = 8;
-      Object.assign(e, { state: 'date', x: homeCat.x + Math.cos(fp.yaw + Math.PI / 2) * 50, y: homeCat.y + Math.sin(fp.yaw + Math.PI / 2) * 50, pose: 'crouch', path: null });
+      homeCat.path = null; homeCat.held = 8;
+      const me = openSpotNear(homeCat.x, homeCat.y, 90, Math.atan2(player.y - homeCat.y, player.x - homeCat.x)); if (me) { player.x = me.x; player.y = me.y; }
+      fp.yaw = Math.atan2(homeCat.y - player.y, homeCat.x - player.x); fp.pitch = -0.45;
+      const them = openSpotNear(homeCat.x, homeCat.y, 55, fp.yaw + Math.PI / 2) || { x: homeCat.x, y: homeCat.y + 55 };
+      Object.assign(e, { state: 'date', x: them.x, y: them.y, pose: 'crouch', path: null });
       e.ang = Math.atan2(homeCat.y - e.y, homeCat.x - e.x);
     } else {
       Object.assign(player, { x: A.me.x, y: A.me.y, pose: A.me.pose || '', path: null }); fp.yaw = A.me.yaw;
@@ -3461,7 +3467,7 @@ function endActivity(A, key, e) {
   const info = world.dateInfo; info.done.push(key); world.scene = null; player.pose = '';
   if (A.exit) { player.x = A.exit.x; player.y = A.exit.y; }
   e.state = 'follow'; e.pose = null; e.x = player.x + 40; e.y = player.y + 20; if (!isFree(e.x, e.y, 14)) { e.x = player.x; e.y = player.y; } player.trail = [{ x: e.x, y: e.y }];
-  e.expr = 'happy'; homeCat.held = 0;
+  e.expr = 'happy'; homeCat.held = 0; homeCat.t = rand(4, 8); unstickPlayer();
   if (info.done.length >= 5) dlg(e.c.name, 'Tonight was so much fun… but it\'s getting late. Walk me to the front door?', [['Of course.', null]]);
   else if (info.done.length === 3) toast(`💞 ${e.c.name} is having a great time. Do another activity, or walk them to the front door to say goodnight.`);
 }
@@ -3476,6 +3482,7 @@ function playMelody(soft) { initAudio(); const notes = [523, 659, 784, 659, 698,
 const homeCat = { x: 1610, y: 1650, ang: 0, path: null, t: 2, held: 0, ph: 0, moving: false };
 function updateCat(dt) {
   const c = homeCat; c.t -= dt; c.held = Math.max(0, c.held - dt);
+  if (world.scene && world.scene.key === 'cat') { c.held = Math.max(c.held, 0.5); c.path = null; }
   if (c.held > 0) { c.moving = false; return; }
   if (c.path && c.path.length) { const tg = c.path[0], dx = tg.x - c.x, dy = tg.y - c.y, d = Math.hypot(dx, dy), st = 60 * dt; if (d <= st) { c.x = tg.x; c.y = tg.y; c.path.shift(); } else { c.x += dx / d * st; c.y += dy / d * st; } c.ang = Math.atan2(dy, dx); c.ph += dt * 9; c.moving = true; return; }
   c.moving = false;
@@ -3487,6 +3494,15 @@ function petCat() {
 }
 
 // ---------- what you can do at home ----------
+function wallClear(ax, ay, bx, by) { // no wall between two points
+  const n = Math.ceil(dist(ax, ay, bx, by) / 10);
+  for (let k = 1; k < n; k++) { const x = lerp(ax, bx, k / n), y = lerp(ay, by, k / n); for (const b of solids) if (b.kind === 'wall' && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return false; }
+  return true;
+}
+function openSpotNear(x, y, r, a0) { // a free spot about r away, on the same side of any wall
+  for (let k = 0; k < 24; k++) { const a = a0 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * Math.PI / 12, px = x + Math.cos(a) * r, py = y + Math.sin(a) * r; if (isFree(px, py, 22) && wallClear(x, y, px, py)) return { x: px, y: py }; }
+  return null;
+}
 function homeObjective() {
   const e = homeDate();
   if (e && e.state === 'homeWait') return { x: e.x, y: e.y };
@@ -4031,15 +4047,16 @@ function endHomeDate() {
     const line = e.live ? (great ? 'Tonight was perfect. I love our life, you know that?' : fine ? 'That was a nice night. Ready for bed?' : 'Long night. Let\'s get some sleep.')
       : !info.done.length ? 'Leaving already? Okay… thanks for having me, I guess.' : great ? 'Tonight was perfect. I don\'t really want it to end.' : fine ? 'I had a really nice time tonight. Thank you.' : 'Thanks for having me. It was… a nice house.';
     const finish = () => {
+      if (p.status === 'ex') { e.state = 'homeLeave'; e.pose = null; e.path = null; e.tasks = [{ x: HOME.SPOT.porch.x, y: HOME.SPOT.porch.y }, { x: HOME.SPOT.gate.x, y: HOME.SPOT.gate.y - 5 }]; world.scene = null; return; }
       p.dates++; p.aff = clamp(p.aff + gained, 0, 100);
       if (fine && (p.status === 'friend' || p.status === 'acquaintance')) p.status = 'dating';
-      S.lastDateDay = S.day; S.homeNight = S.day; saveGame(); if (great) chime();
+      S.homeNight = S.day; saveGame(); if (great) chime();
       toast(`💞 ${p.c.name}: affection ${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100 · ${STATUS_LABEL[p.status]}`);
-      if (e.live) { e.state = 'gone'; world.scene = null; setTimeout(() => { toast('🌙 You both turn in for the night.'); leaveHome('bed'); }, 1800); return; }
+      if (e.live) { e.state = 'gone'; world.scene = null; world.byeT = setTimeout(() => { if (world.loc === 'home' && state === 'world') { toast('🌙 You both turn in for the night.'); leaveHome('bed'); } }, 1800); return; }
       e.state = 'homeLeave'; e.pose = null; e.path = null; e.tasks = [{ x: HOME.SPOT.porch.x, y: HOME.SPOT.porch.y }, { x: HOME.SPOT.gate.x, y: HOME.SPOT.gate.y - 5 }]; world.scene = null;
       setEmote(e, great ? 'heart' : fine ? 'note' : 'dots', 4);
       const caught = !isCommitted(p) ? checkCheating(p, { id: 'home' }) : null;
-      if (caught) setTimeout(() => { state = 'modal'; partnerReaction(caught, p, () => { hideModal(); state = 'world'; }); }, 2500);
+      if (caught) { dlg.close(); state = 'modal'; partnerReaction(caught, p, () => { hideModal(); state = 'world'; }); }
     };
     const kiss = () => { e.pose = 'kiss'; e.expr = 'bliss'; e.y = player.y + (e.live ? 0 : 50); if (e.live) e.x = player.x + 50; fp.pitch = pitchToFace(e) - 0.04; setEmote(e, 'heart', 3); chime();
       const f = $('fade'); f.style.background = '#ffb6d0'; f.style.opacity = ''; f.classList.add('on'); setTimeout(() => { f.classList.remove('on'); setTimeout(() => f.style.background = '', 400); }, 900);
@@ -4065,22 +4082,22 @@ function homeInteractables() {
     for (const [k, A] of Object.entries(ACTS)) {
       if (A.need && !homeOwned(A.need)) continue;
       const lab = `${A.label} with ${e.c.name}${world.dateInfo.done.includes(k) ? ' ✔' : ''}`;
-      if (k === 'cat') { if (dist(homeCat.x, homeCat.y, player.x, player.y) < 200) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: lab, act: () => startActivity(k) }); continue; }
+      if (k === 'cat') { if (dist(homeCat.x, homeCat.y, player.x, player.y) < 200 && wallClear(player.x, player.y, homeCat.x, homeCat.y)) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: lab, act: () => startActivity(k) }); continue; }
       list.push({ x: A.at.x, y: A.at.y, spot: A.spot, label: lab, act: () => startActivity(k) });
     }
     if (dist(e.x, e.y, player.x, player.y) < 140) list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `💬 Talk to ${e.c.name}`, act: () => dateMenu(e), ent: e });
-    if (e.live) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🌙 Call it a night with ${e.c.name}`, act: () => endHomeDate() });
-    else list.push({ x: S2.door.x, y: S2.door.y + 60, spot: S2.door, label: `👋 Walk ${e.c.name} out and say goodnight`, act: () => endHomeDate() });
+    if (e.live) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🌙 Call it a night with ${e.c.name}`, act: () => dlg('You', `Call it a night with ${e.c.name}?`, [['Yes, time for bed 🌙', endHomeDate], ['Not yet', null]]) });
+    else list.push({ x: S2.door.x, y: S2.door.y + 60, spot: S2.door, label: `👋 Walk ${e.c.name} out and say goodnight`, act: () => dlg('You', `Walk ${e.c.name} to the door and say goodnight?`, [['Yes, say goodnight 👋', endHomeDate], ['Not yet', null]]) });
   } else {
     const live = liveInPartner();
     if (!e) list.push({ x: HOME.F.console.x + 20, y: HOME.F.console.y + 60, spot: S2.phone, label: world.dateArriveT > 0 ? '📱 Your guest is on the way' : live ? `📱 Phone (you live with ${live.c.name})` : '📱 Invite someone over', act: () => { if (world.dateArriveT > 0) return; state = 'modal'; showPeople(() => { hideModal(); state = 'world'; }); } });
     list.push({ x: HOME.F.console.x + 20, y: HOME.F.console.y + 100, spot: { x: S2.phone.x, y: S2.phone.y + 40 }, label: '🏗️ Renovate the mansion', act: () => { state = 'modal'; showHomeShop(() => { hideModal(); state = 'world'; }); } });
-    if (!e) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🛏️ Sleep until morning (start Day ${S.day})`, act: () => leaveHome('bed') });
-    list.push({ x: HOME.F.car.x, y: HOME.F.car.y + 170, spot: S2.car, label: `🚗 Drive to the spa (start Day ${S.day})`, act: () => leaveHome('car') });
+    if (!e && !(world.dateArriveT > 0)) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🛏️ Sleep until morning (start Day ${S.day})`, act: () => leaveHome('bed') });
+    if (!(world.dateArriveT > 0)) list.push({ x: HOME.F.car.x, y: HOME.F.car.y + 170, spot: S2.car, label: `🚗 Drive to the spa (start Day ${S.day})`, act: () => leaveHome('car') });
     list.push({ x: HOME.F.piano.x + 85, y: HOME.F.piano.y + 140, spot: S2.piano, label: '🎹 Play the piano', act: () => { playMelody(); toast('🎹 You play a soft melody. The whole house listens.'); } });
     list.push({ x: 445, y: 1520, spot: S2.tv, label: world.tvOn ? '📺 Turn the TV off' : '📺 Turn the TV on', act: () => { world.tvOn = !world.tvOn; } });
     if (HOME.F.cards) list.push({ x: 520, y: 1005, spot: { x: 520, y: 1080 }, label: '🃏 Play blackjack', act: () => { state = 'modal'; playBlackjack(() => { hideModal(); state = 'world'; }); } });
-    if (dist(homeCat.x, homeCat.y, player.x, player.y) < 160) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: '🐱 Pet Mochi', act: () => petCat() });
+    if (dist(homeCat.x, homeCat.y, player.x, player.y) < 160 && wallClear(player.x, player.y, homeCat.x, homeCat.y)) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: '🐱 Pet Mochi', act: () => petCat() });
   }
   list.push(...seatInteractables());
   return list;
@@ -4164,12 +4181,13 @@ function seatInteractables() {
 }
 
 // ---------- Upgrades you can see ----------
-function applyUpgradeSolids() {
-  if (world.loc === 'home') return; // spa furniture only goes into the spa
+function applyUpgradeSolids() { // spa furniture goes into the spa's collision list, even if you buy it from home
+  const target = world.loc === 'home' ? (world.spaSolids = world.spaSolids || []) : solids;
+  const mk = (x, y, w, h) => { const r = { x, y, w, h }; target.push(r); return r; };
   let changed = false;
-  if (S.owned.coffee && !F.coffeeBar) { F.coffeeBar = SR(232, 900, 46, 100); changed = true; }
-  if (S.owned.aquarium && !F.aquarium) { F.aquarium = SR(300, 1012, 150, 40); changed = true; }
-  if (changed) rebuildGrid();
+  if (S.owned.coffee && !F.coffeeBar) { F.coffeeBar = mk(232, 900, 46, 100); changed = true; }
+  if (S.owned.aquarium && !F.aquarium) { F.aquarium = mk(300, 1012, 150, 40); changed = true; }
+  if (changed && world.loc !== 'home') rebuildGrid();
 }
 function buildUpgrades3D() {
   if (!R3) return;
@@ -4189,7 +4207,7 @@ function buildUpgrades3D() {
       plane(1.1, 0.26, new THREE.MeshBasicMaterial({ map: textTex(`ROOM ${r.room} · UNLOCK IN UPGRADES`, 440, 104, '#3a2a1f', '#f1dca8', '800 28px Nunito, system-ui'), side: THREE.DoubleSide }), (t3.x + t3.w / 2) * U, 1.05, (ry + 1) * U, 0);
     } else { cyl(t3.x + t3.w - 10, r.ang > 0 ? t3.y + t3.h + 16 : t3.y - 20, 5, 5, 0, 0.9, lam('#f5ecd9')); }
   }
-  if (S.owned.coffee) {
+  if (S.owned.coffee && F.coffeeBar) {
     const b = F.coffeeBar; box(b.x, b.y, b.w, b.h, 0, 0.95, lam('#4a3020')); box(b.x - 3, b.y - 3, b.w + 6, b.h + 6, 0.95, 0.04, lam('#e2d7c3'));
     box(b.x + 8, b.y + 10, 30, 34, 0.99, 0.36, lam('#b8bcc2')); for (let i = 0; i < 3; i++) cyl(b.x + 22, b.y + 60 + i * 12, 4, 3.5, 0.99, 0.08, lam('#f4efe6'));
     plane(0.9, 0.3, new THREE.MeshBasicMaterial({ map: textTex('☕ FREE COFFEE & TEA', 360, 120, '#2a1d14', '#f6d8a8', '800 34px Nunito, system-ui') }), (b.x + 2) * U, 1.8, (b.y + b.h / 2) * U, Math.PI / 2);
@@ -4200,7 +4218,7 @@ function buildUpgrades3D() {
       c.fillStyle = '#f4f0e0'; c.beginPath(); c.moveTo(80, 170); c.lineTo(180, 60); c.lineTo(280, 170); c.fill(); c.fillStyle = '#ffffff'; c.font = '800 26px Nunito, system-ui'; c.fillText('Nature · Relax channel', 20, 280); });
     R3.tvTex = scr; plane(1.5, 0.86, new THREE.MeshBasicMaterial({ map: scr }), 8.8, 1.62, 5.835, 0);
   }
-  if (S.owned.aquarium) {
+  if (S.owned.aquarium && F.aquarium) {
     const a = F.aquarium; box(a.x, a.y, a.w, a.h, 0, 0.55, lam('#3a2a1f'));
     box(a.x + 4, a.y + 4, a.w - 8, a.h - 8, 0.55, 0.62, new THREE.MeshPhongMaterial({ color: '#5fb8d8', transparent: true, opacity: 0.45, shininess: 90 }));
     for (let i = 0; i < 7; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 6), lam(['#f08a3c', '#ffd36b', '#ff7aa8', '#7ad0ff'][i % 4])); f.scale.set(1.5, 0.8, 0.5); add(f); R3.fish.push(f); }
@@ -4470,7 +4488,7 @@ function bind3DInput() {
     if (view === 'massage3d') { if (state === 'session') { m3Pos(e.clientX, e.clientY); m3Input(0); m3Down(e.button); } return; }
     initAudio(); if (state !== 'world' || dlg.current) return;
     if (document.pointerLockElement === cvs) { interact(); return; }
-    const it = nearInteract(); if (it && !it.label.startsWith('Bring')) { it.act(); return; }
+    const it = nearInteract(); if (it && !it.label.startsWith('Bring') && performance.now() - (dlg.closedAt || 0) > 300) { it.act(); return; }
     fp.drag = { x: e.clientX, y: e.clientY };
     try { const p = cvs.requestPointerLock && cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (_) {}
   });
@@ -4860,7 +4878,7 @@ function syncHumans(third) {
     setHumanEmote(h, st.emote || '');
   }
   // you
-  if (S.owned.guard) {
+  if (S.owned.guard && world.loc === 'spa') {
     const gc = guardC(), gh = humanFor('guard', () => specFor({ top: '#1f2a44', bottom: '#1f2a44', top3: 'polo', bot3: 'pants', shoe: '#111111', H: 1.86, seed: gc.seed }, gc.body));
     const rb = robber(); gh.root.position.set(890 * U, 0, 1030 * U); gh.root.rotation.set(0, Math.PI / 2, 0);
     poseHuman(gh, { breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.4)), cross: !rb, look: rb ? 0.5 : Math.sin(time * 0.3) * 0.5 });
