@@ -115,6 +115,7 @@ attribute vec4 skinWeight2;
       this.restGlobal = this.bones.map(() => new THREE.Matrix4());
       this.restGlobalQuat = this.bones.map(() => new THREE.Quaternion());
       this.pose = this.bones.map(() => new THREE.Quaternion());
+      this.boneMats = this.bones.map(() => new THREE.Matrix4());
       this.rootOffset = new THREE.Vector3();
 
       this.skinMat = BS.makeSkinMaterial ? BS.makeSkinMaterial(this) : BS.skinned8(new THREE.MeshStandardMaterial({ color: 0xd8a888, roughness: 0.5 }));
@@ -127,6 +128,7 @@ attribute vec4 skinWeight2;
       body.bind(this.skeleton);
       this.group.add(body);
 
+      this.shapeListeners = [];
       this.parts = [];
       this._buildHelpers();
       this._buildEyes();
@@ -240,8 +242,11 @@ attribute vec4 skinWeight2;
       }
       this._fitEyes(P);
       this._fitSkeleton(P);
-      if (this.onShape) this.onShape(P);
+      for (const fn of this.shapeListeners) fn(this, P);
     }
+
+    // fn(human, morphedBaseDm) runs after every shape change (skeleton refit done)
+    addShapeListener(fn) { this.shapeListeners.push(fn); }
 
     _fitEyes(P) {
       const E = this.D.eye;
@@ -294,10 +299,96 @@ attribute vec4 skinWeight2;
       });
       for (const r of this.rootBones) r.position.add(this.rootOffset);
       this.group.updateMatrixWorld(true);
+      const inv = this.skeleton.boneInverses;
+      for (let i = 0; i < this.bones.length; i++) this.boneMats[i].multiplyMatrices(this.bones[i].matrixWorld, inv[i]);
     }
+
+    // CPU skinning, matching the GPU: rest position (world, meters) + 8
+    // bone indices/weights -> posed world position. Handy for anything that
+    // must sit on the moving skin (hair roots, labels, clothing pins).
+    skinPoint(rest, idx, wts, out, offset = 0) {
+      out = out || new THREE.Vector3();
+      const x = rest.x, y = rest.y, z = rest.z;
+      let ox = 0, oy = 0, oz = 0;
+      for (let k = 0; k < 8; k++) {
+        const w = wts[offset + k];
+        if (!w) continue;
+        const e = this.boneMats[idx[offset + k]].elements;
+        ox += w * (e[0] * x + e[4] * y + e[8] * z + e[12]);
+        oy += w * (e[1] * x + e[5] * y + e[9] * z + e[13]);
+        oz += w * (e[2] * x + e[6] * y + e[10] * z + e[14]);
+      }
+      return out.set(ox, oy, oz);
+    }
+    // posed world position of smoothed-body vertex i
+    bodyVertex(i, out) {
+      const a = this.restAttr.array;
+      _v3.set(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]);
+      return this.skinPoint(_v3, this.subWeights.idx, this.subWeights.wts, out, i * 8);
+    }
+    // posed world position of MakeHuman base-mesh vertex v (any group,
+    // including helpers such as eyelashes or teeth)
+    baseVertex(v, out) {
+      const P = this.P, D = this.D;
+      _v3.set(P[v * 3] * BS.SCALE, P[v * 3 + 1] * BS.SCALE - this.ground, P[v * 3 + 2] * BS.SCALE);
+      for (let k = 0; k < 8; k++) { _bi[k] = D.skinIdx[v * 8 + k]; _bw[k] = D.skinW[v * 8 + k] / 65535; }
+      return this.skinPoint(_v3, _bi, _bw, out);
+    }
+    // rest-pose (unposed) world position of base-mesh vertex v
+    baseRest(v, out) {
+      const P = this.P;
+      return (out || new THREE.Vector3()).set(P[v * 3] * BS.SCALE, P[v * 3 + 1] * BS.SCALE - this.ground, P[v * 3 + 2] * BS.SCALE);
+    }
+
+    resetPose() { for (const q of this.pose) q.identity(); this.rootOffset.set(0, 0, 0); }
+
+    // Local pose rotation equal to turning bone i by `angle` about `axis`,
+    // where axis is given in the rest-pose world frame (+X = character's left,
+    // +Y up, +Z forward). Children follow, and the rotation composes with the
+    // parent's pose, so "lift the arm forward" means the same on every body.
+    worldAxisQuat(i, axis, angle, out) {
+      const r = this.restGlobalQuat[i];
+      _q.setFromAxisAngle(_v.copy(axis).normalize(), angle);
+      return (out || new THREE.Quaternion()).copy(r).invert().multiply(_q).multiply(r);
+    }
+    // Local pose rotation that swings bone i's rest direction (head->tail) to
+    // `dir` (rest world frame), e.g. to hang the arms down from the A-pose.
+    aimQuat(i, dir, out) {
+      const f = this.fit[i];
+      _v.set(f.tail[0] - f.head[0], f.tail[1] - f.head[1], f.tail[2] - f.head[2]).normalize();
+      _q.setFromUnitVectors(_v, _v2.copy(dir).normalize());
+      const r = this.restGlobalQuat[i];
+      return (out || new THREE.Quaternion()).copy(r).invert().multiply(_q).multiply(r);
+    }
+    // multiply a local pose rotation onto bone i (by name or index)
+    rotate(bone, q) { const i = typeof bone === 'number' ? bone : this.boneIndex(bone); if (i !== undefined) this.pose[i].multiply(q); }
 
     boneIndex(name) { return this.D.boneIndex[name]; }
     joint(name, which = 'head') { const f = this.fit[this.boneIndex(name)]; return new THREE.Vector3(...f[which]); }
   }
+  const _q = new THREE.Quaternion(), _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _v3 = new THREE.Vector3();
+  const _bi = new Uint16Array(8), _bw = new Float32Array(8);
   BS.Human = Human;
+
+  // MakeHuman face pose units: each unit is a set of local bone rotations;
+  // a blend slerps each from identity by its weight and multiplies them
+  // (animation.PoseUnit.getBlendedPose). Returns {boneIndex: Quaternion}.
+  const _u = new THREE.Quaternion(), _id = new THREE.Quaternion();
+  BS.blendFaceUnits = function (D, weights, out) {
+    const res = out || {};
+    for (const k in res) res[k].identity();
+    for (const name in weights) {
+      const w = weights[name];
+      const unit = D.faceUnits[name];
+      if (!unit || Math.abs(w) < 1e-3) continue;
+      for (const bi in unit) {
+        const q = unit[bi];
+        _u.set(q[0], q[1], q[2], q[3]);
+        if (w < 0) _u.invert();
+        _u.copy(_id.identity().slerp(_u, Math.min(1.5, Math.abs(w))));
+        (res[bi] || (res[bi] = new THREE.Quaternion())).premultiply(_u);
+      }
+    }
+    return res;
+  };
 })();
