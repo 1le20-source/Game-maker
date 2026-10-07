@@ -121,6 +121,8 @@ body.world.fp3d #w3d{display:block} body.world.fp3d #game{display:none}
 .incBtns{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}.incBtns button{padding:5px 9px;font-size:12px}
 body.cams #hud3d{display:none!important}
 #evStat:empty{display:none}
+#bDefend{display:none}body.robbery #bDefend{display:inline-block;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px rgba(232,106,95,.5)}}
 body.m3d #w3d{display:block} body.m3d #game{display:none} body.m3d #hud3d{display:block}
 body.m3d #minimap,body.m3d #prompt3d,body.m3d #lookHint,body.m3d #cross{display:none!important}
 #tag3d{position:absolute;background:rgba(12,16,18,.86);color:#eaf3f0;font-weight:700;font-size:13px;padding:4px 9px;border-radius:8px;white-space:nowrap;pointer-events:none}
@@ -201,7 +203,7 @@ window.addEventListener('error', function (e) {
     <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><button id="fabUse" class="primary">✋<br>Use</button><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="camsUI" hidden><div id="camTiles"></div><div id="camTop"><b>📹 Security cameras</b><span style="flex:1"></span><button id="camBack">✕ Leave office</button></div><div id="camStatus"></div></div><div id="toast"></div></div>
   </div>
   <div id="toolbar">
-    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bCams">📹 Cameras<kbd>O</kbd></button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
+    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bCams">📹 Cameras<kbd>O</kbd></button><button id="bDefend" class="danger">🛡️ Defend<kbd>F</kbd></button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
     <div class="grp sessOnly"><span class="gl">Tool</span>
       <button id="tHands" class="on">✋ Hands<kbd>Z</kbd></button>
       <button id="tOil">💧 Oil<kbd>X</kbd></button>
@@ -298,6 +300,11 @@ const SHOP = [
   { id: 'room5', name: '🚪 Treatment Room 5', price: 2200, desc: 'Opens the south-east suite table: room for one more therapist.' },
   { id: 'room6', name: '🚪 Treatment Room 6', price: 3000, desc: 'A second table in the big treatment room: room for one more therapist.' },
   { id: 'gold', name: '✨ VIP Gold Package', price: 1200, desc: 'Gold accents and a VIP menu. +25% session prices.' },
+  { id: 'spray', name: '🌶️ Pepper Spray', price: 150, desc: 'Self-defense against robbers. Short range (about 2 m), works 80% of the time.' },
+  { id: 'baton', name: '🦯 Security Baton', price: 300, desc: 'Self-defense against robbers. You have to be right next to them; works 90% of the time.' },
+  { id: 'taser', name: '⚡ Taser', price: 600, desc: 'Stops a robber from about 4.5 m away, 95% of the time.' },
+  { id: 'alarm', name: '🔔 Silent Alarm', price: 400, desc: 'Police arrive mid-robbery and arrest the robber before they get away.' },
+  { id: 'guard', name: '🛡️ Security Guard', price: 800, desc: 'A guard watches the entrance and stops 85% of robbers at the door. $60/day wage.' },
 ];
 const SCENTS = { unscented: 'Unscented', lavender: 'Lavender', citrus: 'Sweet Orange', eucalyptus: 'Eucalyptus' };
 const SCENT_COLOR = { unscented: '#e9d9a8', lavender: '#b79be6', citrus: '#f2a65a', eucalyptus: '#86c9a3' };
@@ -628,7 +635,7 @@ function startSession(c) {
     knots.push({ x, y, z, amt: 100, done: false });
   }
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
-    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0) - (c.crowded ? 8 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
     head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
@@ -957,7 +964,7 @@ function showResults(res, quote) {
 function showDayEnd() {
   state = 'dayEnd';
   if (view === 'cams') closeCams();
-  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + Math.max(0, b.wage - (b.docked || 0)), 0);
+  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + Math.max(0, b.wage - (b.docked || 0)), 0) + (S.owned.guard ? 60 : 0);
   const insp = eventToday() === 'inspection' ? (hasStaff() ? 80 : -60) : 0;
   for (const st of S.staff) { st.docked = 0; st.morale = morale(st) + (0.75 - morale(st)) * 0.25; }
   S.money -= rent + wages - insp; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
@@ -1836,6 +1843,8 @@ function showHelp(back) {
     <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients. Clients pay up front and payments are final.</li>
     <li><b>Staff</b> do everything: front desk, payment and massages. Buy Treatment Rooms 3–6 so you can hire more. They level up fast while they work.</li>
     <li><b>Your office (📹 Cameras, O):</b> the room off the hallway past the tea lounge. Watch every room live, click a feed to enlarge it, and warn, dock or fire staff caught slacking.</li>
+    <li><b>Personal space:</b> people are solid, and standing right on top of a waiting client bothers some of them. Some don't mind, some get uncomfortable, and some walk out.</li>
+    <li><b>Robbers:</b> sometimes a masked robber goes for the register. Press 🛡️ Defend (F). Buy pepper spray, a baton, a taser, a silent alarm or a security guard in Upgrades.</li>
     <li><b>Relationships:</b> dating someone while you have a partner can get you caught. Partners react differently: some are fine with it, some forgive, some break up, and some come to the spa to make a scene.</li></ul>`,
     [['Got it', back, 'primary']]);
 }
@@ -1957,6 +1966,7 @@ if (window.matchMedia && matchMedia('(pointer:coarse)').matches) document.body.c
 $('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
 $('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
 $('bPeople').onclick = () => { if (state === 'world') openPeopleWorld(); };
+$('bDefend').onclick = () => { initAudio(); defend(); };
 $('bCams').onclick = () => { if (view === 'cams') closeCams(); else if (state === 'world') openCams(); };
 $('camBack').onclick = () => { if (camState.focus >= 0) { camState.focus = -1; buildCamTiles(); } else closeCams(); };
 window.addEventListener('resize', () => { if (view === 'cams') buildCamTiles(); });
@@ -1971,6 +1981,7 @@ window.addEventListener('keydown', e => {
     if (k === 'e' || k === ' ' || k === 'enter') { if (!e.repeat) interact(); return; }
     if (k === 'p') { openStaffWorld(); return; }
     if (k === 'o') { openCams(); return; }
+    if (k === 'f') { defend(); return; }
     if (k === 'v') { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); return; }
     if (k === 'm') { initAudio(); toggleMusic(); return; }
     keys.add(k); return;
@@ -2263,6 +2274,7 @@ function walkEnt(e, dt, speed) {
   return !e.path.length;
 }
 function updateEnt(e, dt) {
+  if (e.robber) { updateRobber(e, dt); return; }
   e.emoteT -= dt; if (e.emoteT <= 0) e.emote = null;
   if (e.state === 'arrive' || e.state === 'leaving') {
     if (e.wait > 0) { e.wait -= dt; e.moving = false; return; }
@@ -2315,7 +2327,7 @@ function playerMove(dt) {
     if (!player.path.length && player.goal) { const gl = player.goal; player.goal = null; player.path = null; setTimeout(() => { const n = state === 'world' && nearInteract(); if (n && n.label === gl.label) n.act(); }, 0); }
   }
   if (vx || vy) {
-    if (isFree(player.x + vx, player.y, PR)) player.x += vx; if (isFree(player.x, player.y + vy, PR)) player.y += vy;
+    if (isFree(player.x + vx, player.y, PR) && peopleFree(player.x + vx, player.y, player.x, player.y)) player.x += vx; if (isFree(player.x, player.y + vy, PR) && peopleFree(player.x, player.y + vy, player.x, player.y)) player.y += vy;
     player.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
     player.ph += Math.hypot(vx, vy) * 0.11; moved = true;
     const last = player.trail[player.trail.length - 1];
@@ -2326,6 +2338,7 @@ function playerMove(dt) {
 function interactables() {
   const list = [], f = follower();
   for (const e of ents) {
+    if (e.robber) { if (['robApproach', 'robbing'].includes(e.state)) list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: anyWeapon() ? `Stop the robber (${WEAPONS[anyWeapon()].name})` : 'Confront the robber', act: () => defend(), ent: e }); continue; }
     if (e.state === 'drama') { list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Talk to ${e.c.name} (making a scene)`, act: () => calmDrama(e), ent: e }); continue; }
     if (e.state === 'checkin') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Check in ${e.c.name} · collect $${e.c.price}`, act: () => checkIn(e), ent: e });
     else if ((e.state === 'seated' || (e.state === 'arrive' && e.c.paid)) && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? e.seatFront : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
@@ -2405,7 +2418,7 @@ function startDayWorld() {
   player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = []; fp.yaw = -Math.PI / 2; fp.pitch = -0.04;
   spawnStaff(); buildWorld(); resize(); refreshUI(true);
   if (!S.event || S.event.day !== S.day) { rollEvent(); saveGame(); }
-  spawnDrama();
+  spawnDrama(); scheduleRobbery(); document.body.classList.remove('robbery');
   const pt = Object.values(S.people || {}).find(p => p.status === 'partner' && !p.upset);
   if (pt && !S.teaBuff) { S.teaBuff = true; saveGame(); }
   const ev = eventToday();
@@ -2414,7 +2427,8 @@ function startDayWorld() {
 function updateWorld(dt) {
   if (view === 'cams') player.moving = false; else if (R3) playerMoveFP(dt); else playerMove(dt);
   for (const e of ents) updateEnt(e, dt);
-  updateStaff(dt);
+  updateStaff(dt); updatePersonalSpace(dt);
+  if (world.robT > 0) { world.robT -= dt; if (world.robT <= 0) spawnRobber(); }
   for (let i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'gone') ents.splice(i, 1);
   world.spawnT -= dt;
   if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = hasStaff() ? rand(3, 5.5) : rand(5, 9); else world.spawnT = 1; }
@@ -2431,7 +2445,9 @@ function refreshWorldUI() {
   const free = seated.filter(e => !e.claimed);
   const ci = ents.find(e => e.state === 'checkin');
   const dr = ents.find(e => e.state === 'drama'), inc = staffEnts.find(x => x.incident);
-  if (dr) obj = `😡 <b>${esc(dr.c.name)}</b> is making a scene in the lobby. Walk up and press <b>E</b> to deal with it.`;
+  const rb = robber();
+  if (rb) obj = `🚨 <b>A masked robber</b> is ${rb.state === 'robbing' ? 'emptying the register' : 'heading for the register'}! Press <b>🛡️ Defend</b> (or F)${anyWeapon() ? ` to use your ${WEAPONS[anyWeapon()].name}` : ''}.`;
+  else if (dr) obj = `😡 <b>${esc(dr.c.name)}</b> is making a scene in the lobby. Walk up and press <b>E</b> to deal with it.`;
   else if (ci && !staffEnts.some(x => x.state === 'desk' || x.state === 'toDesk') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
   else if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
   else if (free.length) obj = `<b>${esc(free[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
@@ -2443,7 +2459,7 @@ function refreshWorldUI() {
   const ev = eventToday(); $('evStat').textContent = ev ? EVENTS[ev].name : '';
   $('objective').innerHTML = obj;
   $('queueList').innerHTML = ents.filter(e => e.state !== 'gone').map(e => {
-    const st = { drama: 'Making a scene 😡', arrive: e.c.paid ? 'Going to sit' : 'Arriving', checkin: 'At reception', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
+    const st = { robApproach: '🚨 Robber!', robbing: '🚨 Robbing the register', stunned: '💫 Stunned', fleeing: 'Running away', arrested: '🚔 Arrested', drama: 'Making a scene 😡', arrive: e.c.paid ? 'Going to sit' : 'Arriving', checkin: 'At reception', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
     const p = e.state === 'seated' ? clamp(e.patience / e.maxPatience, 0, 1) : 1;
     return `<div class="qi"><span class="dot" style="background:${e.c.look.top}"></span><span style="width:70px">${esc(e.c.name)}</span><span style="width:86px;color:var(--muted)">${st}</span>${e.state === 'seated' ? `<div class="bar"><div style="width:${p * 100}%"></div></div>` : ''}</div>`;
   }).join('') || '<div class="ctl">Nobody here yet.</div>';
@@ -2537,6 +2553,7 @@ let uidN = 0;
 function dirFromAng(a) { const c = Math.cos(a), s = Math.sin(a); return Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : (s > 0 ? 'down' : 'up'); }
 function limbFill(g, pts, col, out) { const p = limbPath(pts); g.fillStyle = col; g.fill(p); g.strokeStyle = out; g.lineWidth = 0.7; g.stroke(p); }
 function moodFor(e) {
+  if (e.robber) return { mood: e.state === 'arrested' ? 'impatient' : 'angry', opts: { look: 0 } };
   if (e.state === 'drama') return { mood: 'angry', opts: { look: (player.x - e.x) / 120, cross: true, tap: true } };
   const seatedNow = e.state === 'seated', imp = (seatedNow || e.state === 'checkin') && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
   const mood = seatedNow ? (imp ? 'impatient' : near ? 'happy' : '') : (e.state === 'follow' || e.state === 'followStaff') ? 'happy' : e.state === 'leaving' ? (e.c.look.mood || '') : '';
@@ -2988,7 +3005,7 @@ function renderCams() {
     if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.querySelectorAll('button').forEach(b => b.onclick = () => { const s2 = staffEnts[+b.dataset.inc]; if (s2) handleIncident(s2, b.dataset.act); el.dataset.h = ''; }); }
   });
   const busy = staffEnts.map(s2 => `${esc(s2.s.c.name)} (Lv ${levelOf(s2.s)}${s2.room ? ', room ' + s2.room : ''}): ${s2.incident ? '⚠ ' + INCIDENTS[s2.incident.type].label : { work: 'massaging a client', desk: 'at the front desk', toDesk: 'heading to the desk', clean: 'cleaning', walk: 'walking the floor', fetch: 'fetching a client', lead: 'leading a client', idle: 'ready', return: 'heading back' }[s2.state] || s2.state}`).join(' · ');
-  $('camStatus').innerHTML = staffEnts.length ? busy : 'No staff hired yet. Hire a team in the Staff screen and watch them work from here.';
+  $('camStatus').innerHTML = (robber() ? '<b style="color:#ff6b6b">🚨 ROBBERY IN PROGRESS at the front desk (CAM 4)</b> · ' : '') + (staffEnts.length ? busy : 'No staff hired yet. Hire a team in the Staff screen and watch them work from here.');
 }
 function showStatusBoard() { // 2D fallback: a text board instead of video
   state = 'modal';
@@ -3058,6 +3075,118 @@ function rollEvent() {
   if (type === 'rain') S.todayTotal = Math.max(3, S.todayTotal - 2);
 }
 function eventToday() { return S.event && S.event.day === S.day ? S.event.type : null; }
+
+// ---------- Bodies are solid: you can't walk through people ----------
+const BODY_R = 34; // shoulder-to-shoulder clearance, in cm
+function solidPeople() {
+  const out = [];
+  for (const e of ents) if (!['gone', 'onTable', 'staffTable'].includes(e.state)) out.push(e);
+  for (const st of staffEnts) if (st.state !== 'work') out.push(st);
+  return out;
+}
+function peopleFree(nx, ny, ox, oy) { // moving is fine unless it takes you deeper into someone
+  for (const p of solidPeople()) { const dn = dist(nx, ny, p.x, p.y); if (dn < BODY_R && dn < dist(ox, oy, p.x, p.y)) return false; }
+  return true;
+}
+
+// ---------- Personal space ----------
+const SPACE_TYPES = { chill: 3, awkward: 4, offended: 2 };
+function spaceOf(c) { if (!c.space) c.space = weighted(SPACE_TYPES); return c.space; }
+function updatePersonalSpace(dt) {
+  if (view !== 'world' || state !== 'world') return;
+  for (const e of ents) {
+    if (!['seated', 'checkin', 'arrive'].includes(e.state) || e.robber) continue;
+    const close = dist(player.x, player.y, e.x, e.y) < 58 && !follower();
+    e.crowd = close ? (e.crowd || 0) + dt : Math.max(0, (e.crowd || 0) - dt * 0.6);
+    const t = spaceOf(e.c);
+    if (e.crowd > 1.4 && !e.spaceSaid) {
+      e.spaceSaid = true;
+      if (t === 'chill') { setEmote(e, 'note', 2); toast(`🙂 ${e.c.name} doesn't mind you standing close.`); }
+      else if (t === 'awkward') { setEmote(e, 'sweat', 3); e.c.crowded = true; toast(`😅 ${e.c.name} leans away. You're in their personal space.`); }
+      else { setEmote(e, 'anger', 3); e.c.crowded = true; toast(`😠 ${e.c.name}: “Excuse me, can you back up?”`); }
+    }
+    if (t === 'awkward' && e.crowd > 5) { e.crowd = 0; e.patience = Math.max(5, e.patience * 0.75); setEmote(e, 'sweat', 3); }
+    if (t === 'offended' && e.crowd > 4 && e.state !== 'arrive') {
+      e.state = 'leaving'; e.seat = -1; e.claimed = null; setEmote(e, 'anger', 4); e.c.look.mood = 'angry'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null;
+      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: e.c.paid || 0, left: true }); S.ratings.push(1); recordVisit(e.c, 1, false, true); saveGame();
+      toast(`😤 ${e.c.name} felt crowded and walked out (no refund, but they'll leave a bad review)`);
+    }
+  }
+}
+
+// ---------- Robberies & security ----------
+const WEAPONS = {
+  spray: { name: '🌶️ Pepper spray', range: 190, chance: 0.8 },
+  baton: { name: '🦯 Security baton', range: 90, chance: 0.9 },
+  taser: { name: '⚡ Taser', range: 450, chance: 0.95 },
+};
+function bestWeapon(d) { // the most reliable weapon you own that reaches
+  return Object.keys(WEAPONS).filter(k => S.owned[k] && WEAPONS[k].range >= d).sort((a, b) => WEAPONS[b].chance - WEAPONS[a].chance)[0] || null;
+}
+function anyWeapon() { return Object.keys(WEAPONS).filter(k => S.owned[k]).sort((a, b) => WEAPONS[b].range - WEAPONS[a].range)[0] || null; }
+function robber() { return ents.find(e => e.robber && ['robApproach', 'robbing'].includes(e.state)); }
+const ROB_SPOT = { x: 322, y: 908 };
+function scheduleRobbery() { world.robT = Math.random() < (S.day <= 1 ? 0.25 : 0.4) ? rand(70, 220) : -1; }
+function guardC() {
+  if (!S.guardC) { const c = makeClient(); S.guardC = { body: Object.assign({}, c.body, { masc: true, hair: 'short', ahoge: false, clip: false }), seed: c.seed, name: c.name }; }
+  return S.guardC;
+}
+function spawnRobber() {
+  const c = makeClient(); c.name = 'Masked robber'; c.pron = '';
+  c.body = Object.assign({}, c.body, { hair: 'short', hairColor: '#141414', ahoge: false, clip: false }); c.look = Object.assign(lookFor(c), { top: '#1b1d22', bottom: '#24262c', shoe: '#111111', top3: 'hoodie', bot3: 'pants', skirt: false, mood: 'angry', mask: true });
+  const e = { c, robber: true, x: SPOT.door.x, y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat: -1, state: 'robApproach', wait: 0, patience: 1, maxPatience: 1, uid: ++uidN, ang: -Math.PI / 2, tasks: [], emote: null, emoteT: 0, robT: 28 };
+  ents.push(e);
+  if (S.owned.guard && Math.random() < 0.85) { arrest(e, `🛡️ Your security guard tackled a masked robber at the door! Police took them away.`, 150); return; }
+  document.body.classList.add('robbery');
+  toast(`🚨 A masked robber just walked in and is heading for the register! Hit 🛡️ Defend.`);
+  for (const o of ents) if (!o.robber && o.state === 'seated') setEmote(o, 'sweat', 4);
+}
+function arrest(e, msg, bounty) {
+  e.state = 'arrested'; e.emote = '🚔'; e.emoteT = 99; e.path = null; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
+  if (bounty) { S.money += bounty; S.ratings.push(5); if (S.ratings.length > 50) S.ratings.shift(); cashSound(); }
+  document.body.classList.remove('robbery'); saveGame(); toast(msg + (bounty ? ` Reward +$${bounty}` : ''));
+}
+function updateRobber(e, dt) {
+  e.emoteT -= dt;
+  if (e.state === 'robApproach') {
+    if (!e.path) e.path = findPath(e.x, e.y, ROB_SPOT.x, ROB_SPOT.y);
+    if (walkEnt(e, dt, 190)) { e.state = 'robbing'; e.ang = -Math.PI / 2; setEmote(e, '💰', 99); }
+  } else if (e.state === 'robbing') {
+    e.moving = false; e.robT -= dt;
+    if (S.owned.alarm && e.robT < 13 && !e.police) { e.police = true; arrest(e, '🚔 Your silent alarm worked: police burst in and arrested the robber.', 100); return; }
+    if (e.robT <= 0) robberEscapes(e);
+  } else if (e.state === 'stunned') {
+    e.moving = false; e.stunT -= dt; if (e.stunT <= 0) arrest(e, '🚔 You stopped the robbery! Police took the robber away.', e.reward || 0);
+  } else if (e.state === 'fleeing' || e.state === 'arrested') {
+    if (!e.path) { const t = e.tasks[0]; if (!t) { e.state = 'gone'; return; } e.path = findPath(e.x, e.y, t.to.x, t.to.y); }
+    if (walkEnt(e, dt, e.state === 'fleeing' ? 280 : 120)) { const t = e.tasks.shift(); e.path = null; if (t && t.then === 'gone') e.state = 'gone'; }
+  }
+}
+function robberEscapes(e, extra) {
+  const amt = Math.max(0, Math.min(3000, Math.round(Math.max(0, S.money) * (0.12 + (extra || 0)))));
+  S.money -= amt; e.state = 'fleeing'; e.path = null; e.emote = '💸'; e.emoteT = 99; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
+  document.body.classList.remove('robbery'); saveGame();
+  toast(`💸 The robber grabbed $${amt} and ran! Buy security in Upgrades: a taser, a guard or a silent alarm.`);
+}
+function defend() {
+  const e = robber(); if (!e) { toast('Nothing to defend against right now.'); return; }
+  if (state !== 'world') return;
+  const d = dist(player.x, player.y, e.x, e.y), w = bestWeapon(d), have = anyWeapon();
+  if (w) {
+    const W2 = WEAPONS[w];
+    flashScreen(w === 'taser' ? '#9fd8ff' : w === 'spray' ? '#ffb070' : '#ffffff');
+    if (Math.random() < W2.chance) { e.state = 'stunned'; e.stunT = 3; e.reward = 250; e.emote = '💫'; e.emoteT = 4; S.stats.robbersStopped = (S.stats.robbersStopped || 0) + 1; document.body.classList.remove('robbery'); toast(`${W2.name}: the robber drops to their knees, stunned!`); }
+    else { toast(`${W2.name} missed! The robber panics.`); robberEscapes(e, 0.05); }
+    return;
+  }
+  if (have) { toast(`Get closer: your ${WEAPONS[have].name} reaches about ${Math.round(WEAPONS[have].range / 100)} m.`); return; }
+  state = 'modal';
+  showModal(`<h2>🚨 Robbery at the front desk</h2><div class="req">“Empty the register! Now!”</div><p>You don't own any self-defense gear yet. Buy pepper spray, a baton, a taser, a guard or a silent alarm in <b>Upgrades</b>.</p>`,
+    [['💵 Hand over the cash', () => { hideModal(); state = 'world'; robberEscapes(e, -0.04); }, ''],
+     ['🗣️ Talk them down (35%)', () => { hideModal(); state = 'world'; if (Math.random() < 0.35) { e.state = 'fleeing'; e.path = null; e.emote = '😰'; e.emoteT = 99; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; document.body.classList.remove('robbery'); toast('😮‍💨 You talked them down. The robber ran off empty-handed.'); } else robberEscapes(e, 0.04); }, 'primary'],
+     ['Back off', () => { hideModal(); state = 'world'; }, '']]);
+}
+function flashScreen(col) { const f = $('fade'); f.style.background = col; f.classList.add('on'); setTimeout(() => { f.classList.remove('on'); setTimeout(() => f.style.background = '', 400); }, 90); }
 
 // ---------- Upgrades you can see ----------
 function applyUpgradeSolids() {
@@ -3342,7 +3471,7 @@ function playerMoveFP(dt) {
   if (n > 0.08) {
     const run = keys.has('shift') || Math.hypot(fp.joy.x, fp.joy.y) > 0.92, sp = (run ? 280 : 175) * Math.min(1, n) * dt;
     const cy = Math.cos(fp.yaw), sy = Math.sin(fp.yaw), vx = (cy * f - sy * sd) / Math.max(1, n) * sp, vy = (sy * f + cy * sd) / Math.max(1, n) * sp;
-    if (isFree(player.x + vx, player.y, 20)) player.x += vx; if (isFree(player.x, player.y + vy, 20)) player.y += vy;
+    if (isFree(player.x + vx, player.y, 20) && peopleFree(player.x + vx, player.y, player.x, player.y)) player.x += vx; if (isFree(player.x, player.y + vy, 20) && peopleFree(player.x, player.y + vy, player.x, player.y)) player.y += vy;
     player.ph += Math.hypot(vx, vy) * 0.11; player.moving = true; player.dir = dirFromAng(fp.yaw);
     const last = player.trail[player.trail.length - 1];
     if (!last || dist(last.x, last.y, player.x, player.y) > 12) { player.trail.push({ x: player.x, y: player.y }); if (player.trail.length > 40) player.trail.shift(); }
@@ -3426,9 +3555,10 @@ function lathe(profile, mat, seg) {
 function ellip(r, sx, sy, sz, mat, seg) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg || 18, Math.max(8, (seg || 18) * 0.7 | 0)), mat); m.scale.set(sx, sy, sz); return m; }
 function specFor(look, body, kind) {
   const H = look.H || (body.masc ? 1.78 : 1.65);
-  return { H, masc: body.masc, soft: body.soft || 0.3, muscle: body.muscle, skin: body.skin.base, hairColor: body.hairColor, hair: body.hair, eye: body.eye, ahoge: body.ahoge, clip: body.clip,
+  return { H, masc: body.masc, soft: body.soft || 0.3, muscle: body.muscle, skin: mixHex(body.skin.base, '#b9806a', 0.14), // a touch warmer and deeper so light skin doesn't wash out under the lamps
+    hairColor: body.hairColor, hair: body.hair, eye: body.eye, ahoge: body.ahoge, clip: body.clip,
     S: H * (0.112 + clamp((body.sw - 76) / 28, 0, 1) * 0.032), W: H * (0.074 + clamp((body.ww - 48) / 28, 0, 1) * 0.026), P: H * (0.094 + clamp((body.hw - 62) / 26, 0, 1) * 0.03),
-    top: look.top3 || 'tee', bottom: look.bot3 || 'pants', topCol: look.top, botCol: look.bottom, shoe: look.shoe || '#eeeeee', faceSrc: { body, seed: look.seed || 0 }, kind };
+    top: look.top3 || 'tee', bottom: look.bot3 || 'pants', topCol: look.top, botCol: look.bottom, shoe: look.shoe || '#eeeeee', mask: !!look.mask, faceSrc: { body, seed: look.seed || 0 }, kind };
 }
 function buildHuman(sp) {
   const H = sp.H, S = sp.S, W = sp.W, P = sp.P, k = 1 + 0.16 * sp.soft + (sp.muscle ? 0.1 : 0), fem = sp.masc ? 0 : 1;
@@ -3462,6 +3592,8 @@ function buildHuman(sp) {
   const fc = document.createElement('canvas'); fc.width = fc.height = 256; const ft = new THREE.CanvasTexture(fc);
   const face = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.008, 22, 14, Math.PI / 2 - 0.85, 1.7, 0.9, 1.45), new THREE.MeshToonMaterial({ map: ft, transparent: true, gradientMap: toonGrad(), alphaTest: 0.04 }));
   hs.add(tag(face, 'head')); h.face = { c: fc, g: fc.getContext('2d'), t: ft };
+  if (sp.mask) { // a robber's black face mask over the nose and mouth
+    const mk = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.03, 22, 10, Math.PI / 2 - 1.05, 2.1, 1.62, 0.95), toonMat('#141414', { side: THREE.DoubleSide })); hs.add(mk); }
   // hair: cap, back, bangs and style pieces
   const cap = new THREE.Mesh(new THREE.SphereGeometry(headR * 1.07, 26, 14, 0, Math.PI * 2, 0, 1.28), hairM); cap.position.set(0, headR * 0.03, -headR * 0.03); hs.add(cap);
   const shortish = sp.hair === 'short' || sp.hair === 'undercut';
@@ -3489,6 +3621,8 @@ function buildHuman(sp) {
     const L = s > 0 ? 'L' : 'R', side = s > 0 ? 'B' : 'T';
     const sh = new THREE.Group(); sh.position.set(s * S * 0.86, tY(ySh) - 0.028 * H, -0.005 * H); spine.add(sh); h.j['sh' + L] = sh; sh.userData.rest = sh.position.clone();
     const ua = lathe(uaProf, skin); sh.add(tag(ua, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s }));
+    const bic = ellip(0.02 * H * k, 0.95, 2.3, 1, skin, 12); bic.position.set(0, -0.08 * H, 0.009 * H); sh.add(tag(bic, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s }));
+    const tri = ellip(0.019 * H * k, 1, 2.5, 0.95, skin, 12); tri.position.set(0, -0.07 * H, -0.009 * H); sh.add(tag(tri, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s }));
     const delt = ellip(0.034 * H * k, 1, 0.95, 0.9, skin, 14); delt.position.y = -0.004 * H; sh.add(tag(delt, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s }));
     const el = new THREE.Group(); el.position.y = -UA; sh.add(el); h.j['el' + L] = el;
     el.add(tag(ellip(0.02 * H, 1, 1, 1, skin, 10), 'arm' + side, { limb: true, bone: el, len: FA, seg: 'fa', s }));
@@ -3522,6 +3656,7 @@ function buildHuman(sp) {
     const kn = new THREE.Group(); kn.position.y = -TH; hp.add(kn); h.j['kn' + L] = kn;
     kn.add(tag(ellip(0.034 * H, 1, 1, 1, skin, 12), 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s }));
     kn.add(tag(lathe(shProf, skin), 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s }));
+    const gas = ellip(0.025 * H * k, 1, 2.2, 0.95, skin, 12); gas.position.set(-s * 0.003 * H, -0.085 * H, -0.014 * H); kn.add(tag(gas, 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s }));
     const an = new THREE.Group(); an.position.y = -SHL; kn.add(an); h.j['an' + L] = an;
     const foot = ellip(0.028 * H, 0.95, 0.6, 2.3, skin, 14); foot.position.set(0, -0.022 * H, 0.038 * H); an.add(tag(foot, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
     const heel = ellip(0.02 * H, 1, 1, 1.1, skin, 10); heel.position.set(0, -0.02 * H, -0.01 * H); an.add(tag(heel, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
@@ -3734,6 +3869,12 @@ function syncHumans(third) {
     setHumanEmote(h, st.emote || '');
   }
   // you
+  if (S.owned.guard) {
+    const gc = guardC(), gh = humanFor('guard', () => specFor({ top: '#1f2a44', bottom: '#1f2a44', top3: 'polo', bot3: 'pants', shoe: '#111111', H: 1.86, seed: gc.seed }, gc.body));
+    const rb = robber(); gh.root.position.set(890 * U, 0, 1030 * U); gh.root.rotation.set(0, Math.PI / 2, 0);
+    poseHuman(gh, { breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.4)), cross: !rb, look: rb ? 0.5 : Math.sin(time * 0.3) * 0.5 });
+    if (time - gh.faceT > 0.12) { gh.faceT = time; redrawFace(gh, 'neutral', time, false); } setHumanEmote(gh, '');
+  }
   const pk = 'me:' + meKey();
   const me = humanFor(pk, meSpec);
   me.root.visible = view === 'world' && state !== 'title';

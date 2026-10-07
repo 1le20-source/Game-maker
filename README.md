@@ -15,6 +15,8 @@ A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `inde
 - **People:** clients become regulars and friends. You can give gifts and go on dates.
   - Dating someone else while you have a partner can get you caught.
   - Partners react in different ways: easygoing, forgiving, jealous, all-or-nothing, or volatile enough to make a scene at your spa.
+- **Personal space:** people are solid, so you can't walk through anyone. Hovering over a waiting client is fine for some of them; others get uncomfortable or walk out.
+- **Robberies:** sometimes a masked robber goes for the register. Press 🛡️ Defend (F). Buy pepper spray, a baton, a taser, a silent alarm or a security guard in Upgrades.
 - **Daily events:** VIP visits, health inspections, holiday rushes and rainy days.
 - **Upgrades:** buy them in the supply cabinet. Customize your own therapist with My look.
 
