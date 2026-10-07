@@ -287,9 +287,10 @@ function makeClient() {
   const duration = pick([30, 60, 60, 60, 90]);
   const skin = pick(SKINS);
   const hairKey = Math.random() < 0.55 ? pick(['black', 'brown', 'chestnut', 'blonde']) : pick(Object.keys(HAIRS));
-  const sw = rand(...id.sw), ww = Math.min(rand(...id.ww), sw - 18), hw = rand(...id.hw);
+  const soft = masc ? rand(0, 0.5) : rand(0.15, 0.85); // subcutaneous soft-tissue slider
+  const sw = rand(...id.sw), ww = Math.min(rand(...id.ww) + soft * 5, sw - 16), hw = Math.min(88, rand(...id.hw) + soft * 3);
   const body = {
-    sw, ww, hw, nw: masc ? rand(20, 24) : rand(16, 20), ls: hw * 0.5,
+    sw, ww, hw, soft, nw: masc ? rand(20, 24) : rand(16, 20), ls: hw * 0.5,
     skin: { base: skin, shade: shade(skin, -0.16), deep: shade(skin, -0.3), line: shade(skin, -0.42) },
     hair: weighted(id.hair), hairColor: HAIRS[hairKey], eye: pick(EYES), masc,
     muscle: masc ? Math.random() < 0.5 : Math.random() < 0.15,
@@ -341,6 +342,7 @@ function handPath(x, y, dir) { // client's hand, palm down, fingers toward +x
 }
 function buildLayout(b) {
   const { sw, ww, hw, nw, ls } = b, P = {}, Z = {};
+  const lf = 1 + 0.16 * (b.soft || 0) + (b.muscle ? 0.08 : 0); // limb volume
   const t = new Path2D();
   t.moveTo(280, CY - nw);
   t.bezierCurveTo(312, CY - nw - 2, 322, CY - sw + 12, 350, CY - sw);
@@ -356,10 +358,10 @@ function buildLayout(b) {
   P.torso = t;
   for (const [k, s] of [['T', -1], ['B', 1]]) {
     const ay = v => CY + s * v;
-    P['arm' + k] = limbPath([{ x: 366, y: ay(sw + 4), r: 19 }, { x: 420, y: ay(sw + 10), r: 17 }, { x: 472, y: ay((sw + hw) / 2 + 16), r: 13 },
-      { x: 528, y: ay(hw + 20), r: 14.5 }, { x: 588, y: ay(hw + 24), r: 10.5 }]);
+    P['arm' + k] = limbPath([{ x: 366, y: ay(sw + 4), r: 19 * lf }, { x: 420, y: ay(sw + 10), r: 17 * lf }, { x: 472, y: ay((sw + hw) / 2 + 16), r: 13 * lf },
+      { x: 528, y: ay(hw + 20), r: 14.5 * lf }, { x: 588, y: ay(hw + 24), r: 10.5 }]);
     P['hand' + k] = handPath(604, ay(hw + 25), -s);
-    P['leg' + k] = limbPath([{ x: 830, y: ay(ls), r: 33 }, { x: 900, y: ay(ls + 2), r: 31 }, { x: 965, y: ay(ls + 1), r: 24 }, { x: 1040, y: ay(ls), r: 13 }]);
+    P['leg' + k] = limbPath([{ x: 830, y: ay(ls), r: 33 * lf }, { x: 900, y: ay(ls + 2), r: 31 * lf }, { x: 965, y: ay(ls + 1), r: 24 * lf }, { x: 1040, y: ay(ls), r: 13 }]);
     const f = new Path2D(); f.ellipse(1072, ay(ls), 32, 17.5, 0, 0, Math.PI * 2); P['foot' + k] = f;
     Z['shoulder' + k] = { x: 352, y: ay(sw * 0.62), rx: 40, ry: sw * 0.36, rot: 0 };
     const a1 = { x: 366, y: ay(sw + 4) }, a2 = { x: 588, y: ay(hw + 24) };
@@ -377,6 +379,11 @@ function buildLayout(b) {
   return { P, Z, towel };
 }
 const hitCtx = document.createElement('canvas').getContext('2d');
+const PORES = (() => { const c = document.createElement('canvas'); c.width = c.height = 96; const g = c.getContext('2d');
+  for (let i = 0; i < 900; i++) { g.fillStyle = Math.random() < 0.55 ? 'rgba(60,30,20,.07)' : 'rgba(255,255,255,.06)'; g.fillRect(Math.random() * 96, Math.random() * 96, Math.random() < 0.8 ? 1 : 1.6, 1); }
+  return c; })();
+const scrC = document.createElement('canvas'), sctx = scrC.getContext('2d'); scrC.width = scrC.height = 320;
+const scr2C = document.createElement('canvas'), s2ctx = scr2C.getContext('2d'); scr2C.width = scr2C.height = 320;
 function zoneAt(x, y) {
   if (!ses) return null;
   const { P, towel } = ses.L, b = ses.c.body, hit = p => hitCtx.isPointInPath(p, x, y);
@@ -523,7 +530,9 @@ function startSession(c) {
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
     stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
-    overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {} };
+    overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
+    tissue: [], contact: null, breathPh: rand(0, 6), breathAmt: 0, sigh: 0, painT: 0,
+    shift: { x: 0, y: 0, vx: 0, vy: 0 }, hair: { a: 0, v: 0 }, twitch: { T: 0, B: 0 } };
   bubble = null; particles.length = 0; floaters.length = 0;
   tool = 'hands'; heatView = false;
   drawBodyBase(); refreshUI(true);
@@ -597,6 +606,7 @@ function update(dt) {
   if (!active) ses.idle += dt; else ses.idle = 0;
   if (ses.idle > 7) { ses.comfort -= dt * 0.8; if (ses.idle > 9 && ses.idle < 9 + dt * 1.5) say(pick(LINES.idle), 'neutral'); }
 
+  updateBodySim(dt, active, z);
   if (active && tool === 'hands') massage(z, move, dt);
   else if (active && tool === 'oil') applyOil(z, dt);
   hands.squeeze = active && tool === 'hands' ? Math.min(1, hands.squeeze + dt * 6) : Math.max(0, hands.squeeze - dt * 4);
@@ -605,6 +615,63 @@ function update(dt) {
   ses.comfort = clamp(ses.comfort, 0, 100);
   if (ses.comfort <= 0) { walkout(); return; }
   refreshUI(false);
+}
+
+// ---------- Soft-tissue & body simulation ----------
+// Per-region spring stiffness k, damping c and max indentation m: soft over muscle/fat, firm over bone.
+const REGION = { head: [260, 26, 0.22], neck: [150, 15, 0.5], shoulderT: [120, 11, 0.7], shoulderB: [120, 11, 0.7], upperBack: [105, 9, 0.75],
+  lowerBack: [75, 6.5, 0.95], armT: [90, 8, 0.8], armB: [90, 8, 0.8], handT: [220, 22, 0.35], handB: [220, 22, 0.35],
+  calfT: [65, 5.5, 1], calfB: [65, 5.5, 1], footT: [170, 17, 0.45], footB: [170, 17, 0.45] };
+function tissueAt(z, x, y) {
+  const b = ses.c.body; let [k, c, m] = REGION[z];
+  const dy = Math.abs(y - CY);
+  if ((z === 'upperBack' || z === 'lowerBack' || z === 'neck') && dy < 10) { k *= 1.9; c *= 1.5; m *= 0.4; }           // spine
+  if (z === 'upperBack' && x > 390 && x < 465 && Math.abs(dy - b.sw * 0.4) < 14) { k *= 1.5; m *= 0.6; }               // shoulder-blade ridge
+  if (z.startsWith('calf') && x > 1005) { k *= 1.8; m *= 0.45; }                                                       // achilles / ankle
+  k *= 1.15 - 0.35 * b.soft; m *= 0.85 + 0.35 * b.soft;
+  return { k, c, m };
+}
+function flinch(s) {
+  const dir = ptr.y < CY ? 1 : -1; // pull away from the hand
+  ses.shift.vy += dir * 70 * s; ses.shift.vx += rand(-20, 20) * s;
+  if (ses.contact) ses.contact.k *= 1.4; // muscle guards under the hand
+}
+function updateBodySim(dt, active, z) {
+  const T = ses.tissue, sh = ses.shift, c = ses.c;
+  const px = ptr.x - sh.x, py = ptr.y - sh.y;
+  // contact: each hand position presses a tissue point; moving leaves a trail that springs back
+  if (active && tool === 'hands') {
+    let cur = ses.contact;
+    if (!cur || dist(cur.x, cur.y, px, py) > 13) {
+      if (cur) cur.held = false;
+      cur = { x: px, y: py, z, d: cur ? cur.d * 0.6 : 0, v: 0, held: true, sx: 0, sy: 0, ...tissueAt(z, px, py) };
+      T.push(cur); ses.contact = cur; if (T.length > 16) T.shift();
+    }
+    cur.target = (0.35 + 0.22 * pressure) * cur.m;
+    cur.sx = clamp(px - cur.x, -7, 7); cur.sy = clamp(py - cur.y, -7, 7); // skin slides with the hand
+  } else if (ses.contact) { ses.contact.held = false; ses.contact = null; }
+  for (let i = T.length - 1; i >= 0; i--) {
+    const t = T[i];
+    if (!t.held) { t.target = 0; const f = Math.exp(-dt * 5); t.sx *= f; t.sy *= f; }
+    t.v += (t.k * (t.target - t.d) - t.c * t.v) * dt; t.d += t.v * dt;
+    if (!t.held && Math.abs(t.d) < 0.004 && Math.abs(t.v) < 0.03) T.splice(i, 1);
+  }
+  // breathing: ribcage & back rise, faster and shallower when tense, deep sighs on release
+  ses.painT = Math.max(0, ses.painT - dt); ses.sigh = Math.max(0, ses.sigh - dt * 0.3);
+  const tense = ses.painT > 0 || ses.comfort < 35;
+  ses.breathPh += dt * (tense ? 0.45 : lerp(0.3, 0.18, ses.comfort / 100) - ses.sigh * 0.06) * Math.PI * 2;
+  const amp = (0.011 + 0.006 * c.body.soft + ses.sigh * 0.02) * (ses.painT > 0 ? 0.45 : 1);
+  ses.breathAmt = amp * (0.5 - 0.5 * Math.cos(ses.breathPh));
+  // whole-body weight shift: idle drift, leaning into a good touch, flinching away from a bad one
+  const lean = ptr.down && active && ses.comfort > 70 && pressure <= c.pref;
+  const tx = lean ? clamp((px - 640) / 400, -1, 1) * 1.2 : 0;
+  const ty = (lean ? clamp((py - CY) / 120, -1, 1) * 1.5 : 0) + Math.sin(time * 0.21) * 0.7;
+  sh.vx += (40 * (tx - sh.x) - 8 * sh.vx) * dt; sh.vy += (40 * (ty - sh.y) - 8 * sh.vy) * dt;
+  sh.x = clamp(sh.x + sh.vx * dt, -6, 6); sh.y = clamp(sh.y + sh.vy * dt, -6, 6);
+  // hair: heavy, slow spring that lags behind body movement and breathing
+  const hr = ses.hair, ht = sh.y * 1.4 + Math.sin(time * 0.5) * 0.8 + ses.breathAmt * 60;
+  hr.v += (14 * (ht - hr.a) - 1.6 * hr.v) * dt; hr.a += hr.v * dt;
+  for (const k of ['T', 'B']) ses.twitch[k] = Math.max(0, ses.twitch[k] - dt * 1.4);
 }
 
 function massage(z, move, dt) {
@@ -633,11 +700,11 @@ function massage(z, move, dt) {
 
   // comfort reactions
   if (P > pref) {
-    ses.comfort -= dt * (P - pref) * 7;
-    if (ses.complainCd <= 0) { say(pick(LINES.hard(PNAME[pref])), 'wince', true); ses.complainCd = 5; ses.known.pref = true; }
+    ses.comfort -= dt * (P - pref) * 7; ses.painT = 1.2;
+    if (ses.complainCd <= 0) { say(pick(LINES.hard(PNAME[pref])), 'wince', true); ses.complainCd = 5; ses.known.pref = true; flinch(0.6 + 0.4 * (P - pref)); }
   } else if (z.startsWith('foot') && c.ticklish && P === 1 && move > 2) {
-    ses.comfort -= dt * 5;
-    if (ses.complainCd <= 0) { say(pick(LINES.tickle), 'laugh', true); ses.complainCd = 5; ses.known.tickle = true; }
+    ses.comfort -= dt * 5; ses.twitch[z.slice(-1)] = 1;
+    if (ses.complainCd <= 0) { say(pick(LINES.tickle), 'laugh', true); ses.complainCd = 5; ses.known.tickle = true; flinch(0.35); }
   } else if (needsOil && !oiled && move > 3) {
     ses.comfort -= dt * 1.8;
     if (ses.complainCd <= 0) { say(pick(LINES.dry), 'neutral', true); ses.complainCd = 7; }
@@ -653,7 +720,7 @@ function checkKnot(k) {
   k.done = true; ses.released++; S.stats.knots++;
   float(k.x, k.y - 16, '✨ Knot released!', '#ffe08a');
   for (let i = 0; i < 14; i++) { const a = rand(0, 7); particles.push({ type: 'spark', x: k.x, y: k.y, vx: Math.cos(a) * rand(40, 120), vy: Math.sin(a) * rand(40, 120), life: 0.7, max: 0.7, size: rand(2, 4), color: '#ffe08a' }); }
-  ses.comfort += 6; ses.tension[k.z] = Math.max(0, ses.tension[k.z] - 12);
+  ses.comfort += 6; ses.tension[k.z] = Math.max(0, ses.tension[k.z] - 12); ses.sigh = 1;
   say(pick(LINES.knot), 'bliss', true); chime();
 }
 function applyOil(z, dt) {
@@ -834,6 +901,12 @@ function drawBodyBase() { // static skin, shading & anatomy — rendered once pe
   // highlight (key light from top-left)
   const hl = g.createRadialGradient(420, CY - b.sw * 0.4, 10, 420, CY - b.sw * 0.4, 260); hl.addColorStop(0, 'rgba(255,255,255,.14)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = hl; g.fillRect(0, 0, W, H);
+  // skin surface: pores & fine colour variation
+  g.fillStyle = g.createPattern(PORES, 'repeat'); g.fillRect(0, 0, W, H);
+  for (const [x, y, rx, ry, col] of [[472, CY - (b.sw + b.hw) / 2 - 16, 14, 10, 'rgba(200,90,80,.12)'], [472, CY + (b.sw + b.hw) / 2 + 16, 14, 10, 'rgba(200,90,80,.12)'],
+    [352, CY - b.sw * 0.75, 30, 16, 'rgba(210,110,90,.08)'], [352, CY + b.sw * 0.75, 30, 16, 'rgba(210,110,90,.08)'], [1090, CY - b.ls, 18, 14, 'rgba(220,100,90,.14)'],
+    [1090, CY + b.ls, 18, 14, 'rgba(220,100,90,.14)'], [540, CY, 60, b.ww * 0.7, 'rgba(120,110,160,.035)'], [614, CY - b.hw - 25, 14, 9, 'rgba(210,100,90,.12)'], [614, CY + b.hw + 25, 14, 9, 'rgba(210,100,90,.12)']])
+    blob(g, { x, y, rx, ry, rot: 0 }, col, 1);
   g.strokeStyle = rgba(sk.deep, 0.55); g.lineCap = 'round';
   // spine
   g.lineWidth = 3; g.filter = 'blur(1.5px)';
@@ -844,6 +917,8 @@ function drawBodyBase() { // static skin, shading & anatomy — rendered once pe
     g.beginPath(); g.moveTo(395, CY + s * b.sw * 0.18); g.quadraticCurveTo(430, CY + s * b.sw * 0.12, 462, CY + s * b.sw * 0.34); g.quadraticCurveTo(440, CY + s * b.sw * 0.66, 400, CY + s * b.sw * 0.6); g.stroke();
     // trapezius line
     g.beginPath(); g.moveTo(312, CY + s * (b.nw + 2)); g.quadraticCurveTo(340, CY + s * b.sw * 0.55, 372, CY + s * b.sw * 0.82); g.stroke();
+    // lower ribs show faintly through thinner soft tissue
+    if (b.soft < 0.45) { g.save(); g.globalAlpha = 0.5 - b.soft; for (let r = 0; r < 4; r++) { const x = 440 + r * 16; g.beginPath(); g.moveTo(x, CY + s * b.ww * 0.55); g.quadraticCurveTo(x + 10, CY + s * (b.ww * 0.8 + 6), x + 24, CY + s * (b.ww + 4 + (3 - r) * 4)); g.stroke(); } g.restore(); }
     // lower back dimples
     g.beginPath(); g.arc(578, CY + s * 18, 3, 0, 7); g.stroke();
     if (b.muscle) { // lats & deltoids
@@ -870,7 +945,20 @@ function drawBodyBase() { // static skin, shading & anatomy — rendered once pe
 function drawBody() { // per-frame: cached body + dynamic redness / oil / heat overlays
   const g = bctx, { Z } = ses.L;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, bodyC.width, bodyC.height); g.drawImage(baseC, 0, 0);
+  const b = ses.c.body, br = ses.breathAmt;
+  if (br > 0) for (let x = 300; x < 600; x += 6) { // ribcage expands most, lower back a little
+    const prof = Math.exp(-(((x - 430) / 95) ** 2)) + 0.35 * Math.exp(-(((x - 540) / 40) ** 2)), sc = 1 + br * prof, h = b.hw + 52;
+    g.drawImage(baseC, x * K, (CY - h) * K, 6 * K, 2 * h * K, x * K, (CY - h * sc) * K, 6 * K, 2 * h * sc * K);
+  }
   g.setTransform(K, 0, 0, K, 0, 0);
+  for (const k of ['T', 'B']) { // feet twitch around the ankle
+    const tw = ses.twitch[k]; if (tw <= 0) continue;
+    const fy = CY + (k === 'T' ? -1 : 1) * b.ls, a = 0.07 * tw * Math.sin(time * 38);
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, 320, 320);
+    sctx.drawImage(bodyC, 1036 * K, (fy - 36) * K, 80 * K, 72 * K, 0, 0, 80 * K, 72 * K);
+    g.clearRect(1036, fy - 36, 80, 72); g.save(); g.translate(1040, fy); g.rotate(a);
+    g.drawImage(scrC, 0, 0, 80 * K, 72 * K, -4, -36, 80, 72); g.restore();
+  }
   g.save(); g.globalCompositeOperation = 'source-atop';
   for (const z of ZONES) {
     const zc = Z[z], r = ses.red[z], o = ses.oil[z];
@@ -886,6 +974,30 @@ function drawBody() { // per-frame: cached body + dynamic redness / oil / heat o
   }
   if (heatView) for (const z of ZONES) { const t = ses.tension[z] / 100; blob(g, Z[z], heatColor(t, 0.6), 1.0); }
   g.restore();
+  for (const t of ses.tissue) if (Math.abs(t.d) > 0.025) tissueLens(g, t.x, t.y, t.d, t.sx, t.sy, b.soft);
+  for (const st of ses.stones) tissueLens(g, st.x, st.y, 0.3, 0, 0, b.soft); // stones' weight compresses tissue
+}
+function tissueLens(g, x, y, d, sx, sy, soft) {
+  // Pressing compresses tissue toward the contact point: scaled copies of the skin are blended in through
+  // soft radial masks (stronger toward the centre), then the dent is shaded. Negative d = rebound bulge.
+  const r = (22 + 14 * Math.abs(d)) * (0.9 + 0.3 * soft), R = r * 1.45, S2 = Math.ceil(2 * R * K), c = S2 / 2;
+  if (S2 > 320) return;
+  sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, S2, S2);
+  sctx.drawImage(bodyC, (x - R) * K, (y - R) * K, S2, S2, 0, 0, S2, S2);
+  for (const [rf, k] of [[1, 0.06], [0.6, 0.11]]) {
+    const sc = 1 - k * d;
+    s2ctx.setTransform(1, 0, 0, 1, 0, 0); s2ctx.globalCompositeOperation = 'source-over'; s2ctx.clearRect(0, 0, S2, S2);
+    s2ctx.translate(c + sx * K * (1.1 - rf), c + sy * K * (1.1 - rf)); s2ctx.scale(sc, sc); s2ctx.drawImage(scrC, 0, 0, S2, S2, -c, -c, S2, S2);
+    s2ctx.setTransform(1, 0, 0, 1, 0, 0); s2ctx.globalCompositeOperation = 'destination-in';
+    const m = s2ctx.createRadialGradient(c, c, 0, c, c, r * rf * K); m.addColorStop(0, '#000'); m.addColorStop(0.45, '#000'); m.addColorStop(1, 'rgba(0,0,0,0)');
+    s2ctx.fillStyle = m; s2ctx.fillRect(0, 0, S2, S2);
+    g.drawImage(scr2C, 0, 0, S2, S2, x - R, y - R, S2 / K, S2 / K);
+  }
+  g.save(); g.globalCompositeOperation = 'source-atop';
+  const gr = g.createRadialGradient(x, y, 0, x, y, r);
+  if (d > 0) { gr.addColorStop(0, `rgba(70,30,20,${0.22 * d})`); gr.addColorStop(0.55, `rgba(70,30,20,${0.08 * d})`); gr.addColorStop(0.8, `rgba(255,255,255,${0.035 * d})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); }
+  else { gr.addColorStop(0, `rgba(255,255,255,${-0.14 * d})`); gr.addColorStop(1, 'rgba(255,255,255,0)'); }
+  g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.restore();
 }
 function blob(g, zc, color, s) {
   g.save(); g.translate(zc.x, zc.y); g.rotate(zc.rot); g.scale(zc.rx * s, zc.ry * s);
@@ -921,6 +1033,7 @@ function drawHair() {
     g.beginPath(); g.moveTo(x1, y1 - w); g.bezierCurveTo(cx1, cy1 - w, cx2, cy2 - w * 0.4, x2, y2); g.bezierCurveTo(cx2, cy2 + w * 0.4, cx1, cy1 + w, x1, y1 + w); g.closePath(); g.fill(); g.stroke();
   };
   g.save(); g.lineWidth = 1.4; g.strokeStyle = dk; g.fillStyle = col;
+  const sway = ses.hair.a; g.save(); g.transform(1, -sway / 100, 0, 1, 0, 2.4 * sway); // loose hair lags & swings from the head
   if (st === 'long') { // hair draped forward through the face cradle
     const hg = g.createLinearGradient(240, 0, 120, 0); hg.addColorStop(0, col); hg.addColorStop(1, dk);
     g.fillStyle = hg; g.beginPath(); g.moveTo(236, CY - 46);
@@ -934,6 +1047,7 @@ function drawHair() {
   }
   if (st === 'twintails') for (const s of [-1, 1]) { lock(232, CY + s * 36, 200, CY + s * 80, 170, CY + s * 120, 152, CY + s * 150, 14); g.fillStyle = '#e85a8a'; g.beginPath(); g.arc(232, CY + s * 38, 7, 0, 7); g.fill(); g.fillStyle = col; }
   if (st === 'ponytail') { lock(244, CY - 30, 228, CY - 70, 200, CY - 110, 170, CY - 128, 13); g.fillStyle = '#333'; g.beginPath(); g.arc(246, CY - 32, 6, 0, 7); g.fill(); g.fillStyle = col; }
+  g.restore();
   // cap
   const rx = st === 'bob' ? 52 : st === 'short' || st === 'undercut' ? 47 : 50, ry = st === 'bob' ? 50 : 45;
   const gr = g.createRadialGradient(256, CY - 10, 6, 244, CY, rx + 6); gr.addColorStop(0, lt); gr.addColorStop(0.55, col); gr.addColorStop(1, dk);
@@ -1118,8 +1232,11 @@ function render() {
   g.setTransform(K, 0, 0, K, 0, 0);
   drawCandle();
   if (ses && state !== 'title') {
-    drawBody(); g.drawImage(bodyC, 0, 0, W, H);
-    drawTowel(); drawHair(); drawStones(); drawKnots(); drawParticles(); drawBubble(); drawPlayerHands(); drawHoverTag();
+    drawBody();
+    g.save(); g.translate(ses.shift.x, ses.shift.y);
+    g.drawImage(bodyC, 0, 0, W, H); drawTowel(); drawHair(); drawStones(); drawKnots();
+    g.restore();
+    drawParticles(); drawBubble(); drawPlayerHands(); drawHoverTag();
   } else {
     g.fillStyle = 'rgba(255,255,255,.5)'; g.font = '800 26px Nunito, system-ui'; g.textAlign = 'center';
     g.fillText('The table is ready…', W / 2, CY + 8); g.textAlign = 'left';
