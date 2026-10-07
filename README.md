@@ -1,12 +1,20 @@
 # Serenity Hands
 
-A 2D first-person massage therapist sim. Open `index.html` in any modern browser (desktop or mobile) to play. There's nothing to install.
+A massage spa sim with a first-person 3D spa (and a 2D map fallback). Open `index.html` in any modern browser (desktop or mobile) to play. There's nothing to install.
 
-- **Hands (Q)**: hold and rub to work muscles. Hold still on knots to release them.
-- **Oil (W)**: oil the back, shoulders, arms and calves before you work them. Buy more scents in the shop.
-- **Hot Stones (R)**: place them on the back or shoulders. Unlock them in the shop.
-- **Pressure (1/2/3 or mouse wheel)**, **Tension view (T)**, **Talk (C)**, **Music (M)**, **End session (E)**, **Pause (Esc)**
+**Walking around:** WASD to walk, Shift to run, mouse (click first) or Q/←→ to look, E to interact, V to switch camera view. On phones, your left thumb moves and your right thumb looks.
 
-Clients come in varied adult builds. Their bodies breathe, shift their weight, and react when you touch them. Skin dents under your hands and springs back, softer over muscle and firmer over bone. Hair sways, feet twitch when they're ticklish, and clients flinch away from pressure that's too hard.
+**Running the spa:**
+- **Check in and payment:** clients pay at the front desk before their session.
+- **Massage:** lead a client to Treatment Room 1. Then use your hands, oil (pick a scent), hot stones, pressure (1/2/3), reposition, turn over, tension view, talk, and end session.
+- **Staff (P):** hire a receptionist, therapists, a cleaner and a manager. You can give bonuses or let people go.
+- **Your office and cameras (O):** your office is off the hallway, past the tea lounge.
+  - Watch every room live and click a feed to enlarge it.
+  - When an employee is slacking (on their phone, napping, rude to clients, or skimming the register), warn them, dock their pay or fire them.
+- **People:** clients become regulars and friends. You can give gifts and go on dates.
+  - Dating someone else while you have a partner can get you caught.
+  - Partners react in different ways: easygoing, forgiving, jealous, all-or-nothing, or volatile enough to make a scene at your spa.
+- **Daily events:** VIP visits, health inspections, holiday rushes and rainy days.
+- **Upgrades:** buy them in the supply cabinet. Customize your own therapist with My look.
 
-Each client has their own preferences, focus areas and hidden knots. Earn in-game cash and tips, pay rent each night, upgrade your studio and build your reputation. Progress saves automatically in your browser.
+Clients come in varied adult builds with their own preferences, feelings per spot, focus areas and hidden knots. Progress saves automatically in your browser.

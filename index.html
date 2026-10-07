@@ -16,7 +16,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
   font-family:Nunito,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none}
-#app{display:flex;flex-direction:column;height:100%}
+#app{display:flex;flex-direction:column;height:100%;height:100dvh}
 #topbar{display:flex;align-items:center;gap:14px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
 .brand{font-weight:800;color:var(--gold);letter-spacing:.5px;margin-right:auto}
 .stat{background:var(--panel2);padding:4px 10px;border-radius:999px;font-weight:700;font-size:14px;white-space:nowrap}
@@ -49,7 +49,7 @@ h4{margin:12px 0 6px;font-size:12px;letter-spacing:1px;text-transform:uppercase;
 #stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;background:#0d1112}
 #game{display:block;touch-action:none;cursor:none;border-radius:6px}
 #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(15,20,22,.92);border:1px solid var(--line);
-  padding:8px 16px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+  padding:8px 16px;border-radius:18px;font-weight:700;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:92%;text-align:center;z-index:30}
 #toast.show{opacity:1}
 #toolbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel);border-top:1px solid var(--line);flex-wrap:wrap;justify-content:center}
 .grp{display:flex;gap:4px;align-items:center;background:#18201f;padding:4px;border-radius:12px}
@@ -67,11 +67,13 @@ kbd{font-size:10px;opacity:.6;margin-left:4px;font-family:inherit}
 select{font-family:inherit;font-weight:700;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:7px}
 #overlay{position:fixed;inset:0;background:rgba(5,8,9,.72);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 #overlay.show{display:flex}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;max-width:620px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 22px 0;max-width:640px;width:100%;max-height:92vh;max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal .btns{position:sticky;bottom:0;background:linear-gradient(transparent,var(--panel) 14px);padding:18px 0 16px;margin-top:6px;z-index:2}
 .modal h1{margin:0 0 6px;color:var(--gold);font-size:30px}
 .modal h2{margin:0 0 10px;color:var(--gold)}
 .modal p{color:#d3dfdc;line-height:1.5}
 .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;justify-content:center}
+.btns button{min-height:42px}
 .intro{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .intro canvas{width:150px;height:150px;border-radius:14px;border:2px solid var(--line)}
 .stars{font-size:34px;color:var(--gold);letter-spacing:2px;text-align:center}
@@ -96,7 +98,7 @@ body:not(.world) #worldPanel,body:not(.world) #worldTools{display:none!important
 #w3d{position:absolute;inset:0;display:none;touch-action:none;cursor:crosshair}
 body.world.fp3d #w3d{display:block} body.world.fp3d #game{display:none}
 #hud3d{position:absolute;inset:0;pointer-events:none;display:none} body.world.fp3d #hud3d{display:block}
-#prompt3d{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);background:rgba(12,16,18,.86);border:1.5px solid var(--gold);padding:9px 18px;border-radius:999px;font-weight:800;white-space:nowrap;font-size:15px}
+#prompt3d{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);background:rgba(12,16,18,.86);border:1.5px solid var(--gold);padding:9px 18px;border-radius:22px;font-weight:800;font-size:15px;max-width:90%;text-align:center}
 .k{background:var(--gold);color:#2a1f08;border-radius:6px;padding:1px 7px;font-size:12px;opacity:1;margin:0 4px 0 0}
 #cross{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,255,255,.85);box-shadow:0 0 0 1.5px rgba(0,0,0,.45)}
 #minimap{position:absolute;right:12px;top:12px;width:150px;height:150px;border-radius:50%;box-shadow:0 4px 16px rgba(0,0,0,.4)}
@@ -107,6 +109,18 @@ body.world.fp3d #w3d{display:block} body.world.fp3d #game{display:none}
 #feelMark{position:absolute;top:-4px;width:5px;height:16px;background:#fff;border-radius:3px;left:50%;margin-left:-2px;transition:left .2s;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
 #feelTxt{font-size:13px;line-height:1.4;min-height:36px}
 @media (max-width:820px){#minimap{width:104px;height:104px}#lookHint{display:none}}
+#camsUI{position:absolute;inset:0;z-index:5}
+#camTop{position:absolute;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:10px;padding:0 10px;background:#0b0f10;border-bottom:1px solid var(--line)}
+#camTop b{color:var(--gold);white-space:nowrap}
+#camStatus{position:absolute;left:0;right:0;bottom:0;height:46px;background:#0b0f10;border-top:1px solid var(--line);padding:5px 10px;font-size:12px;line-height:1.35;color:#cfe0dc;overflow:auto}
+.camTile{position:absolute;border:1px solid rgba(255,255,255,.18);border-radius:4px;cursor:zoom-in;overflow:hidden}
+.camLbl{position:absolute;left:6px;top:5px;font:700 11px/1 monospace;color:#fff;background:rgba(0,0,0,.55);padding:3px 6px;border-radius:4px;letter-spacing:.5px}
+.camLbl::first-letter{color:#ff4d4d}
+.camInc{position:absolute;left:6px;right:6px;bottom:6px;display:flex;flex-direction:column;gap:4px}
+.incident{background:rgba(90,24,24,.9);border:1px solid #c44;border-radius:8px;padding:6px 8px;font-size:12.5px;cursor:default}
+.incBtns{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}.incBtns button{padding:5px 9px;font-size:12px}
+body.cams #hud3d{display:none!important}
+#evStat:empty{display:none}
 body.m3d #w3d{display:block} body.m3d #game{display:none} body.m3d #hud3d{display:block}
 body.m3d #minimap,body.m3d #prompt3d,body.m3d #lookHint,body.m3d #cross{display:none!important}
 #tag3d{position:absolute;background:rgba(12,16,18,.86);color:#eaf3f0;font-weight:700;font-size:13px;padding:4px 9px;border-radius:8px;white-space:nowrap;pointer-events:none}
@@ -123,9 +137,14 @@ body.m3d #minimap,body.m3d #prompt3d,body.m3d #lookHint,body.m3d #cross{display:
   #side h4,#focusList,#knowList,#queueList,.ctl{display:none}
   #worldPanel{grid-column:1/-1}
   .req{margin:2px 0;font-size:12px}
-  button{padding:7px 9px;font-size:13px} kbd{display:none}
+  button{padding:7px 9px;font-size:13px;min-height:38px} kbd{display:none}
   .brand{display:none}
+  #toolbar{flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:6px 8px}
+  #toolbar>*{flex-shrink:0}
+  #topbar{gap:6px;padding:6px 8px}.stat{font-size:12.5px;padding:3px 8px}
+  .modal{padding:16px 14px 0}
 }
+@media (max-height:520px) and (min-width:821px){#side{width:220px;padding:8px}#portrait{max-width:120px}#toolbar{padding:4px 8px}button{padding:6px 10px}}
 </style>
 </head>
 <body class="world">
@@ -143,6 +162,7 @@ window.addEventListener('error', function (e) {
     <div class="stat" id="moneyStat">💵 $0</div>
     <div class="stat" id="dayStat">Day 1 · Client 1/5</div>
     <div class="stat" id="repStat">⭐ 3.0</div>
+    <div class="stat" id="evStat"></div>
     <div id="timeWrap"><span class="stat" id="timeTxt">0 / 60 min</span><div id="timeBar"><div id="timeFill"></div></div></div>
   </div>
   <div id="main">
@@ -170,10 +190,10 @@ window.addEventListener('error', function (e) {
       <div id="knowList"></div>
       </div>
     </aside>
-    <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="toast"></div></div>
+    <div id="stage"><canvas id="game"></canvas><div id="hud3d"><div id="prompt3d" hidden></div><div id="cross"></div><canvas id="minimap" width="300" height="300"></canvas><div id="lookHint" hidden>Click to look around · WASD to walk · Shift to run · E to interact · Esc frees the mouse</div><div id="joy" hidden><div id="joyKnob"></div></div><div id="tag3d" hidden></div><div id="bub3d" hidden></div><div id="th3d" hidden></div><canvas id="emo3d" width="64" height="64" hidden></canvas></div><div id="camsUI" hidden><div id="camTiles"></div><div id="camTop"><b>📹 Security cameras</b><span style="flex:1"></span><button id="camBack">✕ Leave office</button></div><div id="camStatus"></div></div><div id="toast"></div></div>
   </div>
   <div id="toolbar">
-    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
+    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bStaff">👥 Staff</button><button id="bPeople">💞 People</button><button id="bCams">📹 Cameras<kbd>O</kbd></button><button id="bView">📷 View<kbd>V</kbd></button><button id="bMe">👤 My look</button><button id="bShopW">🛍️ Upgrades</button></div>
     <div class="grp sessOnly"><span class="gl">Tool</span>
       <button id="tHands" class="on">✋ Hands<kbd>Z</kbd></button>
       <button id="tOil">💧 Oil<kbd>X</kbd></button>
@@ -642,7 +662,7 @@ function update(dt) {
   }
   for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.life -= dt; f.y -= 28 * dt; if (f.life <= 0) floaters.splice(i, 1); }
   if (bubble) { bubble.t -= dt; if (bubble.t <= 0) bubble = null; }
-  if (view === 'world') { if (state === 'world') updateWorld(dt); return; }
+  if (view === 'world' || view === 'cams') { if (state === 'world') updateWorld(dt); return; }
   if (view === 'massage3d' && state === 'session' && ses) m3Input(dt);
   if (state !== 'session' || !ses) return;
 
@@ -925,14 +945,18 @@ function showResults(res, quote) {
 }
 function showDayEnd() {
   state = 'dayEnd';
-  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + b.wage, 0);
-  S.money -= rent + wages; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
+  if (view === 'cams') closeCams();
+  const earned = S.dayLog.reduce((a, b) => a + b.total, 0), rent = dailyRent(), wages = S.staff.reduce((a, b) => a + Math.max(0, b.wage - (b.docked || 0)), 0);
+  const insp = eventToday() === 'inspection' ? (hasStaff('cleaner') ? 80 : -60) : 0;
+  for (const st of S.staff) { st.docked = 0; st.morale = morale(st) + (0.75 - morale(st)) * 0.25; }
+  S.money -= rent + wages - insp; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
   const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
   showModal(`<h2>🌙 End of Day ${S.day - 1}</h2>
     <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)}${l.by ? ` <span style="color:var(--muted)">(${esc(l.by)})</span>` : ''} ${l.left ? '<span style="color:var(--muted)">left before being seen</span>' : starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
     <div class="row"><span>Earnings</span><b>$${earned}</b></div>
     <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
     ${wages ? `<div class="row"><span>Staff wages</span><b>−$${wages}</b></div>` : ''}
+    ${insp ? `<div class="row"><span>${insp > 0 ? '🧾 Passed the health inspection (grant)' : '🧾 Failed the health inspection (hire a cleaner!)'}</span><b>${insp > 0 ? '+' : '−'}$${Math.abs(insp)}</b></div>` : ''}
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
     <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
     [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => startDayWorld(), 'primary']]);
@@ -1390,6 +1414,7 @@ function drawParticles() {
 }
 let lastDt = 1 / 60;
 function render() {
+  if (view === 'cams' && R3) { renderCams(); return; }
   if (view === 'world' && R3) { render3D(); return; }
   if (view === 'massage3d' && R3) { render3DMassage(lastDt); return; }
   const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0);
@@ -1782,6 +1807,7 @@ function hideModal() { $('overlay').classList.remove('show'); }
 let prevState = 'session';
 function pause() {
   if (state !== 'session' && state !== 'world') return;
+  if (view === 'cams') closeCams();
   prevState = state; state = 'paused'; ptr.down = false; keys.clear();
   showModal(`<h2>⏸ Paused</h2><p>Take a breath. Your client is relaxing.</p>`,
     [['▶ Resume', () => resume(), 'primary'], ['❓ How to play', () => showHelp(() => { state = prevState; pause(); }), ''], ['🏠 Save & quit to title', () => { saveGame(); ses = null; showTitle(); }, 'danger']]);
@@ -1796,7 +1822,9 @@ function showHelp(back) {
     <li><b>Hot stones (R):</b> place on shoulders/back to melt tension passively. Click a stone to remove it.</li>
     <li><b>Draping:</b> the towel area is off-limits — keep it professional.</li>
     <li><b>End session (E)</b> when you're done. Rating = relaxation + comfort + time used. 4★+ earns tips.</li>
-    <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients.</li></ul>`,
+    <li>Pay rent each night, buy upgrades in the shop, raise your reputation to get more clients.</li>
+    <li><b>Your office (📹 Cameras, O):</b> the room off the hallway past the tea lounge. Watch every room live, click a feed to enlarge it, and warn, dock or fire staff caught slacking.</li>
+    <li><b>Relationships:</b> dating someone while you have a partner can get you caught. Partners react differently: some are fine with it, some forgive, some break up, and some come to the spa to make a scene.</li></ul>`,
     [['Got it', back, 'primary']]);
 }
 function showTitle() {
@@ -1913,15 +1941,20 @@ $('bInteract').onclick = () => { initAudio(); interact(); };
 $('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
 $('bStaff').onclick = () => { if (state === 'world') openStaffWorld(); };
 $('bPeople').onclick = () => { if (state === 'world') openPeopleWorld(); };
+$('bCams').onclick = () => { if (view === 'cams') closeCams(); else if (state === 'world') openCams(); };
+$('camBack').onclick = () => { if (camState.focus >= 0) { camState.focus = -1; buildCamTiles(); } else closeCams(); };
+window.addEventListener('resize', () => { if (view === 'cams') buildCamTiles(); });
 $('bView').onclick = () => { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); };
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'SELECT') return;
   const k = e.key.toLowerCase();
+  if (view === 'cams') { if (k === 'escape' || k === 'o') { if (camState.focus >= 0) { camState.focus = -1; buildCamTiles(); } else closeCams(); } else if (k >= '1' && k <= '6') { camState.focus = +k - 1; buildCamTiles(); } return; }
   if (k === 'escape') { if (state === 'session' || state === 'world') pause(); else if (state === 'paused') resume(); return; }
   if (state === 'world') {
     if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
     if (k === 'e' || k === ' ' || k === 'enter') { if (!e.repeat) interact(); return; }
     if (k === 'p') { openStaffWorld(); return; }
+    if (k === 'o') { openCams(); return; }
     if (k === 'v') { fp.third = !fp.third; toast(fp.third ? '📷 Third-person view' : '📷 First-person view'); return; }
     if (k === 'm') { initAudio(); toggleMusic(); return; }
     keys.add(k); return;
@@ -1956,19 +1989,21 @@ SR(200, 1080, 740, 20, 'wall'); SR(1060, 1080, 740, 20, 'wall');
 // west/east divider with the hallway opening at y 620–740
 SR(1100, 120, 20, 500, 'wall'); SR(1100, 740, 20, 340, 'wall');
 // treatment room (north) and tea lounge (south) open off the hallway through doors at x 1400–1500
-SR(1120, 600, 280, 20, 'wall'); SR(1500, 600, 280, 20, 'wall'); SR(1120, 760, 280, 20, 'wall'); SR(1500, 760, 280, 20, 'wall');
+SR(1120, 600, 280, 20, 'wall'); SR(1500, 600, 280, 20, 'wall'); SR(1120, 760, 280, 20, 'wall'); SR(1500, 760, 140, 20, 'wall'); SR(1720, 760, 60, 20, 'wall');
+// your office (door x 1640–1720 off the hallway), walled off from the tea lounge
+SR(1570, 780, 20, 300, 'wall');
 // relaxation room, door at x 600–720
 SR(220, 560, 380, 20, 'wall'); SR(720, 560, 380, 20, 'wall');
 const F = {
   desk: SR(300, 826, 250, 58), sofa: SR(730, 626, 260, 66), coffee: SR(800, 756, 120, 40), cabinet: SR(222, 616, 46, 150),
   fountain: SR(600, 950, 84, 84), plantL1: SR(232, 1030, 40, 40), plantL2: SR(1050, 590, 36, 36),
   table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1730, 540, 40, 44),
-  tea: SR(1600, 782, 172, 56), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
+  tea: SR(1130, 782, 172, 56), bossDesk: SR(1700, 850, 66, 150), bookcase: SR(1592, 800, 30, 130), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
   lockers: SR(240, 122, 400, 42), lounger1: SR(900, 420, 74, 120), lounger2: SR(990, 420, 74, 120), table3: SR(760, 236, 220, 104), chair1: SR(1030, 775, 50, 50), chair2: SR(1030, 835, 50, 50), chair3: SR(1030, 895, 50, 50), bench: SR(300, 420, 180, 46), table2: SR(330, 236, 220, 104), plantC: SR(1050, 130, 40, 40),
   pond: SR(300, 1190, 240, 140), tree1: SR(100, 1180, 44, 44), tree2: SR(1700, 1220, 44, 44), tree3: SR(1880, 300, 44, 44), tree4: SR(60, 400, 44, 44), tree5: SR(1300, 1300, 44, 44), tree6: SR(1880, 800, 44, 44),
   lantern1: SR(900, 1160, 26, 26), lantern2: SR(1074, 1160, 26, 26),
 };
-const SPOT = { door: { x: 1000, y: 1050 }, gate: { x: 1000, y: 1385 }, desk: { x: 425, y: 912 }, table: { x: 1450, y: 382 }, cabinet: { x: 292, y: 690 }, tea: { x: 1686, y: 872 },
+const SPOT = { door: { x: 1000, y: 1050 }, gate: { x: 1000, y: 1385 }, desk: { x: 425, y: 912 }, table: { x: 1450, y: 382 }, cabinet: { x: 292, y: 690 }, tea: { x: 1216, y: 872 }, office: { x: 1648, y: 925 },
   seats: [{ x: 772, y: 704, fx: 772, fy: 738, ang: Math.PI / 2 }, { x: 860, y: 704, fx: 860, fy: 738, ang: Math.PI / 2 }, { x: 948, y: 704, fx: 948, fy: 738, ang: Math.PI / 2 },
     { x: 1019, y: 800, fx: 985, fy: 800, ang: Math.PI }, { x: 1019, y: 860, fx: 985, fy: 860, ang: Math.PI }, { x: 1019, y: 920, fx: 985, fy: 920, ang: Math.PI }], start: { x: 1000, y: 980 } };
 
@@ -2111,7 +2146,8 @@ function buildWorld() {
   woodFloor(g, 220, 120, 880, 440, '#c69c6d', 36);            // relaxation room: light oak
   woodFloor(g, 1120, 620, 660, 140, '#6b4630', 30);           // hallway: dark walnut
   woodFloor(g, 1120, 120, 660, 480, '#8a5d3f', 34);           // treatment room: warm teak
-  tatami(g, 1120, 780, 660, 300);                              // tea lounge
+  tatami(g, 1120, 780, 470, 300);                              // tea lounge
+  woodFloor(g, 1590, 780, 190, 300, '#4f3a2c', 30);           // office
   g.fillStyle = 'rgba(150,40,40,.55)'; rr(g, 1150, 655, 600, 70, 8); g.fill(); g.strokeStyle = 'rgba(230,190,120,.5)'; g.lineWidth = 2; rr(g, 1158, 662, 584, 56, 6); g.stroke();
   // lobby rugs
   g.fillStyle = '#9a8166'; rr(g, 700, 600, 320, 220, 16); g.fill(); g.strokeStyle = '#d9c6a3'; g.lineWidth = 3; rr(g, 712, 612, 296, 196, 12); g.stroke();
@@ -2161,20 +2197,24 @@ function buildWorld() {
   const zn = F.zen; g.fillStyle = '#e7dfcc'; rr(g, zn.x, zn.y, zn.w, zn.h, 6); g.fill(); g.strokeStyle = 'rgba(150,130,100,.5)'; g.lineWidth = 1.5;
   for (let i = 8; i < zn.h; i += 8) { g.beginPath(); g.moveTo(zn.x + 6, zn.y + i); g.bezierCurveTo(zn.x + 50, zn.y + i - 4, zn.x + 90, zn.y + i + 4, zn.x + zn.w - 6, zn.y + i); g.stroke(); }
   for (const [rx, ry, r] of [[zn.x + 40, zn.y + 40, 14], [zn.x + 100, zn.y + 70, 10]]) { g.fillStyle = '#6f6b64'; g.beginPath(); g.arc(rx, ry, r, 0, 7); g.fill(); g.strokeStyle = 'rgba(150,130,100,.6)'; g.beginPath(); g.arc(rx, ry, r + 6, 0, 7); g.stroke(); }
+  { const od = F.bossDesk; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, od.x + 4, od.y + 6, od.w, od.h, 6); g.fill(); g.fillStyle = '#3a2a20'; rr(g, od.x, od.y, od.w, od.h, 6); g.fill();
+    for (let i = 0; i < 3; i++) { g.fillStyle = '#1b1f24'; g.fillRect(od.x + 44, od.y + 14 + i * 44, 14, 36); g.fillStyle = '#5ab0c8'; g.fillRect(od.x + 47, od.y + 17 + i * 44, 8, 30); }
+    g.fillStyle = '#2c2c34'; g.beginPath(); g.arc(1665, 925, 18, 0, 7); g.fill(); const bk = F.bookcase; g.fillStyle = '#5a3a28'; rr(g, bk.x, bk.y, bk.w, bk.h, 4); g.fill();
+    for (let i = 0; i < 8; i++) { g.fillStyle = ['#a33', '#36a', '#3a6', '#c93'][i % 4]; g.fillRect(bk.x + 5, bk.y + 6 + i * 15, 20, 10); } }
   for (const k of ['plantL1', 'plantL2', 'plantA', 'plantB', 'plantC']) { const b = F[k]; plant(g, b.x + b.w / 2, b.y + b.h / 2, 0.7); }
   if (S.owned.decor) for (const [x, y] of [[480, 600], [1080, 900], [1300, 140], [1760, 400], [260, 300]]) plant(g, x, y, 0.55);
   // walls: plaster tops with soft drop shadows
   for (const b of solids) if (b.kind === 'wall') { g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(b.x + 3, b.y + 6, b.w, b.h); }
   for (const b of solids) if (b.kind === 'wall') { g.fillStyle = '#ede3d2'; g.fillRect(b.x, b.y, b.w, b.h); g.fillStyle = '#c9bba3'; g.fillRect(b.x, b.y + b.h - 4, b.w, 4); }
   // shoji door frames
-  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20]]) { g.fillStyle = '#7a5a40'; g.fillRect(x - 4, y, 4, h); g.fillRect(x + w, y, 4, h); g.fillStyle = 'rgba(122,90,64,.35)'; g.fillRect(x, y + h / 2 - 1, w, 2); }
+  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20], [1640, 760, 80, 20]]) { g.fillStyle = '#7a5a40'; g.fillRect(x - 4, y, 4, h); g.fillRect(x + w, y, 4, h); g.fillStyle = 'rgba(122,90,64,.35)'; g.fillRect(x, y + h / 2 - 1, w, 2); }
   // windows (light shafts) along the north wall
   for (const x of [320, 520, 820, 1260, 1560]) { const lg = g.createLinearGradient(0, 120, 0, 300); lg.addColorStop(0, 'rgba(255,240,200,.28)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.beginPath(); g.moveTo(x, 120); g.lineTo(x + 90, 120); g.lineTo(x + 150, 300); g.lineTo(x + 40, 300); g.closePath(); g.fill(); g.fillStyle = '#bcd8e6'; g.fillRect(x, 102, 90, 6); }
   // warm lamp pools
   for (const [x, y, r] of [[430, 760, 220], [860, 860, 260], [1450, 300, 280], [1450, 690, 200], [1450, 930, 240], [660, 340, 260], [1000, 1180, 160]]) {
     const lg = g.createRadialGradient(x, y, 10, x, y, r); lg.addColorStop(0, 'rgba(255,200,130,.16)'); lg.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'TREATMENT ROOMS 2 & 3', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
+  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1345, 800); label(g, 'OFFICE', 1685, 800); label(g, 'TREATMENT ROOMS 2 & 3', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
 }
 
 // ---------- World simulation ----------
@@ -2187,12 +2227,13 @@ function spawnClient() {
   const partner = known.find(p => p.status === 'partner');
   const back = known.length && Math.random() < (partner ? 0.45 : 0.32) ? (partner && Math.random() < 0.5 ? partner : pick(known)) : null;
   const c = back ? clientFromPerson(back) : makeClient(); if (!c.look) c.look = lookFor(c);
+  if (!back && eventToday() === 'vip' && !S.event.vipDone && world.spawned >= 1) { S.event.vipDone = true; c.vip = true; c.price *= 3; c.name = '⭐ ' + c.name; toast(`⭐ VIP ${c.name.slice(2)} has arrived. Make it perfect!`); }
   const q = DESK_Q[Math.min(DESK_Q.length - 1, ents.filter(x => x.state === 'checkin' || (x.state === 'arrive' && !x.c.paid)).length)];
   const pat = Math.round(140 * patienceMult());
   const e = { c, x: SPOT.door.x + rand(-10, 10), y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat, state: 'arrive', wait: 0,
     patience: pat, maxPatience: pat, uid: ++uidN, ang: -Math.PI / 2, tasks: [{ to: q, then: 'checkin' }], emote: null, emoteT: 0 };
   ents.push(e); world.spawned++;
-  toast(back ? `🔔 ${c.name} is back${back.status === 'partner' ? ' 💖' : back.status === 'dating' ? ' 💕' : ''}!` : `🔔 ${c.name} just arrived`); return true;
+  if (!c.vip) toast(back ? `🔔 ${c.name} is back${back.status === 'partner' ? ' 💖' : back.status === 'dating' ? ' 💕' : ''}!` : `🔔 ${c.name} just arrived`); return true;
 }
 function setEmote(e, em, t) { e.emote = em; e.emoteT = t || 2.5; }
 function walkEnt(e, dt, speed) {
@@ -2223,6 +2264,13 @@ function updateEnt(e, dt) {
       const refund = e.c.paid || 0; if (refund) { S.money -= refund; e.c.paid = 0; }
       S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); recordVisit(e.c, 1, false, true); saveGame();
       toast(`😞 ${e.c.name} got tired of waiting and left${refund ? ` (refunded $${refund})` : ''}`);
+    }
+  } else if (e.state === 'drama') {
+    if (!e.path) e.path = findPath(e.x, e.y, e.target.x, e.target.y);
+    if (walkEnt(e, dt, 175)) {
+      e.moving = false; e.ang = Math.atan2(player.y - e.y, player.x - e.x); e.dramaT = (e.dramaT || 0) + dt;
+      if (e.emoteT <= 0) setEmote(e, pick(['anger', 'anger', 'sweat']), 2.5);
+      if (e.dramaT > 75) { S.ratings.push(2); toast(`😤 ${e.c.name} finally stormed out. Clients saw the whole thing.`); e.state = 'leaving'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null; saveGame(); }
     }
   } else if (e.state === 'followStaff') {
     const L = e.leader, d = dist(e.x, e.y, L.x, L.y);
@@ -2260,12 +2308,15 @@ function playerMove(dt) {
 function interactables() {
   const list = [], f = follower();
   for (const e of ents) {
+    if (e.state === 'drama') { list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Talk to ${e.c.name} (making a scene)`, act: () => calmDrama(e), ent: e }); continue; }
     if (e.state === 'checkin') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Check in ${e.c.name} · collect $${e.c.price}`, act: () => checkIn(e), ent: e });
     else if ((e.state === 'seated' || (e.state === 'arrive' && e.c.paid)) && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? e.seatFront : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
   }
   list.push({ x: SPOT.table.x, y: 290, spot: SPOT.table, label: f ? `Start ${f.c.name}'s massage` : 'Bring a client here to start a massage', act: () => f ? beginMassage(f) : toast('Greet a client in the waiting area first.') });
   list.push({ x: F.desk.x + 125, y: F.desk.y + 28, spot: SPOT.desk, label: 'Manage staff (hire / let go)', act: () => openStaffWorld() });
   list.push({ x: F.cabinet.x + 23, y: F.cabinet.y + 75, spot: SPOT.cabinet, label: 'Supply cabinet (upgrades)', act: () => openShopWorld() });
+  list.push({ x: F.bossDesk.x + 30, y: F.bossDesk.y + 75, spot: SPOT.office, label: 'Watch the security cameras', act: () => openCams() });
+  for (const st of staffEnts) if (st.incident) list.push({ x: st.x, y: st.y, spot: { x: st.x, y: st.y }, label: `Confront ${st.s.c.name} (${INCIDENTS[st.incident.type].label})`, act: () => confront(st) });
   list.push({ x: F.tea.x + 86, y: F.tea.y + 28, spot: SPOT.tea, label: S.teaBuff ? 'Tea is ready (+comfort next session)' : 'Brew calming tea', act: () => brewTea() });
   return list;
 }
@@ -2335,12 +2386,15 @@ function startDayWorld() {
   ents.length = 0; world.curEnt = null; world.spawned = S.clientNo; world.spawnT = 0.6; ses = null;
   player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = []; fp.yaw = -Math.PI / 2; fp.pitch = -0.04;
   spawnStaff(); buildWorld(); resize(); refreshUI(true);
-  const pt = Object.values(S.people || {}).find(p => p.status === 'partner');
+  if (!S.event || S.event.day !== S.day) { rollEvent(); saveGame(); }
+  spawnDrama();
+  const pt = Object.values(S.people || {}).find(p => p.status === 'partner' && !p.upset);
   if (pt && !S.teaBuff) { S.teaBuff = true; saveGame(); }
-  toast(pt ? `💖 ${pt.c.name} packed you lunch. Day ${S.day}: the spa is open!` : `☀️ Day ${S.day}: the spa is open!`);
+  const ev = eventToday();
+  if (!ents.some(e => e.state === 'drama')) toast(ev ? `${EVENTS[ev].name}: ${EVENTS[ev].desc}` : pt ? `💖 ${pt.c.name} packed you lunch. Day ${S.day}: the spa is open!` : `☀️ Day ${S.day}: the spa is open!`);
 }
 function updateWorld(dt) {
-  if (R3) playerMoveFP(dt); else playerMove(dt);
+  if (view === 'cams') player.moving = false; else if (R3) playerMoveFP(dt); else playerMove(dt);
   for (const e of ents) updateEnt(e, dt);
   updateStaff(dt);
   for (let i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'gone') ents.splice(i, 1);
@@ -2358,16 +2412,20 @@ function refreshWorldUI() {
   let obj;
   const free = seated.filter(e => !e.claimed);
   const ci = ents.find(e => e.state === 'checkin');
-  if (ci && !hasStaff('reception') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
+  const dr = ents.find(e => e.state === 'drama'), inc = staffEnts.find(x => x.incident);
+  if (dr) obj = `😡 <b>${esc(dr.c.name)}</b> is making a scene in the lobby. Walk up and press <b>E</b> to deal with it.`;
+  else if (ci && !hasStaff('reception') && !f) obj = `<b>${esc(ci.c.name)}</b> is at reception. Go to the desk and press <b>E</b> to check them in and take their $${ci.c.price}.`;
   else if (f) obj = `Lead <b>${esc(f.c.name)}</b> to <b>Treatment Room 1</b> and press <b>E</b> at the table. Follow the gold marker.`;
   else if (free.length) obj = `<b>${esc(free[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (seated.length) obj = `<b>${esc(seated[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
   else if (ents.some(e => e.state === 'arrive')) obj = `<b>${esc(ents.find(e => e.state === 'arrive').c.name)}</b> just walked in. Go say hi (press <b>E</b> next to them).`;
   else if (world.spawned < todayTotal()) obj = 'A client is on the way. Brew tea in the lounge or check the supply cabinet while you wait.';
   else obj = 'That was the last booking. Wait for everyone to leave to close up for the day.';
+  if (inc && !dr) obj += `<br>⚠️ <b>${esc(inc.s.c.name)}</b> is ${INCIDENTS[inc.incident.type].label}. Check the 📹 cameras or walk over.`;
+  const ev = eventToday(); $('evStat').textContent = ev ? EVENTS[ev].name : '';
   $('objective').innerHTML = obj;
   $('queueList').innerHTML = ents.filter(e => e.state !== 'gone').map(e => {
-    const st = { arrive: e.c.paid ? 'Going to sit' : 'Arriving', checkin: 'At reception', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
+    const st = { drama: 'Making a scene 😡', arrive: e.c.paid ? 'Going to sit' : 'Arriving', checkin: 'At reception', seated: e.claimed ? 'Being fetched' : 'Waiting', follow: 'Following you', followStaff: 'With therapist', staffTable: 'Being treated', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
     const p = e.state === 'seated' ? clamp(e.patience / e.maxPatience, 0, 1) : 1;
     return `<div class="qi"><span class="dot" style="background:${e.c.look.top}"></span><span style="width:70px">${esc(e.c.name)}</span><span style="width:86px;color:var(--muted)">${st}</span>${e.state === 'seated' ? `<div class="bar"><div style="width:${p * 100}%"></div></div>` : ''}</div>`;
   }).join('') || '<div class="ctl">Nobody here yet.</div>';
@@ -2461,6 +2519,7 @@ let uidN = 0;
 function dirFromAng(a) { const c = Math.cos(a), s = Math.sin(a); return Math.abs(c) > Math.abs(s) ? (c > 0 ? 'right' : 'left') : (s > 0 ? 'down' : 'up'); }
 function limbFill(g, pts, col, out) { const p = limbPath(pts); g.fillStyle = col; g.fill(p); g.strokeStyle = out; g.lineWidth = 0.7; g.stroke(p); }
 function moodFor(e) {
+  if (e.state === 'drama') return { mood: 'angry', opts: { look: (player.x - e.x) / 120, cross: true, tap: true } };
   const seatedNow = e.state === 'seated', imp = (seatedNow || e.state === 'checkin') && e.patience < e.maxPatience * 0.35, near = dist(e.x, e.y, player.x, player.y) < 260;
   const mood = seatedNow ? (imp ? 'impatient' : near ? 'happy' : '') : (e.state === 'follow' || e.state === 'followStaff') ? 'happy' : e.state === 'leaving' ? (e.c.look.mood || '') : '';
   return { mood, opts: { look: near ? (player.x - e.x) / 120 : 0, phone: seatedNow && !imp && !near && ((time + e.c.seed * 7) % 14) > 8, cross: imp, tap: imp, bouncy: e.state === 'leaving' && e.c.look.mood === 'happy' } };
@@ -2503,8 +2562,10 @@ function spawnStaff() {
 }
 function updateStaff(dt) {
   for (const st of staffEnts) {
-    st.emoteT -= dt; if (st.emoteT <= 0) st.emote = null;
+    st.emoteT -= dt; if (st.emoteT <= 0) st.emote = st.incident ? INCIDENTS[st.incident.type].icon : null;
     const role = st.s.role;
+    maybeIncident(st, dt); if (!staffEnts.includes(st)) break;
+    if (st.incident && (st.incident.type === 'phone' || st.incident.type === 'nap') && st.state !== 'work' && st.state !== 'lead') { st.moving = false; continue; }
     if (role === 'reception') {
       st.moving = false;
       const a = ents.find(e => e.state === 'checkin');
@@ -2569,9 +2630,9 @@ function showStaff(back) {
   const card = (s, i, hired) => {
     const full = !hired && staffCount(s.role) >= roleMax(s.role);
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pi="${hired ? 'h' : 'c'}${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
-      <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}%</div><div class="d">Wage $${s.wage}/day</div></div></div>
+      <div><div class="t">${esc(s.c.name)} <span class="pron">${esc(s.c.pron)}</span></div><div class="d">${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}%</div><div class="d">Wage $${s.wage}/day${hired ? ` · morale ${Math.round(morale(s) * 100)}%${s.warnings ? ` · ⚠️${s.warnings}/3` : ''}` : ''}</div></div></div>
       <div class="d">${ROLES[s.role].desc}</div>
-      ${hired ? `<button data-fire="${i}" class="danger">Let go</button>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? (s.role === 'therapist' && !S.owned.room3 ? 'Needs Treatment Room 3' : 'Position filled') : 'Hire'}</button>`}</div>`;
+      ${hired ? `<div style="display:flex;gap:6px;flex-wrap:wrap"><button data-bonus="${i}" ${s.bonusDay === S.day || S.money < 30 ? 'disabled' : ''}>🎁 Bonus $30</button><button data-fire="${i}" class="danger">Let go</button></div>` : `<button data-hire="${i}" class="primary" ${full ? 'disabled' : ''}>${full ? (s.role === 'therapist' && !S.owned.room3 ? 'Needs Treatment Room 3' : 'Position filled') : 'Hire'}</button>`}</div>`;
   };
   showModal(`<h2>👥 Your team</h2>
     <p>Staff are paid at the end of each day. Positions: 1 receptionist, ${roleMax('therapist')} therapist${roleMax('therapist') > 1 ? 's' : ''}${S.owned.room3 ? '' : ' (2 with Treatment Room 3)'}, 1 cleaner, 1 manager.</p>
@@ -2584,6 +2645,10 @@ function showStaff(back) {
   $('modal').querySelectorAll('[data-hire]').forEach(b => b.onclick = () => {
     const s = S.cands[+b.dataset.hire]; if (!s || staffCount(s.role) >= roleMax(s.role)) return;
     S.staff.push(s); S.cands.splice(+b.dataset.hire, 1); saveGame(); spawnStaff(); chime(); toast(`🤝 ${s.c.name} joined as your ${ROLES[s.role].label.toLowerCase()}`); showStaff(back);
+  });
+  $('modal').querySelectorAll('[data-bonus]').forEach(b => b.onclick = () => {
+    const s = S.staff[+b.dataset.bonus]; if (!s || s.bonusDay === S.day || S.money < 30) return;
+    S.money -= 30; s.bonusDay = S.day; s.morale = Math.min(1, morale(s) + 0.25); saveGame(); cashSound(); toast(`😊 ${s.c.name} appreciates the bonus`); showStaff(back);
   });
   $('modal').querySelectorAll('[data-fire]').forEach(b => b.onclick = () => {
     const s = S.staff[+b.dataset.fire]; if (!s) return;
@@ -2603,8 +2668,8 @@ function checkIn(e, byStaff) {
   const st = SPOT.seats[e.seat];
   e.state = 'arrive'; e.path = null; e.tasks = [{ to: { x: st.fx, y: st.fy }, then: 'sit' }]; saveGame();
 }
-function patienceMult() { return (hasStaff('reception') ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
-function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => p.status === 'partner') ? 1.1 : 1); }
+function patienceMult() { return (eventToday() === 'rain' ? 1.3 : 1) * (hasStaff('reception') ? 1.6 : 1) * (S.owned.coffee ? 1.25 : 1) * (S.owned.tv ? 1.2 : 1) * (S.owned.aquarium ? 1.1 : 1); }
+function tipMult() { return (S.owned.robes ? 1.15 : 1) * (Object.values(S.people || {}).some(p => p.status === 'partner' && !p.upset) ? 1.1 : 1); }
 
 // ---------- Regulars, friendship & dating ----------
 const TOPICS = [
@@ -2630,7 +2695,7 @@ const GIFTS = [
   { id: 'flowers', name: '💐 Flowers', price: 25, aff: 6 }, { id: 'choco', name: '🍫 Chocolates', price: 40, aff: 8 }, { id: 'plush', name: '🧸 Plushie', price: 55, aff: 10 },
   { id: 'perfume', name: '🌸 Perfume', price: 90, aff: 13 }, { id: 'tickets', name: '🎟️ Concert tickets', price: 150, aff: 17 }, { id: 'necklace', name: '💎 Necklace', price: 220, aff: 22 },
 ];
-const STATUS_LABEL = { acquaintance: 'Regular', friend: 'Friend', dating: 'Dating 💕', partner: 'Partner 💖' };
+const STATUS_LABEL = { acquaintance: 'Regular', friend: 'Friend', dating: 'Dating 💕', partner: 'Partner 💖', ex: 'Ex 💔' };
 function recordVisit(c, stars, talked, byStaff) {
   S.people = S.people || {};
   if (!c.pid) c.pid = 'p' + Math.random().toString(36).slice(2, 9);
@@ -2641,6 +2706,7 @@ function recordVisit(c, stars, talked, byStaff) {
       c: JSON.parse(JSON.stringify({ name: c.name, pron: c.pron, idLabel: c.idLabel, idKey: c.idKey, subj: c.subj, body: c.body, look: Object.assign({}, c.look, { mood: '' }), seed: c.seed, bg: c.bg, pref: c.pref, favScent: c.favScent, ticklish: c.ticklish, hairOil: c.hairOil, chatty: c.chatty })) };
   }
   p.visits++; p.lastDay = S.day;
+  if (c.vip) { S.ratings.push(stars); if (S.ratings.length > 50) S.ratings.shift(); } // a VIP's review counts double
   const before = p.status;
   p.aff = clamp(Math.round(p.aff + (byStaff ? (stars - 3) * 2 : (stars - 2.5) * 5 + (talked ? 3 : 0))), 0, 100);
   if (p.status === 'acquaintance' && p.aff >= 30) p.status = 'friend';
@@ -2658,7 +2724,7 @@ function showPeople(back) {
   const list = Object.values(S.people).sort((a, b) => b.aff - a.aff);
   const inv = GIFTS.filter(g => S.gifts[g.id] > 0);
   const card = (p, i) => {
-    const canDate = p.aff >= 45 && S.lastDateDay !== S.day, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
+    const canDate = p.aff >= 45 && S.lastDateDay !== S.day && p.status !== 'ex' && !p.upset, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pp="${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
       <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
       <div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
@@ -2667,6 +2733,8 @@ function showPeople(back) {
         <button data-gift="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>🎁 Give</button>
         <button data-date="${i}" class="primary" ${canDate ? '' : 'disabled'} title="${p.aff < 45 ? 'Needs 45+ affection' : S.lastDateDay === S.day ? 'One date per day' : ''}">💌 Ask on a date</button>
         ${canAsk ? `<button data-ask="${i}" class="primary">💍 Be my partner?</button>` : ''}
+        ${['dating', 'partner'].includes(p.status) || p.upset ? `<button data-talk="${i}">💬 Talk</button>` : ''}
+      </div>${p.status === 'partner' ? `<div class="d">${p.upset ? '😠 Still upset with you.' : p.open ? '🤝 Open relationship: they are fine with you dating others.' : '💡 Dating someone else risks them finding out.'}</div>` : ''}<div style="display:none">
       </div></div>`;
   };
   showModal(`<h2>💞 People you know</h2>
@@ -2683,6 +2751,7 @@ function showPeople(back) {
     saveGame(); chime(); toast(`🎁 ${p.c.name} loved the ${g.name.slice(2).toLowerCase()}! (+${g.aff})`); showPeople(back);
   });
   $('modal').querySelectorAll('[data-date]').forEach(b => b.onclick = () => pickDateSpot(list[+b.dataset.date], back));
+  $('modal').querySelectorAll('[data-talk]').forEach(b => b.onclick = () => talkAboutUs(list[+b.dataset.talk], back));
   $('modal').querySelectorAll('[data-ask]').forEach(b => b.onclick = () => {
     const p = list[+b.dataset.ask];
     if (p.aff >= 85) { p.status = 'partner'; saveGame(); chime(); showModal(`<h2>💖 ${esc(p.c.name)} said yes!</h2><p>“I was hoping you'd ask.” You're officially partners. They'll drop by the spa more often, and your good mood shows: +10% tips.</p>`, [['💞 Back', () => showPeople(back), 'primary']]); }
@@ -2707,8 +2776,9 @@ function runDate(p, spot, back) {
       saveGame(); if (great) chime();
       const end = great ? (p.status === 'partner' ? 'You walk home hand in hand, talking about everything and nothing.' : 'You walk them home under the streetlights. At the door they give you a warm hug and a shy smile.')
         : fine ? 'It was a nice evening. They thank you with a smile and a wave.' : 'The conversation never quite clicked. Maybe next time.';
-      showModal(`<h2>${spot.name.slice(0, 2)} Date with ${esc(p.c.name)}</h2><p>${end}</p><div class="rows"><div class="row"><span>Affection</span><b>${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100</b></div><div class="row"><span>Status</span><b>${STATUS_LABEL[p.status]}</b></div></div>`,
-        [['💞 Back', () => showPeople(back), 'primary']]);
+      const caught = p.status !== 'partner' ? checkCheating(p, spot) : null;
+      showModal(`<h2>${spot.name.slice(0, 2)} Date with ${esc(p.c.name)}</h2><p>${end}</p><div class="rows"><div class="row"><span>Affection</span><b>${gained >= 0 ? '+' : ''}${gained} → ${p.aff}/100</b></div><div class="row"><span>Status</span><b>${STATUS_LABEL[p.status]}</b></div></div>${caught ? `<p>📱 Your phone buzzes. It's <b>${esc(caught.c.name)}</b>…</p>` : ''}`,
+        [[caught ? '📱 Answer' : '💞 Back', () => caught ? partnerReaction(caught, p, back) : showPeople(back), 'primary']]);
       return;
     }
     const t = rounds[r], liked = p.likes.includes(t.id), opts = [['great', t.great], ['ok', t.ok], ['bad', t.bad]].sort(() => Math.random() - 0.5);
@@ -2724,6 +2794,243 @@ function runDate(p, spot, back) {
   step();
 }
 function openPeopleWorld() { state = 'modal'; showPeople(() => { hideModal(); state = 'world'; }); }
+
+// ---------- Sculpted torso: elliptical cross-sections with separate front/back depth ----------
+function torsoLevels(sp) {
+  const H = sp.H, S = sp.S, W = sp.W, P = sp.P, fem = sp.masc ? 0 : 1, soft = sp.soft || 0.3, mus = sp.muscle ? 1 : 0;
+  // [height as a fraction of H, half width, front depth, back depth]
+  return [
+    [0.466, P * 0.46, 0.048 * H, 0.052 * H],
+    [0.49, P * 0.86, 0.064 * H, 0.076 * H + fem * 0.005 * H],
+    [0.515, P, 0.07 * H, 0.083 * H + fem * 0.007 * H + soft * 0.004 * H],
+    [0.55, P * 0.97, 0.068 * H + soft * 0.006 * H, 0.076 * H],
+    [0.585, (W + P) / 2, 0.064 * H + soft * 0.008 * H, 0.064 * H],
+    [0.615, W, 0.061 * H + soft * 0.008 * H, 0.058 * H],
+    [0.66, (W + S) / 2 * 0.98, 0.068 * H + soft * 0.004 * H, 0.063 * H],
+    [0.705, S * 0.84, 0.081 * H + mus * 0.006 * H + fem * 0.005 * H, 0.069 * H],
+    [0.745, S * 0.88, 0.08 * H + mus * 0.006 * H, 0.073 * H + mus * 0.004 * H],
+    [0.78, S * 0.9, 0.07 * H, 0.071 * H],
+    [0.805, S * 0.84, 0.057 * H, 0.061 * H],
+    [0.822, S * 0.62, 0.044 * H, 0.049 * H],
+    [0.838, 0.044 * H, 0.033 * H, 0.039 * H],
+  ];
+}
+function catmull(p0, p1, p2, p3, t) { const t2 = t * t, t3 = t2 * t; return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); }
+function torsoGeom(sp, yFrom, yTo, yOrigin, infl, capBottom, capTop) {
+  const H = sp.H, L = torsoLevels(sp), N = 32, ex = 2 / 2.2, rings = [];
+  const at = y => { // interpolate width/front/back at a body height
+    let i = 0; while (i < L.length - 2 && L[i + 1][0] * H < y) i++;
+    const a = L[Math.max(0, i - 1)], b = L[i], c = L[i + 1], d = L[Math.min(L.length - 1, i + 2)], t = clamp((y - b[0] * H) / ((c[0] - b[0]) * H), 0, 1);
+    return [1, 2, 3].map(k => Math.max(0.002, catmull(a[k], b[k], c[k], d[k], t)));
+  };
+  const steps = Math.max(4, Math.round((yTo - yFrom) / (0.008 * H)));
+  for (let r = 0; r <= steps; r++) { const y = yFrom + (yTo - yFrom) * r / steps, [w, f, bk] = at(y), [m, a] = typeof infl === 'function' ? infl(y) : infl || [1, 0]; rings.push([y, w * m + a, f * 0.93 * m + a, bk * 0.93 * m + a]); }
+  const pos = [], uv = [], idx = [];
+  rings.forEach(([y, w, f, bk], r) => { for (let i = 0; i <= N; i++) { const th = i / N * Math.PI * 2, sx = Math.sin(th), cz = Math.cos(th);
+    pos.push(w * Math.sign(sx) * Math.pow(Math.abs(sx), ex), y - yOrigin, (cz >= 0 ? f : bk) * Math.sign(cz) * Math.pow(Math.abs(cz), ex)); uv.push(i / N, r / steps); } });
+  for (let r = 0; r < steps; r++) for (let i = 0; i < N; i++) { const a = r * (N + 1) + i, b = a + N + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+  const cap = (r, up) => { // separate rim vertices so the cap gets its own flat normal
+    const base = pos.length / 3, y = rings[r][0] - yOrigin;
+    for (let i = 0; i <= N; i++) { const k = (r * (N + 1) + i) * 3; pos.push(pos[k], pos[k + 1], pos[k + 2]); uv.push(0.5, up ? 1 : 0); }
+    const c = pos.length / 3; pos.push(0, y, 0); uv.push(0.5, up ? 1 : 0);
+    for (let i = 0; i < N; i++) { const a = base + i; up ? idx.push(a, a + 1, c) : idx.push(a + 1, a, c); } };
+  if (capBottom) cap(0, false); if (capTop) cap(steps, true);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
+// ---------- Where things are ----------
+const ROOMS = [
+  { id: 'room1', name: 'Treatment Room 1', x: 1120, y: 120, w: 660, h: 480 },
+  { id: 'suite', name: 'Treatment Rooms 2 & 3', x: 220, y: 120, w: 880, h: 440 },
+  { id: 'office', name: 'Your office', x: 1590, y: 780, w: 190, h: 300 },
+  { id: 'tea', name: 'Tea lounge', x: 1120, y: 780, w: 450, h: 300 },
+  { id: 'reception', name: 'Reception', x: 220, y: 580, w: 380, h: 500 },
+  { id: 'lobby', name: 'Lobby & waiting area', x: 600, y: 580, w: 500, h: 500 },
+  { id: 'hall', name: 'Hallway', x: 1120, y: 620, w: 660, h: 140 },
+  { id: 'garden', name: 'Garden & entrance', x: 0, y: 1100, w: 2000, h: 300 },
+];
+function roomAt(x, y) { const r = ROOMS.find(r => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h); return r ? r.id : 'garden'; }
+
+// ---------- Staff conduct ----------
+const INCIDENTS = {
+  phone: { label: 'scrolling their phone instead of working', icon: '📱' },
+  nap: { label: 'napping on the job', icon: '💤' },
+  rude: { label: 'being rude to a client', icon: '💢' },
+  skim: { label: 'pocketing cash from the register', icon: '💰' },
+};
+function morale(s) { return s.morale ?? 0.75; }
+function maybeIncident(st, dt) {
+  if (st.incident) {
+    st.incident.t -= dt;
+    if (st.incident.t <= 0) { // nobody stopped it: it costs you
+      const k = st.incident.type;
+      if (k === 'skim') { const amt = randi(25, 60); S.money -= amt; toast(`💸 The register came up $${amt} short…`); }
+      if (k === 'rude') { S.ratings.push(2); toast(`😠 A client complained about ${st.s.c.name}'s attitude`); }
+      st.incident = null; saveGame();
+    }
+    return;
+  }
+  st.incT = (st.incT ?? rand(40, 90)) - dt;
+  if (st.incT > 0) return;
+  st.incT = rand(50, 110);
+  const chance = 0.18 + (1 - st.s.skill) * 0.35 + (1 - morale(st.s)) * 0.45;
+  if (Math.random() > chance) return;
+  const role = st.s.role, opts = role === 'reception' ? ['phone', 'skim', 'rude'] : role === 'therapist' ? (st.state === 'work' ? ['rude', 'phone'] : ['phone', 'nap']) : ['phone', 'nap'];
+  const type = pick(opts); st.incident = { type, t: rand(25, 40), seen: false };
+  setEmote(st, INCIDENTS[type].icon, 6);
+}
+function handleIncident(st, action) {
+  const s = st.s; if (!st.incident && action !== 'bonus') return;
+  st.incident = null; st.emote = null;
+  if (action === 'warn') { s.warnings = (s.warnings || 0) + 1; s.morale = Math.max(0, morale(s) - 0.08); toast(`⚠️ You warned ${s.c.name} (${s.warnings}/3)`); if (s.warnings >= 3) { quitStaff(s, `${s.c.name} got a third warning and quit.`); return; } }
+  if (action === 'dock') { s.docked = (s.docked || 0) + Math.round(s.wage * 0.4); s.morale = Math.max(0, morale(s) - 0.15); toast(`💵 You docked ${Math.round(s.wage * 0.4)} from ${s.c.name}'s pay today`); }
+  if (action === 'fire') { quitStaff(s, `You fired ${s.c.name}.`); return; }
+  if (action === 'ignore') { s.morale = Math.min(1, morale(s) + 0.02); }
+  saveGame();
+}
+function quitStaff(s, msg) {
+  const st = staffEnts.find(x => x.s === s); if (st && st.client) { const e = st.client; e.claimed = null; if (e.state === 'followStaff') { e.state = 'seated'; } if (e.state === 'staffTable') { e.state = 'seated'; e.x = SPOT.seats[0].x; } }
+  const i = S.staff.indexOf(s); if (i >= 0) S.staff.splice(i, 1); saveGame(); spawnStaff(); toast(msg);
+}
+function confront(st) {
+  const inc = st.incident, s = st.s; if (!inc) return;
+  state = 'modal';
+  showModal(`<h2>${INCIDENTS[inc.type].icon} ${esc(s.c.name)} is ${INCIDENTS[inc.type].label}</h2>
+    <p>${ROLES[s.role].label} · skill ${Math.round(s.skill * 100)}% · morale ${Math.round(morale(s) * 100)}% · warnings ${s.warnings || 0}/3</p>
+    <p class="d">Warning or docking pay lowers morale. Unhappy staff slip up more often; a bonus in the Staff screen cheers them up.</p>`,
+    [['⚠️ Warn', () => { handleIncident(st, 'warn'); closeConfront(); }, ''], ['💵 Dock pay', () => { handleIncident(st, 'dock'); closeConfront(); }, ''],
+     ['🚪 Fire', () => { handleIncident(st, 'fire'); closeConfront(); }, 'danger'], ['Let it slide', () => { handleIncident(st, 'ignore'); closeConfront(); }, '']]);
+}
+function closeConfront() { hideModal(); state = 'world'; }
+
+// ---------- Security cameras (your office) ----------
+const CAMS = [
+  { id: 'room1', name: 'Treatment Room 1', pos: [17.5, 2.62, 1.45], look: [14.5, 0.75, 3.1] },
+  { id: 'suite', name: 'Treatment Rooms 2 & 3', pos: [2.45, 2.62, 1.4], look: [6.6, 0.8, 3.1] },
+  { id: 'lobby', name: 'Lobby & waiting area', pos: [10.85, 2.62, 6.05], look: [7.6, 0.8, 7.8] },
+  { id: 'reception', name: 'Reception', pos: [2.4, 2.62, 6.05], look: [4.3, 0.9, 8.9] },
+  { id: 'tea', name: 'Tea lounge', pos: [11.35, 2.62, 7.95], look: [14.4, 0.6, 9.6] },
+  { id: 'garden', name: 'Entrance & garden', pos: [10, 3.3, 13.7], look: [10, 0.9, 10.8] },
+];
+const camState = { focus: -1, cams: null };
+function openCams() {
+  if (!R3) { showStatusBoard(); return; }
+  if (!camState.cams) camState.cams = CAMS.map(c => { const k = new THREE.PerspectiveCamera(62, 1.6, 0.05, 60); k.position.set(...c.pos); k.lookAt(...c.look); return k; });
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
+  view = 'cams'; camState.focus = -1; document.body.classList.add('cams'); $('camsUI').hidden = false; buildCamTiles(); keys.clear();
+}
+function closeCams() { view = 'world'; document.body.classList.remove('cams'); $('camsUI').hidden = true; const r = R3.renderer; r.setScissorTest(false); resize3D(); }
+function camRects() {
+  const st = $('stage'), W2 = st.clientWidth, H2 = st.clientHeight - 46, top = 44;
+  if (camState.focus >= 0) return CAMS.map((c, i) => i === camState.focus ? { x: 0, y: top, w: W2, h: H2 - top } : null);
+  const cols = W2 > H2 ? 3 : 2, rows = Math.ceil(CAMS.length / cols), gw = W2 / cols, gh = (H2 - top) / rows;
+  return CAMS.map((c, i) => ({ x: (i % cols) * gw + 2, y: top + Math.floor(i / cols) * gh + 2, w: gw - 4, h: gh - 4 }));
+}
+function buildCamTiles() {
+  const box = $('camTiles'), rects = camRects();
+  box.innerHTML = CAMS.map((c, i) => rects[i] ? `<div class="camTile" data-cam="${i}" style="left:${rects[i].x}px;top:${rects[i].y}px;width:${rects[i].w}px;height:${rects[i].h}px"><span class="camLbl">● REC · CAM ${i + 1} · ${c.name}</span><div class="camInc" id="camInc${i}"></div></div>` : '').join('');
+  box.querySelectorAll('.camTile').forEach(t => t.onclick = e => { if (e.target.closest('button')) return; camState.focus = camState.focus >= 0 ? -1 : +t.dataset.cam; buildCamTiles(); });
+  $('camBack').textContent = camState.focus >= 0 ? '⊞ All cameras' : '✕ Leave office';
+}
+function camIncidents(camId) {
+  const out = [];
+  for (const st of staffEnts) if (st.incident && roomAt(st.x, st.y) === camId || (st.incident && camId === 'lobby' && roomAt(st.x, st.y) === 'hall')) out.push(st);
+  return out;
+}
+let lastCamUI = 0;
+function renderCams() {
+  const r = R3.renderer, size = new THREE.Vector2(); r.getSize(size);
+  syncHumans(true); animUpgrades3D();
+  const me = [...R3.humans.entries()].find(([k]) => k.startsWith('me:')); if (me) { me[1].root.visible = true; me[1].headShape.visible = true; }
+  if (R3.marker) R3.marker.visible = false;
+  const st = $('stage'), sx = size.x / st.clientWidth, sy = size.y / st.clientHeight, rects = camRects();
+  r.setScissorTest(true); r.setClearColor('#0b0f10'); r.setViewport(0, 0, size.x, size.y); r.setScissor(0, 0, size.x, size.y); r.clear();
+  CAMS.forEach((c, i) => {
+    const rc = rects[i]; if (!rc) return; const k = camState.cams[i];
+    k.aspect = rc.w / rc.h; k.updateProjectionMatrix();
+    const x = rc.x * sx, y = size.y - (rc.y + rc.h) * sy, w = rc.w * sx, h = rc.h * sy;
+    r.setViewport(x, y, w, h); r.setScissor(x, y, w, h); r.render(R3.scene, k);
+  });
+  r.setScissorTest(false); r.setViewport(0, 0, size.x, size.y);
+  const now = performance.now(); if (now - lastCamUI < 250) return; lastCamUI = now;
+  CAMS.forEach((c, i) => {
+    const el = $('camInc' + i); if (!el) return;
+    const list = camIncidents(c.id);
+    const html = list.map(s2 => `<div class="incident">${INCIDENTS[s2.incident.type].icon} <b>${esc(s2.s.c.name)}</b> is ${INCIDENTS[s2.incident.type].label}<div class="incBtns"><button data-inc="${staffEnts.indexOf(s2)}" data-act="warn">Warn</button><button data-inc="${staffEnts.indexOf(s2)}" data-act="dock">Dock pay</button><button class="danger" data-inc="${staffEnts.indexOf(s2)}" data-act="fire">Fire</button></div></div>`).join('');
+    if (el.dataset.h !== html) { el.dataset.h = html; el.innerHTML = html; el.querySelectorAll('button').forEach(b => b.onclick = () => { const s2 = staffEnts[+b.dataset.inc]; if (s2) handleIncident(s2, b.dataset.act); el.dataset.h = ''; }); }
+  });
+  const busy = staffEnts.map(s2 => `${esc(s2.s.c.name)} (${ROLES[s2.s.role].label.toLowerCase()}): ${s2.incident ? '⚠ ' + INCIDENTS[s2.incident.type].label : { work: 'with a client', clean: 'cleaning', walk: 'walking the floor', fetch: 'fetching a client', lead: 'leading a client', idle: 'ready', return: 'heading back' }[s2.state] || s2.state}`).join(' · ');
+  $('camStatus').innerHTML = staffEnts.length ? busy : 'No staff hired yet. Hire a team in the Staff screen and watch them work from here.';
+}
+function showStatusBoard() { // 2D fallback: a text board instead of video
+  state = 'modal';
+  showModal(`<h2>📹 Staff board</h2><div class="rows">${staffEnts.map(st => `<div class="row"><span>${esc(st.s.c.name)} · ${ROLES[st.s.role].label}</span><b>${st.incident ? '⚠ ' + INCIDENTS[st.incident.type].label : st.state}</b></div>`).join('') || '<p>No staff yet.</p>'}</div>`,
+    [['Close', () => { hideModal(); state = 'world'; }, 'primary']]);
+}
+
+// ---------- Partners, jealousy & drama ----------
+const TEMPERS = { open: 'easygoing', jealous: 'jealous', forgiving: 'forgiving', toxic: 'volatile', breakup: 'all-or-nothing' };
+function temperOf(p) { if (!p.temper) p.temper = weighted({ open: 2, jealous: 3, forgiving: 3, toxic: 2, breakup: 2 }); return p.temper; }
+function checkCheating(dated, spot) {
+  const partners = Object.values(S.people || {}).filter(p => p.status === 'partner' && p.id !== dated.id && !p.open);
+  if (!partners.length) return null;
+  const p = partners[0], chance = { park: 0.3, cafe: 0.35, arcade: 0.4, ramen: 0.45, rooftop: 0.55 }[spot.id] || 0.4;
+  if (Math.random() > chance) { S.secrets = (S.secrets || 0) + 1; saveGame(); return null; }
+  return p;
+}
+function partnerReaction(p, other, back) {
+  const t = temperOf(p); let line, res;
+  if (t === 'open') { line = `“I saw you with ${other.c.name}. Honestly? I'm not the jealous type. Just be honest with me from now on.”`; p.open = true; res = 'They are fine with an open relationship.'; }
+  else if (t === 'jealous') { p.aff = Math.max(0, p.aff - 30); p.upset = true; line = `“You went out with ${other.c.name}?! I can't believe you. Don't talk to me right now.”`; res = 'They are hurt (−30). An apology and a gift might help.'; }
+  else if (t === 'forgiving') { p.aff = Math.max(0, p.aff - 15); line = `“That really hurt… but I want to make this work. Please don't do it again.”`; res = 'They forgive you, barely (−15).'; }
+  else if (t === 'toxic') { p.aff = Math.max(0, p.aff - 25); p.upset = true; S.drama = { pid: p.id, day: S.day }; line = `“Oh, you think you can just do that to me? We'll see about that. You'll see.”`; res = 'They are furious (−25) and might show up at your spa to make a scene.'; }
+  else { p.status = 'ex'; p.aff = 5; line = `“We're done. Don't call me.”`; res = 'They broke up with you.'; }
+  saveGame();
+  showModal(`<h2>💔 ${esc(p.c.name)} found out</h2><div class="intro"><canvas id="dramaP" width="300" height="300"></canvas><div style="flex:1;min-width:220px"><div class="req">${esc(line)}</div><p>${esc(res)}</p><p class="d">${esc(p.c.name)} is ${TEMPERS[t]}.</p></div></div>`, [['OK', () => showPeople(back), 'primary']]);
+  drawPortrait(p.c, t === 'open' ? 'neutral' : t === 'forgiving' ? 'wince' : 'annoyed', 1, false); const cv2 = $('dramaP'); if (cv2) cv2.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
+}
+function talkAboutUs(p, back) {
+  const opts = [];
+  if (p.upset) opts.push(['🙏 Apologise sincerely', () => { if (p.aff >= 25 || Math.random() < 0.5) { p.upset = false; p.aff = Math.min(100, p.aff + 6); say2(p, '“…Okay. Thank you for saying that.”', back); } else { p.aff = Math.max(0, p.aff - 3); say2(p, '“Sorry doesn\'t fix it. Give me time.”', back); } }, 'primary']);
+  if (p.status === 'partner' && !p.open) opts.push(['💬 Ask about an open relationship', () => { const t = temperOf(p); if (t === 'open') { p.open = true; say2(p, '“Sure, as long as we\'re honest with each other.”', back); } else { p.aff = Math.max(0, p.aff - (t === 'toxic' ? 15 : 8)); say2(p, t === 'toxic' ? '“Are you serious right now?!”' : '“I… don\'t think I\'m okay with that.”', back); } }, '']);
+  opts.push(['💕 Tell them how much they mean to you', () => { p.aff = Math.min(100, p.aff + (p.upset ? 2 : 4)); say2(p, '“You\'re sweet. I needed that.”', back); }, '']);
+  if (p.status === 'partner' || p.status === 'dating') opts.push(['💔 Break up', () => { p.status = 'ex'; p.aff = Math.max(0, p.aff - 30); p.upset = false; say2(p, temperOf(p) === 'toxic' ? '“Fine! You\'ll regret this!”' : '“…I understand. Take care of yourself.”', back); }, 'danger']);
+  opts.push(['← Back', () => showPeople(back), '']);
+  showModal(`<h2>💬 Talking with ${esc(p.c.name)}</h2><p>${p.upset ? 'They are still upset with you.' : p.open ? 'You have an open, honest relationship.' : 'Things are good between you.'}</p>`, opts);
+}
+function say2(p, line, back) { saveGame(); showModal(`<h2>${esc(p.c.name)}</h2><div class="req">${esc(line)}</div>`, [['OK', () => showPeople(back), 'primary']]); }
+function spawnDrama() {
+  if (!S.drama || S.drama.day >= S.day) return;
+  const p = S.people && S.people[S.drama.pid]; S.drama = null; saveGame(); if (!p || p.status === 'ex') return;
+  const c = clientFromPerson(p); c.look.mood = 'angry';
+  ents.push({ c, x: SPOT.door.x, y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat: -1, state: 'drama', wait: 0, patience: 1, maxPatience: 1, uid: ++uidN, ang: -Math.PI / 2, tasks: [], emote: 'anger', emoteT: 99, drama: p.id, target: { x: 860, y: 880 } });
+  toast(`😡 ${c.name} stormed into the spa and is making a scene in the lobby!`);
+}
+function calmDrama(e) {
+  const p = S.people[e.drama]; state = 'modal';
+  const leave = () => { e.state = 'leaving'; e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null; e.emote = null; hideModal(); state = 'world'; saveGame(); };
+  showModal(`<h2>😡 ${esc(e.c.name)} is making a scene</h2><div class="req">“How could you?! In front of everyone, I want answers!”</div><p class="d">Waiting clients are getting uncomfortable.</p>`,
+    [['🙏 Apologise and calm them down', () => { if (p) { p.aff = Math.min(100, p.aff + 5); p.upset = false; } toast(`${e.c.name} calms down and leaves.`); leave(); }, 'primary'],
+     ['💔 End it, here and now', () => { if (p) { p.status = 'ex'; p.aff = 0; } toast(`${e.c.name} storms out. It's over.`); leave(); }, 'danger'],
+     ['😤 Argue back', () => { if (p) p.aff = Math.max(0, p.aff - 10); S.ratings.push(2); toast('The shouting match scared off a few customers (reputation −)'); leave(); }, '']]);
+}
+
+// ---------- Daily events ----------
+const EVENTS = {
+  vip: { name: '⭐ VIP visit', desc: 'A famous influencer booked today and pays triple. A great session boosts your reputation; a bad one hurts.' },
+  inspection: { name: '🧾 Health inspection', desc: 'An inspector checks the spa at closing. A cleaner on staff means a passing grade and a grant.' },
+  rush: { name: '🎉 Holiday rush', desc: 'Three extra clients are coming in today.' },
+  rain: { name: '🌧️ Rainy day', desc: 'Fewer clients, but everyone who comes is in less of a hurry.' },
+};
+function rollEvent() {
+  S.event = null;
+  if (S.day < 2 || Math.random() > 0.4) return;
+  const type = pick(Object.keys(EVENTS)); S.event = { type, day: S.day, vipDone: false };
+  if (type === 'rush') S.todayTotal = Math.min(15, S.todayTotal + 3);
+  if (type === 'rain') S.todayTotal = Math.max(3, S.todayTotal - 2);
+}
+function eventToday() { return S.event && S.event.day === S.day ? S.event.type : null; }
 
 // ---------- Upgrades you can see ----------
 function applyUpgradeSolids() {
@@ -2857,7 +3164,9 @@ function build3D() {
   painted(220, 120, 880, 440, g => woodFloor(g, 220, 120, 880, 440, '#c69c6d', 36), 0.004);
   painted(1120, 620, 660, 140, g => woodFloor(g, 1120, 620, 660, 140, '#6b4630', 30), 0.004);
   painted(1120, 120, 660, 480, g => woodFloor(g, 1120, 120, 660, 480, '#8a5d3f', 34), 0.004);
-  painted(1120, 780, 660, 300, g => tatami(g, 1120, 780, 660, 300), 0.004);
+  painted(1120, 780, 470, 300, g => tatami(g, 1120, 780, 470, 300), 0.004);
+  painted(1590, 780, 190, 300, g => woodFloor(g, 1590, 780, 190, 300, '#4f3a2c', 30), 0.004); painted(1640, 760, 80, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(1640, 760, 80, 20); }, 0.004);
+  painted(1570, 780, 20, 300, g => { g.fillStyle = '#7a5a40'; g.fillRect(1570, 780, 20, 300); }, 0.002);
   painted(940, 1080, 120, 20, g => { g.fillStyle = '#9a8a74'; g.fillRect(940, 1080, 120, 20); }, 0.004); painted(1400, 600, 100, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(1400, 600, 100, 20); }, 0.004);
   painted(1400, 760, 100, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(1400, 760, 100, 20); }, 0.004); painted(600, 560, 120, 20, g => { g.fillStyle = '#7a5a40'; g.fillRect(600, 560, 120, 20); }, 0.004); painted(1100, 620, 20, 120, g => { g.fillStyle = '#7a5a40'; g.fillRect(1100, 620, 20, 120); }, 0.004);
   // rugs
@@ -2866,21 +3175,21 @@ function build3D() {
   // walls, baseboards, door frames, lintels, ceiling
   const plaster = lam('#efe6d6'), woodD = lam('#5a3a28'), wood = lam('#7a5a40'), woodL = lam('#a07a58');
   for (const b of solids) if (b.kind === 'wall') { box(b.x, b.y, b.w, b.h, 0, 2.8, plaster); box(b.x - 1.5, b.y - 1.5, b.w + 3, b.h + 3, 0, 0.12, woodD); }
-  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20], [1100, 620, 20, 120]]) {
+  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20], [1100, 620, 20, 120], [1640, 760, 80, 20]]) {
     box(x, y, w, h, 2.15, 0.65, plaster);
     if (w > h) { box(x - 5, y - 2, 5, h + 4, 0, 2.2, wood); box(x + w, y - 2, 5, h + 4, 0, 2.2, wood); box(x - 5, y - 2, w + 10, h + 4, 2.12, 0.08, wood); }
     else { box(x - 2, y - 5, w + 4, 5, 0, 2.2, wood); box(x - 2, y + h, w + 4, 5, 0, 2.2, wood); box(x - 2, y - 5, w + 4, h + 10, 2.12, 0.08, wood); }
   }
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(16, 10), lam('#f4eee4')); ceil.rotation.x = Math.PI / 2; ceil.position.set(10, 2.8, 6); add(ceil);
   const lampMat = new THREE.MeshBasicMaterial({ color: '#fff3d6' });
-  for (const [x, y] of [[430, 760], [860, 860], [1450, 330], [1450, 690], [1450, 930], [450, 330], [860, 330], [1000, 1010]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), lampMat); d.rotation.x = Math.PI / 2; d.position.set(x * U, 2.79, y * U); add(d); }
+  for (const [x, y] of [[430, 760], [860, 860], [1450, 330], [1450, 690], [1450, 930], [450, 330], [860, 330], [1000, 1010], [1685, 930]]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.22, 24), lampMat); d.rotation.x = Math.PI / 2; d.position.set(x * U, 2.79, y * U); add(d); }
   const winMat = new THREE.MeshBasicMaterial({ color: '#d4ecf8' });
   for (const x of [320, 520, 820, 1260, 1560]) { box(x, 120, 90, 1, 0.9, 1.3, winMat); box(x - 4, 120, 98, 2, 0.86, 0.05, woodL); box(x - 4, 120, 98, 2, 2.2, 0.05, woodL); box(x + 43, 120, 4, 2, 0.9, 1.3, woodL); }
   for (const x of [400, 700, 1300, 1600]) { box(x, 1079, 90, 1, 0.9, 1.3, winMat); }
   // signs
   const sign = (text, x, y, w, rotY, y0, big) => { const t = canvasTex(w * 2, big ? 80 : 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.strokeStyle = '#c9a25c'; g.lineWidth = 4; g.strokeRect(4, 4, cw - 8, ch - 8); g.fillStyle = '#f1dca8'; g.font = `800 ${big ? 40 : 30}px Nunito, system-ui`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w * U, (big ? 80 : 64) / 2 * U), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x * U, y0, y * U); m.rotation.y = rotY; add(m); };
-  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('TREATMENT ROOMS 2 & 3', 660, 581.5, 240, 0, 2.45);
+  sign('TREATMENT ROOM 1', 1450, 621.5, 180, 0, 2.45); sign('TEA LOUNGE', 1450, 758.5, 140, Math.PI, 2.45); sign('OFFICE', 1680, 758.5, 100, Math.PI, 2.45); sign('TREATMENT ROOMS 2 & 3', 660, 581.5, 240, 0, 2.45);
   sign('SERENITY HANDS SPA', 1000, 1101.5, 300, 0, 2.45, true);
   { const t = canvasTex(320, 64, (g, cw, ch) => { g.fillStyle = '#3a2a1f'; g.fillRect(0, 0, cw, ch); g.fillStyle = '#f1dca8'; g.font = '800 30px Nunito, system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('RECEPTION', cw / 2, ch / 2 + 2); });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.32), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide })); m.position.set(4.25, 2.35, 7.6); add(m); }
@@ -2921,6 +3230,15 @@ function build3D() {
     for (const zz of [-0.09, 0.09]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.05, 0.75, 12), sheetM); leg.rotation.z = Math.PI / 2; leg.scale.set(1, 1, 0.7); leg.position.set(1.4, -0.03, zz); gp.add(leg); }
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 14), lam('#3a2a20')); head.position.set(-0.08, 0.03, 0); gp.add(head);
     gp.position.set((t2.x + 22) * U + 0.05, 0.86, (t2.y + t2.h / 2) * U); gp.visible = false; add(gp); R3.lying = gp; R3.lyingHead = head;
+  }
+  { // your office: desk, three monitors, a wall of camera screens, chair and a bookcase
+    const od = F.bossDesk, scr = canvasTex(256, 160, (g, cw, ch) => { g.fillStyle = '#10181b'; g.fillRect(0, 0, cw, ch); for (let i = 0; i < 6; i++) { const x = (i % 3) * cw / 3, y = Math.floor(i / 3) * ch / 2; const lg = g.createLinearGradient(0, y, 0, y + ch / 2); lg.addColorStop(0, '#3d5a63'); lg.addColorStop(1, '#22343a'); g.fillStyle = lg; g.fillRect(x + 3, y + 3, cw / 3 - 6, ch / 2 - 6); g.fillStyle = '#ff4d4d'; g.beginPath(); g.arc(x + 10, y + 10, 3, 0, 7); g.fill(); g.fillStyle = '#d8e8e4'; g.font = 'bold 10px monospace'; g.fillText('CAM ' + (i + 1), x + 16, y + 14); } });
+    const scrM = new THREE.MeshBasicMaterial({ map: scr }), dark = lam('#1b1f24');
+    box(od.x, od.y, od.w, od.h, 0, 0.74, woodD); box(od.x - 2, od.y - 2, od.w + 4, od.h + 4, 0.74, 0.04, lam('#4a3426'));
+    for (let i = 0; i < 3; i++) { const yy = od.y + 18 + i * 44; box(od.x + 46, yy, 4, 38, 0.78, 0.3, dark); const m = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.26), scrM); m.position.set((od.x + 45.5) * U, 0.94, (yy + 19) * U); m.rotation.y = -Math.PI / 2; add(m); box(od.x + 50, yy + 16, 6, 6, 0.78, 0.04, dark); }
+    box(1776, 820, 3, 220, 1.15, 1.25, dark); const wall = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.15), scrM); wall.position.set(1775.5 * U, 1.775, 930 * U); wall.rotation.y = -Math.PI / 2; add(wall);
+    cyl(1665, 925, 4, 4, 0, 0.42, dark, 10); cyl(1665, 925, 24, 24, 0.42, 0.09, lam('#2c2c34')); box(1640, 905, 10, 40, 0.5, 0.55, lam('#2c2c34'));
+    const bk = F.bookcase; box(bk.x, bk.y, bk.w, bk.h, 0, 1.9, woodD); for (let r = 0; r < 4; r++) for (let i = 0; i < 6; i++) box(bk.x + 22, bk.y + 8 + i * 20, 6, 15, 0.12 + r * 0.45, 0.3, lam(['#a33', '#36a', '#3a6', '#c93', '#777', '#d7c49e'][(i + r) % 6]));
   }
   const mk = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), new THREE.MeshBasicMaterial({ color: '#f2c45a' })); add(mk); R3.marker = mk;
   for (const m of [...R3.water, ...R3.flames, ...R3.koi, mk]) m.userData.dyn = true;
@@ -3097,15 +3415,15 @@ function buildHuman(sp) {
   // ---- pelvis
   const pelvis = new THREE.Group(); pelvis.position.y = yHip; root.add(pelvis); h.pelvis = pelvis;
   const pelProf = [[P * 0.3, -0.058 * H], [P * 0.85, -0.042 * H], [P, -0.012 * H], [P * 0.98, 0.02 * H], [(W + P) / 2, 0.055 * H], [W, yWaist - yHip]];
-  const pm = lathe(pelProf, skin); pm.scale.z = 0.8; pelvis.add(tag(pm, 'torso'));
+  const pm = new THREE.Mesh(torsoGeom(sp, 0.466 * H, yWaist + 0.002 * H, yHip, null, true, false), skin); pelvis.add(tag(pm, 'torso'));
   // ---- spine, chest (breathes), neck, head
   const spine = new THREE.Group(); spine.position.y = yWaist - yHip; pelvis.add(spine); h.spine = spine;
   const tY = v => v - yWaist;
   const torsoProf = [[W, -0.004 * H], [W + (S - W) * 0.2, 0.035 * H], [(W + S) / 2 * 1.02, tY(yChest) - 0.03 * H], [S * (0.84 + 0.035 * fem), tY(yChest)], [S * 0.87, tY(ySh) - 0.04 * H], [S * 0.8, tY(ySh) - 0.012 * H], [S * 0.55, tY(ySh) + 0.004 * H], [0.034 * H, tY(ySh) + 0.016 * H]];
-  const chest = lathe(torsoProf, skin); chest.scale.z = 0.64; spine.add(tag(chest, 'torso')); h.chest = chest;
+  const chest = new THREE.Mesh(torsoGeom(sp, yWaist - 0.004 * H, 0.838 * H, yWaist, null, false, true), skin); spine.add(tag(chest, 'torso')); h.chest = chest;
   for (const s of [1, -1]) { // collarbones in front, shoulder blades behind
-    const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.0062 * H, 0.0062 * H, S * 0.62, 8), skin); cb.rotation.z = Math.PI / 2 + s * 0.12; cb.position.set(s * S * 0.36, tY(ySh) - 0.006 * H, S * 0.44); spine.add(tag(cb, 'torso')); cb.userData.keep = true; h.underTop = (h.underTop || []).concat(cb);
-    const sc = ellip(S * 0.27, 1, 1.25, 0.18, skin, 12); sc.position.set(s * S * 0.4, tY(yChest) + 0.03 * H, -S * 0.5); sc.rotation.z = s * 0.25; spine.add(tag(sc, 'torso')); sc.userData.keep = true; h.underTop.push(sc);
+    const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.0062 * H, 0.0062 * H, S * 0.62, 8), skin); cb.rotation.z = Math.PI / 2 + s * 0.12; cb.position.set(s * S * 0.36, tY(ySh) - 0.006 * H, 0.046 * H); spine.add(tag(cb, 'torso')); cb.userData.keep = true; h.underTop = (h.underTop || []).concat(cb);
+    const sc = ellip(S * 0.27, 1, 1.25, 0.18, skin, 12); sc.position.set(s * S * 0.4, tY(yChest) + 0.03 * H, -0.063 * H); sc.rotation.z = s * 0.25; spine.add(tag(sc, 'torso')); sc.userData.keep = true; h.underTop.push(sc);
   }
   const neckR = (sp.masc ? 0.036 : 0.031) * H;
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(neckR * 0.92, neckR, yChin - ySh + 0.03 * H, 16), skin); neck.position.y = tY(ySh) + (yChin - ySh) / 2; spine.add(tag(neck, 'neck')); h.neckR = neckR;
@@ -3193,8 +3511,8 @@ function buildHuman(sp) {
     const shoe = ellip(0.031 * H, 0.98, 0.66, 2.25, shoeM, 14); shoe.position.set(0, -0.022 * H, 0.04 * H); an.add(cloth(shoe, 'shoes'));
   }
   // ---- torso clothing
-  const shirt = lathe([[P * 1.12, -0.072 * H], [(W + P) / 2 * 1.1, -0.035 * H], ...torsoProf.slice(0, 7).map(([r, y]) => [r * 1.07 + 0.005, y])], topM); shirt.scale.z = 0.66; spine.add(cloth(shirt, 'top')); h.shirt = shirt;
-  const pants = shellOf(pelProf, 1.06, sp.top === 'dress' ? topM : botM); pants.scale.z = 0.82; pelvis.add(cloth(pants, 'bottom'));
+  const shirt = new THREE.Mesh(torsoGeom(sp, yWaist - 0.072 * H, 0.824 * H, yWaist, y => [1.06 + 0.05 * clamp((yWaist + 0.01 * H - y) / (0.04 * H), 0, 1), 0.005]), topM); spine.add(cloth(shirt, 'top')); h.shirt = shirt;
+  const pants = new THREE.Mesh(torsoGeom(sp, 0.462 * H, yWaist + 0.004 * H, yHip, [1.05, 0.004], true, false), sp.top === 'dress' ? topM : botM); pelvis.add(cloth(pants, 'bottom'));
   if (sp.top === 'dress' || sp.bottom === 'skirt') { const sk = lathe([[W * 1.1, yWaist - yHip], [P * 1.18, -0.01 * H], [P * 1.3, -0.07 * H]], sp.top === 'dress' ? topM : botM); sk.scale.z = 0.85; pelvis.add(cloth(sk, 'bottom')); }
   if (sp.top === 'hoodie') { const hood = new THREE.Mesh(new THREE.TorusGeometry(0.062 * H, 0.022 * H, 8, 18), topM); hood.position.set(0, tY(ySh) + 0.01 * H, -0.045 * H); hood.rotation.x = 1.25; spine.add(cloth(hood, 'top')); }
   if (sp.top === 'polo' || sp.top === 'linen') { const col = new THREE.Mesh(new THREE.TorusGeometry(neckR * 1.25, 0.008 * H, 6, 18), topM); col.position.y = tY(ySh) + 0.012 * H; col.rotation.x = Math.PI / 2 - 0.15; spine.add(cloth(col, 'top')); }
@@ -3233,7 +3551,7 @@ function mergeHuman(h) {
   }
 }
 function setTopVisible(h, v) { for (const m of h.clothes.top) m.visible = v; }
-function setTableDress(h, on) { for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; for (const m of h.underTop || []) m.visible = on || h.sp.top === 'tank'; }
+function setTableDress(h, on) { for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; for (const m of h.underTop || []) m.visible = on; }
 function disposeHuman(h) {
   h.root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
   if (h.root.parent) h.root.parent.remove(h.root);
@@ -3282,8 +3600,8 @@ function poseHuman(h, p) {
   const J = h.j, H = h.H, walk = p.walk || 0, ph = p.ph || 0, br = p.breath || 0, t = time;
   h.pelvis.position.set(0, h.yHip + Math.abs(Math.cos(ph)) * 0.012 * walk, 0); h.pelvis.rotation.set(0, Math.sin(ph) * 0.06 * walk, 0);
   h.spine.rotation.set(0.03 * walk + (p.lean || 0), -Math.sin(ph) * 0.08 * walk, 0);
-  h.chest.scale.set(1 + br * 0.4, 1, 0.64 * (1 + br * 1.5));
-  if (h.shirt) h.shirt.scale.set(1 + br * 0.4, 1, 0.66 * (1 + br * 1.5));
+  h.chest.scale.set(1 + br * 0.4, 1, 1 + br * 1.5);
+  if (h.shirt) h.shirt.scale.set(1 + br * 0.4, 1, 1 + br * 1.5);
   J.head.rotation.set(p.nod || 0, clamp(p.look || 0, -0.9, 0.9), p.tilt || 0);
   for (const s of [1, -1]) {
     const L = s > 0 ? 'L' : 'R', side = s > 0 ? 'B' : 'T', sh = J['sh' + L], el = J['el' + L], wr = J['wr' + L], fg = J['fg' + L], hp = J['hip' + L], kn = J['kn' + L], an = J['an' + L];
@@ -3382,9 +3700,10 @@ function syncHumans(third) {
     h.angle = h.angle == null ? st.ang : lerpAngle(h.angle, st.ang, 0.18);
     h.root.position.set(st.x * U, 0, st.y * U); h.root.rotation.set(0, Math.PI / 2 - h.angle, 0);
     h.walkAmt += ((st.moving ? 1 : 0) - h.walkAmt) * 0.2;
-    const busy = st.state === 'work' || st.state === 'clean';
-    poseHuman(h, { walk: h.walkAmt, ph: st.ph * 0.42, work: busy, lean: st.state === 'work' ? 0.3 : st.state === 'clean' ? 0.4 : 0, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.6)), cross: st.s.role === 'manager' && st.state === 'idle' });
-    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, busy ? 'bliss' : 'happy', time, false); }
+    const busy = st.state === 'work' || st.state === 'clean', inc = st.incident && st.incident.type;
+    poseHuman(h, { walk: h.walkAmt, ph: st.ph * 0.42, work: busy && inc !== 'phone', lean: st.state === 'work' ? 0.3 : st.state === 'clean' ? 0.4 : inc === 'nap' ? 0.25 : 0, breath: 0.01 * (0.5 - 0.5 * Math.cos(time * (inc === 'nap' ? 0.9 : 1.6))),
+      cross: (st.s.role === 'manager' && st.state === 'idle') || inc === 'rude', phone: inc === 'phone', nod: inc === 'phone' ? 0.38 : inc === 'nap' ? 0.55 : 0, tilt: inc === 'nap' ? 0.25 : 0 });
+    if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, inc === 'nap' ? 'bliss' : inc === 'rude' ? 'annoyed' : inc === 'phone' ? 'neutral' : busy ? 'bliss' : 'happy', time, false); }
     setHumanEmote(h, st.emote || '');
   }
   // you
@@ -3649,7 +3968,7 @@ function closeLookPrev() { if (!lookPrev) return; cancelAnimationFrame(lookPrev.
 // ---------- Main loop ----------
 let lastT = performance.now();
 function frame(t) {
-  const dt = Math.min(view === 'world' || view === 'massage3d' ? 0.1 : 0.05, (t - lastT) / 1000); lastT = t; lastDt = dt;
+  const dt = Math.min(view === 'world' || view === 'cams' || view === 'massage3d' ? 0.1 : 0.05, (t - lastT) / 1000); lastT = t; lastDt = dt;
   try { update(dt); render(); } catch (err) { console.error(err); }
   requestAnimationFrame(frame);
 }
