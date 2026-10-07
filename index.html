@@ -3048,7 +3048,7 @@ function pelvisGeom(sp, yFrom, yTo, yOrigin, infl, lobe) {
   const c = pos.length / 3; pos.push(0, yFrom - yOrigin, 0); uv.push(0.5, 0);
   for (let i = 0; i < N; i++) idx.push(base + i + 1, base + i, c);
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-  weldSeam(g, steps + 1, N);
+  weldSeam(g, steps + 1, N); g.userData.tubeVerts = (steps + 1) * (N + 1);
   return g;
 }
 // The bottom of the pelvis (skin and trousers) follows the thighs a little, like skin over the hip joints: each
@@ -3058,11 +3058,12 @@ function pelvisGeom(sp, yFrom, yTo, yOrigin, infl, lobe) {
 function hipSkinSetup(h, mesh, y0) {
   const g = mesh.geometry, p = g.attributes.position, H = h.H, rest = Float32Array.from(p.array), A = [], B = [];
   const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-  for (let i = 0; i < p.count; i++) {
+  let nA = 0, nB = 0; const tube = g.userData.tubeVerts || p.count; // the bottom cap stays put, hidden inside the thighs
+  for (let i = 0; i < tube; i++) {
     const y = rest[i * 3 + 1], w = sm(y0 + 0.022 * H, y0 - 0.034 * H, y), fz = sm(y0 + 0.07 * H, y0 + 0.03 * H, y);
-    if (w > 0.002) A.push(i, w, sm(-0.03 * H, 0.03 * H, rest[i * 3]), fz); else if (fz > 0.002) B.push(i, fz);
+    if (w > 0.002) { A.push(i, w, sm(-0.03 * H, 0.03 * H, rest[i * 3]), fz); nA = i + 1; } else if (fz > 0.002) { B.push(i, fz); nB = i + 1; }
   }
-  mesh.userData.keep = true; mesh.userData.hipSkin = { rest, A: Float32Array.from(A), B: Float32Array.from(B) }; p.setUsage && p.setUsage(THREE.DynamicDrawUsage);
+  mesh.userData.keep = true; mesh.userData.hipSkin = { rest, A: Float32Array.from(A), B: Float32Array.from(B), nA, nB: Math.max(nA, nB) }; p.setUsage && p.setUsage(THREE.DynamicDrawUsage);
   (h.hipSkinned = h.hipSkinned || []).push(mesh);
 }
 const _hq = [null, null];
@@ -3071,19 +3072,20 @@ function hipSkinPose(h, lie) {
   if (!_hq[0]) for (let k = 0; k < 2; k++) _hq[k] = new THREE.Quaternion();
   const hips = [h.j.hipL, h.j.hipR], last = h.hipLast || (h.hipLast = new Float32Array(9).fill(9)), flat = lie ? 0.17 : 0;
   let same = last[8] === flat; last[8] = flat;
-  for (let k = 0; k < 2; k++) { const q = hips[k].quaternion, o = k * 4; if (Math.abs(q.x - last[o]) + Math.abs(q.y - last[o + 1]) + Math.abs(q.z - last[o + 2]) + Math.abs(q.w - last[o + 3]) > 2e-4) { same = false; last[o] = q.x; last[o + 1] = q.y; last[o + 2] = q.z; last[o + 3] = q.w; } }
-  if (same) return;
+  for (let k = 0; k < 2; k++) { const q = hips[k].quaternion, o = k * 4; if (Math.abs(q.x - last[o]) + Math.abs(q.y - last[o + 1]) + Math.abs(q.z - last[o + 2]) + Math.abs(q.w - last[o + 3]) > 0.003) same = false; }
+  if (same) return; // tiny idle sways don't need a re-upload every frame
+  for (let k = 0; k < 2; k++) { const q = hips[k].quaternion, o = k * 4; last[o] = q.x; last[o + 1] = q.y; last[o + 2] = q.z; last[o + 3] = q.w; }
   const tmp = new THREE.Vector3(), d = [new THREE.Vector3(), new THREE.Vector3()];
   for (let k = 0; k < 2; k++) { const q = _hq[k].copy(hips[k].quaternion), a = 2 * Math.acos(Math.min(1, Math.abs(q.w))); if (a > 1.2) q.slerp(new THREE.Quaternion(), 1 - 1.2 / a); } // very deep hip bends only drag the seat part way
   for (const mesh of h.hipSkinned) {
-    const { rest, A, B } = mesh.userData.hipSkin, arr = mesh.geometry.attributes.position.array;
+    const { rest, A, B, nA, nB } = mesh.userData.hipSkin, pa = mesh.geometry.attributes.position, arr = pa.array, wasFlat = mesh.userData.hipFlat; mesh.userData.hipFlat = flat;
     for (let n = 0; n < A.length; n += 4) {
       const i = A[n], w = A[n + 1], wl = A[n + 2], f = 1 - flat * A[n + 3], x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2];
       for (let k = 0; k < 2; k++) { const hp = hips[k].position; tmp.set(x - hp.x, y - hp.y, z - hp.z).applyQuaternion(_hq[k]); d[k].set(tmp.x + hp.x - x, tmp.y + hp.y - y, tmp.z + hp.z - z); }
       arr[i * 3] = x + w * (wl * d[0].x + (1 - wl) * d[1].x); arr[i * 3 + 1] = y + w * (wl * d[0].y + (1 - wl) * d[1].y); arr[i * 3 + 2] = (z + w * (wl * d[0].z + (1 - wl) * d[1].z)) * f;
     }
-    for (let n = 0; n < B.length; n += 2) { const i = B[n]; arr[i * 3 + 2] = rest[i * 3 + 2] * (1 - flat * B[n + 1]); }
-    mesh.geometry.attributes.position.needsUpdate = true;
+    const doB = flat || wasFlat; if (doB) for (let n = 0; n < B.length; n += 2) { const i = B[n]; arr[i * 3 + 2] = rest[i * 3 + 2] * (1 - flat * B[n + 1]); }
+    pa.updateRange.offset = 0; pa.updateRange.count = (doB ? nB : nA) * 3; pa.needsUpdate = true; // only the rings that moved
   }
   if (h.thighBits) for (const m of h.thighBits) m.scale.z = 1 - flat * 0.8;
 }
@@ -3093,8 +3095,8 @@ function hipSkinPose(h, lie) {
 function shoulderSkinSetup(h, mesh, s) {
   const p = mesh.geometry.attributes.position, H = h.H, rest = Float32Array.from(p.array), A = [];
   const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-  for (let i = 0; i < p.count; i++) { const w = 0.9 * sm(-0.03 * H, 0.012 * H, rest[i * 3 + 1]); if (w > 0.002) A.push(i, w); }
-  mesh.userData.keep = true; mesh.userData.shSkin = { rest, A: Float32Array.from(A), s }; p.setUsage && p.setUsage(THREE.DynamicDrawUsage);
+  let nA = 0; for (let i = 0; i < p.count; i++) { const w = 0.9 * sm(-0.03 * H, 0.012 * H, rest[i * 3 + 1]); if (w > 0.002) { A.push(i, w); nA = i + 1; } }
+  mesh.userData.keep = true; mesh.userData.shSkin = { rest, A: Float32Array.from(A), s, nA }; p.setUsage && p.setUsage(THREE.DynamicDrawUsage);
   (h.shSkinned = h.shSkinned || []).push(mesh);
 }
 function shoulderSkinPose(h) {
@@ -3102,7 +3104,7 @@ function shoulderSkinPose(h) {
   const last = h.shLast || (h.shLast = new Float32Array(8).fill(9)), M = {}, I = new THREE.Quaternion();
   for (const s of [1, -1]) {
     const q = h.j['sh' + (s > 0 ? 'L' : 'R')].quaternion, o = s > 0 ? 0 : 4;
-    if (Math.abs(q.x - last[o]) + Math.abs(q.y - last[o + 1]) + Math.abs(q.z - last[o + 2]) + Math.abs(q.w - last[o + 3]) < 2e-4) continue;
+    if (Math.abs(q.x - last[o]) + Math.abs(q.y - last[o + 1]) + Math.abs(q.z - last[o + 2]) + Math.abs(q.w - last[o + 3]) < 0.003) continue;
     last[o] = q.x; last[o + 1] = q.y; last[o + 2] = q.z; last[o + 3] = q.w;
     const q0 = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, s * 0.07)), rel = q0.clone().invert().multiply(q), a = 2 * Math.acos(Math.min(1, Math.abs(rel.w)));
     const dome = q0.clone().multiply(I.clone().slerp(rel, a > 0.55 ? 1 - 0.55 / a : 0));
@@ -3110,11 +3112,11 @@ function shoulderSkinPose(h) {
   }
   const v = new THREE.Vector3();
   for (const mesh of h.shSkinned) {
-    const { rest, A, s } = mesh.userData.shSkin, m = M[s]; if (!m) continue;
-    const arr = mesh.geometry.attributes.position.array;
+    const { rest, A, s, nA } = mesh.userData.shSkin, m = M[s]; if (!m) continue;
+    const pa = mesh.geometry.attributes.position, arr = pa.array;
     for (let n = 0; n < A.length; n += 2) { const i = A[n], w = A[n + 1], x = rest[i * 3], y = rest[i * 3 + 1], z = rest[i * 3 + 2]; v.set(x, y, z).applyQuaternion(m);
       arr[i * 3] = x + w * (v.x - x); arr[i * 3 + 1] = y + w * (v.y - y); arr[i * 3 + 2] = z + w * (v.z - z); }
-    mesh.geometry.attributes.position.needsUpdate = true;
+    pa.updateRange.offset = 0; pa.updateRange.count = nA * 3; pa.needsUpdate = true;
   }
 }
 // ---------- Smooth limbs: one continuous surface per bone, built from elliptical cross-sections ----------
@@ -3187,6 +3189,15 @@ function limbGeom(R, s, o) {
   rings.forEach((r, k) => { const a = k * (N + 1) * 3, b = a + N * 3;
     if (r[7]) { for (let i = 0; i <= N; i++) { nm[a + i * 3] = 0; nm[a + i * 3 + 1] = r[7]; nm[a + i * 3 + 2] = 0; } return; }
     for (let q = 0; q < 3; q++) { const m = (nm[a + q] + nm[b + q]) / 2; nm[a + q] = nm[b + q] = m; } });
+  // Joint domes (elbow, knee) shade like the tube they close, fading to their own roundness toward the tip: where one
+  // segment slips under the next, both surfaces carry the same light, so the joint shows no ring.
+  const tube = rings.map(r => !r[8]), t0 = tube.indexOf(true), t1 = tube.lastIndexOf(true);
+  const ease = (end, ref, from, to, step) => { if (ref < 0 || ref >= rings.length) return;
+    for (let i = 0; i <= N; i++) for (let q = 0; q < 3; q++) nm[(end * (N + 1) + i) * 3 + q] = nm[(ref * (N + 1) + i) * 3 + q];
+    const n = Math.abs(to - end); for (let k = from; k !== to + step; k += step) { const w = Math.pow(Math.abs(k - end) / n, 1.5);
+      for (let i = 0; i <= N; i++) { const a = (k * (N + 1) + i) * 3, e = (end * (N + 1) + i) * 3; let x = nm[e] + (nm[a] - nm[e]) * w, y = nm[e + 1] + (nm[a + 1] - nm[e + 1]) * w, z = nm[e + 2] + (nm[a + 2] - nm[e + 2]) * w; const l = Math.hypot(x, y, z) || 1; nm[a] = x / l; nm[a + 1] = y / l; nm[a + 2] = z / l; } } };
+  if (o.jointBot && t1 < rings.length - 1) ease(t1, t1 - 1, t1 + 1, rings.length - 1, 1);
+  if (o.jointTop && t0 > 0) ease(t0, t0 + 1, t0 - 1, 0, -1);
   return g;
 }
 // Cross-section keys for one person's arms and legs (shared by skin and clothes). Builds vary modestly with
@@ -3234,6 +3245,7 @@ function limbKeys(sp) {
     [h(-0.222), h(0.0178), h(0.0192), h(0.0172), h(0.019)],
     [-SHL, h(0.0198), h(0.0182), h(0.0168), h(0.019)],
   ];
+  fa[0] = [0, ...ua[ua.length - 1].slice(1, 5)]; sh[0] = [0, ...th[th.length - 1].slice(1, 5)]; // each joint ring is shared exactly by both segments
   return { UA, FA, TH, SHL, dx, ua, fa, th, sh, step: h(0.011) };
 }
 
@@ -5248,9 +5260,9 @@ function buildHuman(sp) {
   for (const s of [1, -1]) {
     const L = s > 0 ? 'L' : 'R', side = s > 0 ? 'B' : 'T';
     const sh = new THREE.Group(); sh.position.set(s * S * 0.86, tY(ySh) - 0.028 * H, -0.005 * H); spine.add(sh); h.j['sh' + L] = sh; sh.userData.rest = sh.position.clone();
-    const uaM = new THREE.Mesh(limbGeom(rUA, s), skin); sh.add(tag(uaM, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s })); shoulderSkinSetup(h, uaM, s); // deltoid, biceps and triceps in one smooth surface
+    const uaM = new THREE.Mesh(limbGeom(rUA, s, { jointBot: true }), skin); sh.add(tag(uaM, 'arm' + side, { limb: true, bone: sh, len: UA, seg: 'ua', s })); shoulderSkinSetup(h, uaM, s); // deltoid, biceps and triceps in one smooth surface
     const el = new THREE.Group(); el.position.y = -UA; sh.add(el); h.j['el' + L] = el;
-    el.add(tag(new THREE.Mesh(limbGeom(rFA, s), skin), 'arm' + side, { limb: true, bone: el, len: FA, seg: 'fa', s }));
+    el.add(tag(new THREE.Mesh(limbGeom(rFA, s, { jointTop: true }), skin), 'arm' + side, { limb: true, bone: el, len: FA, seg: 'fa', s }));
     const wr = new THREE.Group(); wr.position.y = -FA; el.add(wr); h.j['wr' + L] = wr;
     const palm = ellip(0.032 * H, 0.38, 1.15, 0.78, skin, 12); palm.position.y = -0.034 * H; wr.add(tag(palm, 'hand' + side, { limb: true, bone: wr, len: 0.1 * H, seg: 'hand', s }));
     const fg = new THREE.Group(); fg.position.y = -0.066 * H; wr.add(fg); h.j['fg' + L] = fg;
@@ -5264,8 +5276,8 @@ function buildHuman(sp) {
     // sleeves
     if (sp.top !== 'tank') { // sleeves are the arm's own surface, eased out, so they hug the shoulder and never let skin through
       const long = ['hoodie', 'sweater', 'linen'].includes(sp.top), ease = { mul: 1.07, add: 0.0045 * H, lip: true, N: 18 };
-      const slv = new THREE.Mesh(limbGeom(sleeveDrape(rUA, long ? null : -0.085 * H), s, Object.assign({ yMin: long ? undefined : -0.085 * H }, ease)), topM); sh.add(cloth(slv, 'top')); shoulderSkinSetup(h, slv, s);
-      if (long) el.add(cloth(new THREE.Mesh(limbGeom(sleeveDrape(rFA, null), s, Object.assign({ yMin: -0.9 * FA }, ease)), topM), 'top'));
+      const slv = new THREE.Mesh(limbGeom(sleeveDrape(rUA, long ? null : -0.085 * H), s, Object.assign({ yMin: long ? undefined : -0.085 * H, jointBot: true }, ease)), topM); sh.add(cloth(slv, 'top')); shoulderSkinSetup(h, slv, s);
+      if (long) el.add(cloth(new THREE.Mesh(limbGeom(sleeveDrape(rFA, null), s, Object.assign({ yMin: -0.9 * FA, jointTop: true }, ease)), topM), 'top'));
     }
   }
   // ---- legs
@@ -5274,9 +5286,9 @@ function buildHuman(sp) {
   for (const s of [1, -1]) {
     const L = s > 0 ? 'L' : 'R', side = s > 0 ? 'B' : 'T';
     const hp = new THREE.Group(); hp.position.set(s * P * 0.5, -0.012 * H, 0); pelvis.add(hp); h.j['hip' + L] = hp;
-    const thM = new THREE.Mesh(limbGeom(rTH, s, { N: 22 }), skin); hp.add(tag(thM, 'thigh', { limb: true, bone: hp, len: TH, seg: 'th', s })); thM.userData.keep = true; (h.thighBits = h.thighBits || []).push(thM); // hip, thigh and kneecap
+    const thM = new THREE.Mesh(limbGeom(rTH, s, { N: 22, jointBot: true }), skin); hp.add(tag(thM, 'thigh', { limb: true, bone: hp, len: TH, seg: 'th', s })); thM.userData.keep = true; (h.thighBits = h.thighBits || []).push(thM); // hip, thigh and kneecap
     const kn = new THREE.Group(); kn.position.set(-s * LK.dx, -TH, 0); hp.add(kn); h.j['kn' + L] = kn;
-    kn.add(tag(new THREE.Mesh(limbGeom(rSH, s, { N: 22 }), skin), 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s })); // knee, calf, shin and ankle bones
+    kn.add(tag(new THREE.Mesh(limbGeom(rSH, s, { N: 22, jointTop: true }), skin), 'calf' + side, { limb: true, bone: kn, len: SHL, seg: 'sh', s })); // knee, calf, shin and ankle bones
     const an = new THREE.Group(); an.position.y = -SHL; kn.add(an); h.j['an' + L] = an;
     const foot = ellip(0.028 * H, 0.95, 0.6, 2.3, skin, 14); foot.position.set(0, -0.022 * H, 0.038 * H); an.add(tag(foot, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
     const heel = ellip(0.02 * H, 1, 1, 1.1, skin, 10); heel.position.set(0, -0.02 * H, -0.01 * H); an.add(tag(heel, 'foot' + side, { limb: true, bone: an, len: 0.06 * H, seg: 'foot', s }));
@@ -5286,8 +5298,8 @@ function buildHuman(sp) {
     if (skirt) { const pn = lathe([[0.004 * H, 0.04 * H], [0.07 * H * ff, 0.02 * H], [0.078 * H * ff, -0.32 * TH], [0.085 * H * ff, -0.62 * TH]], sp.top === 'dress' ? topM : botM); hp.add(cloth(pn, 'bottom')); pn.userData.keep = true; (h.skirtBits = h.skirtBits || []).push(pn); }
     else {
       const shorts = sp.bottom === 'shorts', tr = trouserRings(rTH, rSH, H);
-      const thS = new THREE.Mesh(limbGeom(shorts ? drapeRings(rTH, -0.06 * H, 0.993) : tr.th, s, { mul: 1.06, add: 0.005 * H, yMin: shorts ? -0.55 * TH : undefined, lip: shorts, N: 22 }), botM); hp.add(cloth(thS, 'bottom')); thS.userData.keep = true; h.thighBits.push(thS);
-      if (sp.bottom === 'pants') kn.add(cloth(new THREE.Mesh(limbGeom(tr.sh, s, { mul: 1.06, add: 0.005 * H, yMin: -0.92 * SHL, lip: true, N: 22 }), botM), 'low'));
+      const thS = new THREE.Mesh(limbGeom(shorts ? drapeRings(rTH, -0.06 * H, 0.993) : tr.th, s, { mul: 1.06, add: 0.005 * H, yMin: shorts ? -0.55 * TH : undefined, lip: shorts, N: 22, jointBot: true }), botM); hp.add(cloth(thS, 'bottom')); thS.userData.keep = true; h.thighBits.push(thS);
+      if (sp.bottom === 'pants') kn.add(cloth(new THREE.Mesh(limbGeom(tr.sh, s, { mul: 1.06, add: 0.005 * H, yMin: -0.92 * SHL, lip: true, N: 22, jointTop: true }), botM), 'low'));
     }
     const shoe = ellip(0.031 * H, 0.98, 0.66, 2.25, shoeM, 14); shoe.position.set(0, -0.022 * H, 0.04 * H); an.add(cloth(shoe, 'shoes'));
   }
@@ -5410,8 +5422,9 @@ function poseHuman(h, p) {
   }
   if (p.sit) h.pelvis.position.y = 0.47; // hips rest on the cushion
   poseHair(h, p);
-  if (h.skirtBits) for (const m of h.skirtBits) { m.scale.z = (m.userData.sz || 1) * (p.lie ? 0.6 : 1); m.scale.x = p.lie ? 0.8 : 1; } // a skirt lies flat on the table instead of poking up through the sheet
-  hipSkinPose(h, p.lie); shoulderSkinPose(h);
+  const under = !!(p.lie && h.sheet && h.sheet.visible); // under the sheet a skirt and the seat settle flatter so nothing pokes up through it
+  if (h.skirtBits) for (const m of h.skirtBits) { m.scale.z = (m.userData.sz || 1) * (under ? 0.6 : 1); m.scale.x = under ? 0.8 : 1; }
+  hipSkinPose(h, under); shoulderSkinPose(h);
 }
 let Q_PRONE = null, Q_SUPINE = null; // created once three.js has loaded
 function tableQuats() { if (!Q_PRONE) { Q_PRONE = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, Math.PI / 2, 'XYZ')); Q_SUPINE = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, Math.PI / 2, 'XYZ')); } }
