@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{
+  color-scheme:dark;
   --bg:#141a1c; --panel:#1d2629; --panel2:#243034; --line:#33444a;
   --text:#eef3f1; --muted:#9fb2ae; --gold:#e8c37a; --teal:#4fc1a6;
   --pink:#f08bb0; --red:#e86a5f; --green:#6fd08c;
@@ -45,7 +46,7 @@ h4{margin:12px 0 6px;font-size:12px;letter-spacing:1px;text-transform:uppercase;
 .know{font-size:13px;margin:3px 0;display:flex;justify-content:space-between;gap:6px}
 .know b{color:var(--gold)}
 .know .unk{color:#6e807c}
-#stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0;background:#0d1112}
+#stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden;background:#0d1112}
 #game{display:block;touch-action:none;cursor:none;border-radius:6px}
 #toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(15,20,22,.92);border:1px solid var(--line);
   padding:8px 16px;border-radius:999px;font-weight:700;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
@@ -84,20 +85,37 @@ select{font-family:inherit;font-weight:700;background:var(--panel2);color:var(--
 .help li{margin:4px 0;color:#d3dfdc}
 .stw{white-space:nowrap}.st{color:#4a5a5e}.st.full{color:var(--gold)}
 .st.half{background:linear-gradient(90deg,var(--gold) 50%,#4a5a5e 50%);-webkit-background-clip:text;background-clip:text;color:transparent}
+body.world .sessOnly,body.world #sessPanel,body.world #timeWrap{display:none!important}
+body:not(.world) #worldPanel,body:not(.world) #worldTools{display:none!important}
+.ctl{font-size:13px;color:var(--muted);line-height:1.6}.ctl b{color:var(--text)}
+.qi{display:flex;align-items:center;gap:8px;font-size:13px;margin:5px 0}
+.qi .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.qi .bar{flex:1;height:6px;margin:0}.qi .bar>div{background:linear-gradient(90deg,var(--red),var(--gold),var(--green))}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .35s;z-index:40}
+#fade.on{opacity:1}
 .quote{font-style:italic;text-align:center;color:#d6e2df;margin:8px 0}
 @media (max-width:820px){
   #main{flex-direction:column}
   #side{width:100%;max-height:150px;display:grid;grid-template-columns:90px 1fr;gap:4px 10px;border-right:none;border-bottom:1px solid var(--line);padding:8px}
   #portrait{grid-row:span 6;width:90px;margin:0}
   .cname{text-align:left;font-size:16px}.tags{justify-content:flex-start}
-  #side h4,#focusList,#knowList{display:none}
+  #side h4,#focusList,#knowList,#queueList,.ctl{display:none}
+  #worldPanel{grid-column:1/-1}
   .req{margin:2px 0;font-size:12px}
   button{padding:7px 9px;font-size:13px} kbd{display:none}
   .brand{display:none}
 }
 </style>
 </head>
-<body>
+<body class="world">
+<script>
+// Show start-up errors on screen instead of failing silently.
+window.addEventListener('error', function (e) {
+  var d = document.getElementById('bootErr');
+  if (!d) { d = document.createElement('div'); d.id = 'bootErr'; d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99;background:#5a2a2a;color:#fff;padding:10px 14px;border-radius:10px;font:13px/1.4 sans-serif'; document.body.appendChild(d); }
+  d.textContent = 'Something went wrong: ' + (e.message || e) + ' — try reloading the page.';
+});
+</script>
 <div id="app">
   <div id="topbar">
     <div class="brand">🌿 Serenity Hands</div>
@@ -108,41 +126,54 @@ select{font-family:inherit;font-weight:700;background:var(--panel2);color:var(--
   </div>
   <div id="main">
     <aside id="side">
+      <div id="worldPanel">
+        <h4>Objective</h4>
+        <div class="req" id="objective">Opening the spa…</div>
+        <h4>Waiting room</h4>
+        <div id="queueList"></div>
+        <h4>Controls</h4>
+        <div class="ctl"><b>WASD</b> / arrows to walk · <b>Shift</b> to run<br><b>E</b> / Space to interact<br>Or click / tap anywhere to walk there</div>
+      </div>
+      <div id="sessPanel">
       <canvas id="portrait" width="320" height="320"></canvas>
       <div class="cname"><span id="cName">—</span> <span class="pron" id="cPron"></span></div>
       <div class="tags" id="cTags"></div>
-      <div class="req" id="cReq">Waiting for a client…</div>
+      <div class="req" id="cReq">Loading…</div>
       <div class="meter"><div class="lbl"><span>😌 Relaxation</span><span id="relaxPct">0%</span></div><div class="bar"><div id="relaxFill"></div></div></div>
       <div class="meter"><div class="lbl"><span>💗 Comfort</span><span id="comfortPct">0%</span></div><div class="bar"><div id="comfortFill"></div></div></div>
       <h4>Focus areas</h4>
       <div id="focusList"></div>
       <h4>What you know</h4>
       <div id="knowList"></div>
+      </div>
     </aside>
     <div id="stage"><canvas id="game"></canvas><div id="toast"></div></div>
   </div>
   <div id="toolbar">
-    <div class="grp"><span class="gl">Tool</span>
+    <div class="grp" id="worldTools"><button id="bInteract" class="primary">✋ Interact<kbd>E</kbd></button><button id="bShopW">🛍️ Upgrades</button></div>
+    <div class="grp sessOnly"><span class="gl">Tool</span>
       <button id="tHands" class="on">✋ Hands<kbd>Q</kbd></button>
       <button id="tOil">💧 Oil<kbd>W</kbd></button>
       <select id="scentSel" title="Oil scent"></select>
       <button id="tStone">🪨 Hot Stones<kbd>R</kbd></button>
     </div>
-    <div class="grp"><span class="gl">Pressure</span>
+    <div class="grp sessOnly"><span class="gl">Pressure</span>
       <button id="p1">Light<kbd>1</kbd></button>
       <button id="p2" class="on">Medium<kbd>2</kbd></button>
       <button id="p3">Firm<kbd>3</kbd></button>
     </div>
     <div class="grp">
-      <button id="bHeat">🔥 Tension view<kbd>T</kbd></button>
-      <button id="bTalk">💬 Talk<kbd>C</kbd></button>
+      <button id="bHeat" class="sessOnly">🔥 Tension view<kbd>T</kbd></button>
+      <button id="bTalk" class="sessOnly">💬 Talk<kbd>C</kbd></button>
       <button id="bMusic">🎵 Music<kbd>M</kbd></button>
       <button id="bPause">⏸<kbd>Esc</kbd></button>
     </div>
-    <button id="bEnd" class="primary">✔ End Session<kbd>E</kbd></button>
+    <button id="bEnd" class="primary sessOnly">✔ End Session<kbd>E</kbd></button>
   </div>
 </div>
 <div id="overlay"><div class="modal" id="modal"></div></div>
+<div id="fade"></div>
+<noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#141a1c;color:#eef3f1;font:18px sans-serif;padding:24px;text-align:center">Serenity Hands needs JavaScript. Open this file in Chrome, Edge, Firefox or Safari.</div></noscript>
 
 <script>
 'use strict';
@@ -358,15 +389,15 @@ function buildLayout(b) {
   P.torso = t;
   for (const [k, s] of [['T', -1], ['B', 1]]) {
     const ay = v => CY + s * v;
-    P['arm' + k] = limbPath([{ x: 366, y: ay(sw + 4), r: 19 * lf }, { x: 420, y: ay(sw + 10), r: 17 * lf }, { x: 472, y: ay((sw + hw) / 2 + 16), r: 13 * lf },
-      { x: 528, y: ay(hw + 20), r: 14.5 * lf }, { x: 588, y: ay(hw + 24), r: 10.5 }]);
-    P['hand' + k] = handPath(604, ay(hw + 25), -s);
+    P['arm' + k] = limbPath([{ x: 366, y: ay(sw + 4), r: 19 * lf }, { x: 420, y: ay(sw + 10), r: 17 * lf }, { x: 480, y: ay((sw + hw) / 2 + 18), r: 13 * lf },
+      { x: 560, y: ay(hw + 24), r: 14 * lf }, { x: 630, y: ay(hw + 29), r: 10.5 }]);
+    P['hand' + k] = handPath(646, ay(hw + 30), -s);
     P['leg' + k] = limbPath([{ x: 830, y: ay(ls), r: 33 * lf }, { x: 900, y: ay(ls + 2), r: 31 * lf }, { x: 965, y: ay(ls + 1), r: 24 * lf }, { x: 1040, y: ay(ls), r: 13 }]);
     const f = new Path2D(); f.ellipse(1072, ay(ls), 32, 17.5, 0, 0, Math.PI * 2); P['foot' + k] = f;
     Z['shoulder' + k] = { x: 352, y: ay(sw * 0.62), rx: 40, ry: sw * 0.36, rot: 0 };
-    const a1 = { x: 366, y: ay(sw + 4) }, a2 = { x: 588, y: ay(hw + 24) };
+    const a1 = { x: 366, y: ay(sw + 4) }, a2 = { x: 630, y: ay(hw + 29) };
     Z['arm' + k] = { x: (a1.x + a2.x) / 2, y: (a1.y + a2.y) / 2, rx: 120, ry: 17, rot: Math.atan2(a2.y - a1.y, a2.x - a1.x) };
-    Z['hand' + k] = { x: 612, y: ay(hw + 25), rx: 26, ry: 14, rot: 0 };
+    Z['hand' + k] = { x: 654, y: ay(hw + 30), rx: 26, ry: 14, rot: 0 };
     Z['calf' + k] = { x: 935, y: ay(ls), rx: 105, ry: 28, rot: 0 };
     Z['foot' + k] = { x: 1072, y: ay(ls), rx: 32, ry: 18, rot: 0 };
   }
@@ -412,13 +443,15 @@ const pcv = $('portrait'), pctx = pcv.getContext('2d');
 let K = 1;
 function resize() {
   const st = $('stage'), sw = st.clientWidth - 8, sh = st.clientHeight - 8;
-  const scale = Math.max(0.1, Math.min(sw / W, sh / H));
+  let scale = Math.max(0.1, Math.min(sw / W, sh / H));
+  // portrait phones: in the walkable world, fill the height and crop the sides (the camera keeps you centred)
+  if (typeof view !== 'undefined' && view === 'world' && sw < sh) scale = Math.max(scale, Math.min(sh / H, (sw * 2.4) / W));
   cv.style.width = Math.floor(W * scale) + 'px'; cv.style.height = Math.floor(H * scale) + 'px';
   const nk = clamp(scale * (window.devicePixelRatio || 1), 0.5, 2);
   if (Math.abs(nk - K) > 0.01 || cv.width !== Math.round(W * nk)) {
     K = nk;
     for (const c of [cv, bodyC, roomC, baseC]) { c.width = Math.round(W * K); c.height = Math.round(H * K); }
-    buildRoom(); if (ses) drawBodyBase();
+    buildRoom(); buildWorld(); if (ses) drawBodyBase();
   }
 }
 
@@ -571,10 +604,11 @@ function update(dt) {
   }
   for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i]; f.life -= dt; f.y -= 28 * dt; if (f.life <= 0) floaters.splice(i, 1); }
   if (bubble) { bubble.t -= dt; if (bubble.t <= 0) bubble = null; }
+  if (view === 'world') { if (state === 'world') updateWorld(dt); return; }
   if (state !== 'session' || !ses) return;
 
   const c = ses.c;
-  ses.minutes += dt * 0.75; // 1 real second = 0.75 in-game minutes
+  ses.minutes += dt; // 1 real second = 1 in-game minute
   ses.lineCd -= dt; ses.talkCd -= dt; ses.complainCd -= dt; ses.exprT -= dt;
   for (const z of ZONES) { ses.red[z] = Math.max(0, ses.red[z] - dt * 0.04); ses.oil[z] = Math.max(0, ses.oil[z] - dt * 0.005); }
 
@@ -800,7 +834,7 @@ function endSession(ask) {
   if (ask && ses.minutes < ses.c.duration * 0.5 && relaxScore() < 0.5) {
     showModal(`<h2>End the session early?</h2><p>${esc(ses.c.name)} still has a lot of tension and ${Math.round(ses.c.duration - ses.minutes)} minutes left on their booking. Ending now will probably hurt your rating.</p>`,
       [['Keep massaging', () => resume(), ''], ['End anyway', () => { hideModal(); state = 'session'; endSession(false); }, 'danger']]);
-    state = 'paused'; return;
+    prevState = 'session'; state = 'paused'; return;
   }
   state = 'results';
   const res = computeResult(false);
@@ -811,7 +845,6 @@ function endSession(ask) {
 function starStr(s) { let o = ''; for (let i = 1; i <= 5; i++) o += `<span class="st ${s >= i ? 'full' : s >= i - 0.5 ? 'half' : ''}">★</span>`; return `<span class="stw">${o}</span>`; }
 function showResults(res, quote) {
   const c = ses.c;
-  const last = S.clientNo >= todayTotal();
   showModal(`<h2>Session complete — ${esc(c.name)}</h2>
     <div class="stars">${starStr(res.stars)}</div>
     <div class="quote">“${esc(quote)}”</div>
@@ -825,7 +858,7 @@ function showResults(res, quote) {
       <div class="row"><span>Tip</span><b>$${res.tip}</b></div>
       <div class="row total"><span>Earned</span><span>$${res.pay + res.tip}</span></div>
     </div>`,
-    [[last ? 'Close up for the day →' : 'Next client →', () => last ? showDayEnd() : nextClient(), 'primary']]);
+    [['Back to the spa →', () => returnToWorld(), 'primary']]);
 }
 function showDayEnd() {
   state = 'dayEnd';
@@ -833,16 +866,16 @@ function showDayEnd() {
   S.money -= rent; S.day++; S.clientNo = 0; S.todayTotal = clientsToday();
   const log = S.dayLog; S.dayLog = []; saveGame(); refreshUI(true);
   showModal(`<h2>🌙 End of Day ${S.day - 1}</h2>
-    <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)} ${starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
+    <div class="rows">${log.map(l => `<div class="row"><span>${esc(l.name)} ${l.left ? '<span style="color:var(--muted)">left before being seen</span>' : starStr(l.stars)}</span><b>$${l.total}</b></div>`).join('')}
     <div class="row"><span>Earnings</span><b>$${earned}</b></div>
     <div class="row"><span>Rent & supplies</span><b>−$${rent}</b></div>
     <div class="row total"><span>Balance</span><span>$${S.money}</span></div></div>
     <p>Reputation: ⭐ ${rep().toFixed(2)} — expect <b>${clientsToday()}</b> clients tomorrow.${S.money < 0 ? ' <b style="color:var(--red)">You\'re in debt — focus on great sessions!</b>' : ''}</p>`,
-    [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => nextClient(), 'primary']]);
+    [['🛍️ Shop upgrades', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => startDayWorld(), 'primary']]);
 }
 function showDayEndAgain() {
   showModal(`<h2>☀️ Ready for Day ${S.day}?</h2><p>Balance: <b>$${S.money}</b> · Reputation ⭐ ${rep().toFixed(2)}</p>`,
-    [['🛍️ Shop', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => nextClient(), 'primary']]);
+    [['🛍️ Shop', () => showShop(() => showDayEndAgain()), ''], [`Start Day ${S.day} →`, () => startDayWorld(), 'primary']]);
 }
 function showShop(back) {
   const items = SHOP.map(it => {
@@ -854,7 +887,7 @@ function showShop(back) {
   $('modal').querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
     const it = SHOP.find(i => i.id === b.dataset.buy);
     if (!it || S.owned[it.id] || S.money < it.price) return;
-    S.money -= it.price; S.owned[it.id] = true; saveGame(); buildRoom(); refreshScents(); refreshUI(true); cashSound();
+    S.money -= it.price; S.owned[it.id] = true; saveGame(); buildRoom(); buildWorld(); refreshScents(); refreshUI(true); cashSound();
     showShop(back);
   });
 }
@@ -881,19 +914,30 @@ function innerShade(g, path, color, width) {
 function drawBodyBase() { // static skin, shading & anatomy — rendered once per client
   const g = basectx, c = ses.c, b = c.body, sk = b.skin, { P, Z } = ses.L;
   g.setTransform(K, 0, 0, K, 0, 0); g.clearRect(0, 0, W, H);
+  const warm = 'rgba(120,45,30,', lite = 'rgba(255,245,235,';
+  const soft = (blur, fn) => { g.save(); g.filter = `blur(${blur}px)`; fn(); fn(); g.restore(); }; // two passes deepen the forms
+  const sStroke = (pts, w, col) => { g.lineWidth = w; g.strokeStyle = col; g.beginPath(); g.moveTo(...pts[0]); if (pts.length === 3) g.quadraticCurveTo(...pts[1], ...pts[2]); else if (pts.length === 4) g.bezierCurveTo(...pts[1], ...pts[2], ...pts[3]); else g.lineTo(...pts[1]); g.stroke(); };
+  const sBlob = (x, y, rx, ry, rot, col) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, rot, 0, 7); g.fill(); };
   const parts = [P.armT, P.armB, P.handT, P.handB, P.legT, P.legB, P.footT, P.footB, P.torso, P.head];
   // drop shadow onto sheet
   g.save(); g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.fillStyle = sk.base;
   for (const p of parts) g.fill(p); g.restore();
-  for (const p of parts) { g.fillStyle = sk.base; g.fill(p); innerShade(g, p, sk.shade, 18); g.lineWidth = 1.6; g.strokeStyle = sk.line; g.stroke(p); }
+  for (const p of parts) { g.fillStyle = sk.base; g.fill(p); innerShade(g, p, sk.shade, 18); innerShade(g, p, 'rgba(170,70,50,.22)', 6); g.lineWidth = 1.1; g.strokeStyle = rgba(sk.line, 0.8); g.stroke(p); }
+  // client hands: knuckles, tendons and nails
+  for (const k of ['T', 'B']) { const hz = Z['hand' + k]; g.save(); g.clip(P['hand' + k]);
+    for (let i = 0; i < 4; i++) { const fy = hz.y - 8 - 8 + i * 5.3 + 8; soft(1.5, () => sBlob(hz.x - 2, fy, 2.6, 2, 0, lite + '.3)')); sBlob(hz.x + 18 - Math.abs(i - 1.5) * 1.6, fy, 2.4, 1.6, 0, 'rgba(255,230,225,.55)'); }
+    soft(1, () => { for (let i = 0; i < 4; i++) sStroke([[hz.x - 18, hz.y - 3 + i * 2], [hz.x - 4, hz.y - 8 + i * 5.3]], 1, warm + '.12)'); }); g.restore(); }
   // ears
   for (const s of [-1, 1]) { g.fillStyle = sk.base; g.beginPath(); g.ellipse(262, CY + s * 41, 10, 6, 0, 0, 7); g.fill(); g.strokeStyle = sk.line; g.lineWidth = 1.4; g.stroke(); }
-  // foot soles
+  // foot soles (face-down, so we see heels, arches, balls of the feet and toe pads)
   for (const k of ['T', 'B']) {
-    const z = Z['foot' + k]; g.save(); g.clip(P['foot' + k]);
-    g.fillStyle = rgba('#ffd9c9', 0.35); g.beginPath(); g.ellipse(z.x + 4, z.y, 22, 11, 0, 0, 7); g.fill();
-    g.strokeStyle = rgba(sk.line, 0.4); g.lineWidth = 1;
-    for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(z.x + 30, z.y - 11 + i * 5.5, 3, Math.PI * 0.5, Math.PI * 1.5); g.stroke(); }
+    const z = Z['foot' + k], inner = k === 'T' ? 1 : -1; g.save(); g.clip(P['foot' + k]);
+    const sole = g.createLinearGradient(z.x - 32, 0, z.x + 32, 0); sole.addColorStop(0, 'rgba(255,215,200,.38)'); sole.addColorStop(1, 'rgba(255,200,190,.26)');
+    g.fillStyle = sole; g.fillRect(z.x - 34, z.y - 20, 68, 40);
+    soft(3, () => { sBlob(z.x - 17, z.y, 11, 10, 0, lite + '.28)'); sBlob(z.x + 2, z.y + inner * 7, 13, 5, 0, warm + '.2)'); sBlob(z.x + 17, z.y - inner * 1, 7, 12, 0, lite + '.24)'); });
+    for (let i = 0; i < 5; i++) { const ty = z.y + inner * (11 - i * 5.2), tr = i === 0 ? 4.4 : 3.5 - i * 0.25;
+      g.fillStyle = 'rgba(255,205,195,.9)'; g.beginPath(); g.arc(z.x + 28 - i * 0.6, ty, tr, 0, 7); g.fill(); g.strokeStyle = rgba(sk.line, 0.45); g.lineWidth = 0.8; g.stroke(); }
+    soft(1, () => { g.strokeStyle = warm + '.18)'; g.lineWidth = 0.9; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(z.x + 6 + i * 4, z.y, 8, Math.PI * 0.6, Math.PI * 1.4); g.stroke(); } });
     g.restore();
   }
   // anatomical details on top of skin
@@ -903,35 +947,44 @@ function drawBodyBase() { // static skin, shading & anatomy — rendered once pe
   g.fillStyle = hl; g.fillRect(0, 0, W, H);
   // skin surface: pores & fine colour variation
   g.fillStyle = g.createPattern(PORES, 'repeat'); g.fillRect(0, 0, W, H);
-  for (const [x, y, rx, ry, col] of [[472, CY - (b.sw + b.hw) / 2 - 16, 14, 10, 'rgba(200,90,80,.12)'], [472, CY + (b.sw + b.hw) / 2 + 16, 14, 10, 'rgba(200,90,80,.12)'],
+  for (const [x, y, rx, ry, col] of [[480, CY - (b.sw + b.hw) / 2 - 18, 14, 10, 'rgba(200,90,80,.12)'], [480, CY + (b.sw + b.hw) / 2 + 18, 14, 10, 'rgba(200,90,80,.12)'],
     [352, CY - b.sw * 0.75, 30, 16, 'rgba(210,110,90,.08)'], [352, CY + b.sw * 0.75, 30, 16, 'rgba(210,110,90,.08)'], [1090, CY - b.ls, 18, 14, 'rgba(220,100,90,.14)'],
-    [1090, CY + b.ls, 18, 14, 'rgba(220,100,90,.14)'], [540, CY, 60, b.ww * 0.7, 'rgba(120,110,160,.035)'], [614, CY - b.hw - 25, 14, 9, 'rgba(210,100,90,.12)'], [614, CY + b.hw + 25, 14, 9, 'rgba(210,100,90,.12)']])
+    [1090, CY + b.ls, 18, 14, 'rgba(220,100,90,.14)'], [540, CY, 60, b.ww * 0.7, 'rgba(120,110,160,.035)'], [656, CY - b.hw - 30, 14, 9, 'rgba(210,100,90,.12)'], [656, CY + b.hw + 30, 14, 9, 'rgba(210,100,90,.12)']])
     blob(g, { x, y, rx, ry, rot: 0 }, col, 1);
-  g.strokeStyle = rgba(sk.deep, 0.55); g.lineCap = 'round';
-  // spine
-  g.lineWidth = 3; g.filter = 'blur(1.5px)';
-  g.beginPath(); g.moveTo(318, CY); g.bezierCurveTo(400, CY + 2, 480, CY - 2, 600, CY); g.stroke();
-  // shoulder blades
-  g.lineWidth = 2.4;
+  const mus = b.muscle ? 1 : 0, def = clamp(0.55 + 0.45 * mus - 0.4 * b.soft, 0.25, 1); // how much muscle shows through the skin
+  g.lineCap = 'round';
+  // spinal groove between the erector columns, deepest at the lower back
+  soft(3, () => sStroke([[318, CY], [400, CY + 1], [480, CY - 1], [600, CY]], 5, warm + (0.22 * def + 0.08) + ')'));
+  soft(6, () => { for (const s of [-1, 1]) { sStroke([[470, CY + s * 12], [520, CY + s * 13], [560, CY + s * 13], [600, CY + s * 12]], 12, lite + (0.16 * def) + ')'); sStroke([[460, CY + s * 26], [520, CY + s * 28], [600, CY + s * 26]], 8, warm + (0.1 * def) + ')'); } });
+  soft(2, () => { sBlob(320, CY, 5, 4, 0, lite + '.25)'); sBlob(326, CY, 3, 4, 0, warm + '.12)'); }); // C7 vertebra
   for (const s of [-1, 1]) {
-    g.beginPath(); g.moveTo(395, CY + s * b.sw * 0.18); g.quadraticCurveTo(430, CY + s * b.sw * 0.12, 462, CY + s * b.sw * 0.34); g.quadraticCurveTo(440, CY + s * b.sw * 0.66, 400, CY + s * b.sw * 0.6); g.stroke();
-    // trapezius line
-    g.beginPath(); g.moveTo(312, CY + s * (b.nw + 2)); g.quadraticCurveTo(340, CY + s * b.sw * 0.55, 372, CY + s * b.sw * 0.82); g.stroke();
-    // lower ribs show faintly through thinner soft tissue
-    if (b.soft < 0.45) { g.save(); g.globalAlpha = 0.5 - b.soft; for (let r = 0; r < 4; r++) { const x = 440 + r * 16; g.beginPath(); g.moveTo(x, CY + s * b.ww * 0.55); g.quadraticCurveTo(x + 10, CY + s * (b.ww * 0.8 + 6), x + 24, CY + s * (b.ww + 4 + (3 - r) * 4)); g.stroke(); } g.restore(); }
-    // lower back dimples
-    g.beginPath(); g.arc(578, CY + s * 18, 3, 0, 7); g.stroke();
-    if (b.muscle) { // lats & deltoids
-      g.beginPath(); g.moveTo(410, CY + s * b.sw * 0.82); g.quadraticCurveTo(470, CY + s * b.ww * 0.75, 520, CY + s * b.ww * 0.55); g.stroke();
-      g.beginPath(); g.arc(370, CY + s * (b.sw - 4), 16, s < 0 ? Math.PI * 0.1 : Math.PI * 1.1, s < 0 ? Math.PI * 0.9 : Math.PI * 1.9); g.stroke();
-      g.beginPath(); g.moveTo(330, CY + s * 8); g.lineTo(380, CY + s * 14); g.stroke();
-    }
-    // calf muscles & achilles
-    const ly = CY + s * b.ls;
-    g.beginPath(); g.moveTo(870, ly); g.quadraticCurveTo(930, ly + 2, 990, ly); g.stroke();
-    g.beginPath(); g.moveTo(1000, ly); g.lineTo(1040, ly); g.stroke();
-    // elbow
-    g.beginPath(); g.arc(472, CY + s * ((b.sw + b.hw) / 2 + 16), 4, 0, 7); g.stroke();
+    const Y = v => CY + s * v, eyv = (b.sw + b.hw) / 2 + 18, ly = b.ls;
+    // trapezius
+    soft(7, () => sBlob(338, Y(b.sw * 0.45), 26, b.sw * 0.2, s * 0.3, lite + (0.12 + 0.08 * def) + ')'));
+    soft(3, () => { sStroke([[314, Y(b.nw + 3)], [340, Y(b.sw * 0.55)], [372, Y(b.sw * 0.84)]], 2.4, warm + (0.18 * def + 0.06) + ')'); sStroke([[372, Y(b.sw * 0.66)], [420, Y(b.sw * 0.4)], [474, Y(8)]], 2, warm + (0.12 * def) + ')'); });
+    // scapula: raised plate, medial border, spine ridge, inferior angle
+    soft(5, () => { g.fillStyle = lite + (0.13 + 0.05 * def) + ')'; g.beginPath(); g.moveTo(392, Y(b.sw * 0.2)); g.quadraticCurveTo(430, Y(b.sw * 0.18), 462, Y(b.sw * 0.34)); g.quadraticCurveTo(440, Y(b.sw * 0.62), 400, Y(b.sw * 0.66)); g.closePath(); g.fill(); });
+    soft(2.5, () => { sStroke([[392, Y(b.sw * 0.2)], [430, Y(b.sw * 0.17)], [463, Y(b.sw * 0.34)]], 2.6, warm + (0.24 * def + 0.06) + ')'); sStroke([[463, Y(b.sw * 0.34)], [452, Y(b.sw * 0.46)], [438, Y(b.sw * 0.55)]], 2.2, warm + (0.16 * def) + ')');
+      sStroke([[392, Y(b.sw * 0.24)], [384, Y(b.sw * 0.5)], [374, Y(b.sw * 0.76)]], 2.2, lite + '.22)'); sStroke([[397, Y(b.sw * 0.25)], [390, Y(b.sw * 0.5)], [380, Y(b.sw * 0.76)]], 1.8, warm + (0.14 * def) + ')'); });
+    // deltoid
+    soft(6, () => sBlob(370, Y(b.sw - 5), 17, 11, 0, lite + (0.12 + 0.08 * def) + ')'));
+    soft(2.5, () => sStroke([[388, Y(b.sw - 18)], [396, Y(b.sw - 6)], [392, Y(b.sw + 6)]], 2, warm + (0.14 * def) + ')'));
+    // infraspinatus bulge and latissimus sweep down the flank
+    if (mus) soft(7, () => sBlob(428, Y(b.sw * 0.48), 22, 12, s * 0.2, lite + '.12)'));
+    soft(8, () => sStroke([[420, Y(b.sw * 0.86)], [470, Y(b.ww * 0.95)], [540, Y(b.ww * 0.92)]], 10, warm + (0.1 + 0.08 * def) + ')'));
+    soft(6, () => sStroke([[430, Y(b.sw * 0.7)], [480, Y(b.ww * 0.7)], [530, Y(b.ww * 0.55)]], 8, lite + (0.08 * def) + ')'));
+    if (b.soft < 0.45) soft(2, () => { for (let r = 0; r < 4; r++) { const x = 440 + r * 16; sStroke([[x, Y(b.ww * 0.55)], [x + 10, Y(b.ww * 0.8 + 6)], [x + 24, Y(b.ww + 4 + (3 - r) * 4)]], 1.6, warm + (0.24 * (0.45 - b.soft)) + ')'); } });
+    if (b.soft > 0.55) soft(4, () => sStroke([[520, Y(b.ww - 3)], [545, Y(b.ww + 1)], [565, Y(b.hw - 10)]], 3, warm + '.14)'));
+    soft(2, () => sBlob(586, Y(17), 3.6, 3, 0, warm + '.32)')); // sacral dimples
+    // arm: triceps, elbow point, forearm extensors, wrist bone
+    soft(5, () => sStroke([[380, Y(b.sw + 2)], [430, Y(b.sw + 8)], [470, Y(eyv - 4)]], 7, lite + '.16)'));
+    soft(2, () => { sBlob(480, Y(eyv), 4.5, 3.5, 0, lite + '.3)'); sStroke([[485, Y(eyv - 4)], [486, Y(eyv)], [485, Y(eyv + 4)]], 1.2, warm + '.25)'); });
+    soft(4, () => sStroke([[495, Y(eyv + 2)], [560, Y(b.hw + 24)], [618, Y(b.hw + 28)]], 6, lite + '.12)'));
+    soft(1.5, () => sBlob(626, Y(b.hw + 34), 2.6, 2, 0, lite + '.35)'));
+    // calves: gastrocnemius heads, the groove between them, achilles tendon
+    soft(7, () => { sBlob(895, Y(ly) - 11, 46, 9, 0, lite + (0.14 + 0.06 * def) + ')'); sBlob(890, Y(ly) + 11, 42, 8, 0, lite + (0.1 + 0.05 * def) + ')'); });
+    soft(3, () => { sStroke([[860, Y(ly)], [905, Y(ly) + 1], [950, Y(ly)]], 2.4, warm + (0.18 * def + 0.05) + ')'); sStroke([[935, Y(ly) - 22], [965, Y(ly) - 14], [990, Y(ly) - 7]], 2, warm + '.1)'); sStroke([[935, Y(ly) + 22], [965, Y(ly) + 14], [990, Y(ly) + 7]], 2, warm + '.1)'); });
+    soft(3, () => { sStroke([[985, Y(ly)], [1040, Y(ly)]], 5, lite + '.22)'); sStroke([[990, Y(ly) - 6], [1038, Y(ly) - 5]], 1.6, warm + '.16)'); sStroke([[990, Y(ly) + 6], [1038, Y(ly) + 5]], 1.6, warm + '.16)'); });
   }
   g.filter = 'none';
   // freckles, moles, tattoo
@@ -1058,6 +1111,8 @@ function drawHair() {
   } else g.ellipse(240, CY, rx, ry, 0, 0, 7);
   g.fill(); g.stroke();
   if (st === 'undercut') { g.fillStyle = rgba(dk, 0.6); g.beginPath(); g.ellipse(274, CY, 14, 30, 0, 0, 7); g.fill(); }
+  g.strokeStyle = rgba(col, 0.55); g.lineWidth = 0.9; // fine hairs at the nape
+  for (let i = -6; i <= 6; i++) { g.beginPath(); g.moveTo(rx + 236, CY + i * 3.2); g.lineTo(rx + 242 + (i * 7 % 5), CY + i * 3.6); g.stroke(); }
   // strands
   g.strokeStyle = rgba(dk, 0.55); g.lineWidth = 1.2;
   for (let i = -5; i <= 5; i++) { g.beginPath(); g.moveTo(258, CY + i * 2); g.quadraticCurveTo(240 + Math.abs(i) * 2, CY + i * 6, 204, CY + i * 8.5); g.stroke(); }
@@ -1230,8 +1285,10 @@ function render() {
   const g = ctx; g.setTransform(1, 0, 0, 1, 0, 0);
   g.drawImage(roomC, 0, 0);
   g.setTransform(K, 0, 0, K, 0, 0);
-  drawCandle();
-  if (ses && state !== 'title') {
+  cv.style.cursor = view === 'world' ? 'pointer' : 'none';
+  if (view === 'world') { renderWorld(); g.setTransform(K, 0, 0, K, 0, 0); }
+  else { drawCandle(); }
+  if (view === 'world') {} else if (ses && state !== 'title') {
     drawBody();
     g.save(); g.translate(ses.shift.x, ses.shift.y);
     g.drawImage(bodyC, 0, 0, W, H); drawTowel(); drawHair(); drawStones(); drawKnots();
@@ -1373,12 +1430,12 @@ function showModal(html, buttons) {
 function hideModal() { $('overlay').classList.remove('show'); }
 let prevState = 'session';
 function pause() {
-  if (state !== 'session') return;
-  prevState = state; state = 'paused'; ptr.down = false;
+  if (state !== 'session' && state !== 'world') return;
+  prevState = state; state = 'paused'; ptr.down = false; keys.clear();
   showModal(`<h2>⏸ Paused</h2><p>Take a breath. Your client is relaxing.</p>`,
-    [['▶ Resume', () => resume(), 'primary'], ['❓ How to play', () => showHelp(() => { state = 'session'; pause(); }), ''], ['🏠 Save & quit to title', () => { saveGame(); ses = null; showTitle(); }, 'danger']]);
+    [['▶ Resume', () => resume(), 'primary'], ['❓ How to play', () => showHelp(() => { state = prevState; pause(); }), ''], ['🏠 Save & quit to title', () => { saveGame(); ses = null; showTitle(); }, 'danger']]);
 }
-function resume() { hideModal(); state = 'session'; }
+function resume() { hideModal(); state = prevState || 'session'; }
 function showHelp(back) {
   showModal(`<h2>❓ How to play</h2><ul class="help">
     <li><b>Massage:</b> hold the mouse (or your finger) and rub over the client. Rubbing back and forth works the muscle.</li>
@@ -1392,7 +1449,7 @@ function showHelp(back) {
     [['Got it', back, 'primary']]);
 }
 function showTitle() {
-  state = 'title'; hideModal();
+  state = 'title'; view = 'world'; ses = null; document.body.classList.add('world'); hideModal();
   const cont = hasSave();
   showModal(`<h1>🌿 Serenity Hands</h1>
     <p>You're a massage therapist opening your own little spa. Read each client, find their knots, choose the right oil and pressure,
@@ -1404,7 +1461,7 @@ function showTitle() {
 function afterLoad() {
   refreshScents(); buildRoom(); refreshUI(true);
   if (!S.todayTotal) S.todayTotal = clientsToday();
-  if (S.clientNo >= todayTotal()) showDayEndAgain(); else nextClient();
+  if (S.clientNo >= todayTotal()) { state = 'dayEnd'; showDayEndAgain(); } else startDayWorld();
 }
 
 // ---------- Audio (soft ambient pad + chimes) ----------
@@ -1451,6 +1508,17 @@ function toLogical(e) { const r = cv.getBoundingClientRect(); return { x: (e.cli
 cv.addEventListener('pointerdown', e => {
   initAudio(); const p = toLogical(e); ptr.x = ptr.lx = p.x; ptr.y = ptr.ly = p.y; ptr.inside = true; ptr.touch = e.pointerType !== 'mouse';
   if (e.button !== 0 && e.pointerType === 'mouse') return;
+  if (view === 'world') {
+    if (state !== 'world') return;
+    const wx = p.x + world.cam.x, wy = p.y + world.cam.y;
+    let hit = null, hd = 46;
+    for (const it of interactables()) { const d = Math.min(dist(wx, wy, it.x, it.y - (it.ent ? 60 : 0)), dist(wx, wy, it.spot.x, it.spot.y)); if (d < hd) { hd = d; hit = it; } }
+    if (hit && !hit.label.startsWith('Bring')) {
+      if (dist(player.x, player.y, hit.spot.x, hit.spot.y) < 72) { hit.act(); return; }
+      player.goal = hit; player.path = findPath(player.x, player.y, hit.spot.x, hit.spot.y);
+    } else { player.goal = null; player.path = findPath(player.x, player.y, wx, wy); }
+    return;
+  }
   ptr.down = true; try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   if (state !== 'session' || !ses) return;
   const z = zoneAt(p.x, p.y);
@@ -1467,7 +1535,9 @@ cv.addEventListener('lostpointercapture', up);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('wheel', e => { if (state !== 'session') return; e.preventDefault(); setPressure(pressure + (e.deltaY > 0 ? -1 : 1)); }, { passive: false });
 window.addEventListener('blur', () => { up(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'session') pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (state === 'session' || state === 'world')) pause(); });
+window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur', () => keys.clear());
 function setTool(t) {
   if (t === 'stone' && !S.owned.stones) { toast('🪨 Buy the Hot Stone Set in the shop to unlock stones.'); return; }
   tool = t; refreshUI(true);
@@ -1481,10 +1551,18 @@ $('bTalk').onclick = () => talk();
 $('bMusic').onclick = () => { initAudio(); toggleMusic(); };
 $('bPause').onclick = () => state === 'paused' ? resume() : pause();
 $('bEnd').onclick = () => endSession(true);
+$('bInteract').onclick = () => { initAudio(); interact(); };
+$('bShopW').onclick = () => { if (state === 'world') openShopWorld(); };
 window.addEventListener('keydown', e => {
   if (e.target.tagName === 'SELECT') return;
   const k = e.key.toLowerCase();
-  if (k === 'escape') { if (state === 'session') pause(); else if (state === 'paused') resume(); return; }
+  if (k === 'escape') { if (state === 'session' || state === 'world') pause(); else if (state === 'paused') resume(); return; }
+  if (state === 'world') {
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k)) e.preventDefault();
+    if (k === 'e' || k === ' ' || k === 'enter') { if (!e.repeat) interact(); return; }
+    if (k === 'm') { initAudio(); toggleMusic(); return; }
+    keys.add(k); return;
+  }
   if (state !== 'session') return;
   if (k === 'q') setTool('hands'); else if (k === 'w') setTool('oil'); else if (k === 'r') setTool('stone');
   else if (k === '1' || k === '2' || k === '3') setPressure(+k);
@@ -1493,6 +1571,525 @@ window.addEventListener('keydown', e => {
   else if (k === 'e') endSession(true);
 });
 window.addEventListener('resize', resize);
+
+// ---------- Spa world (free roam) ----------
+const WW = 2000, WH = 1400, CELL = 20, GC = WW / CELL, GR = WH / CELL, PR = 13, PS = 1.55; // PS: person sprite scale (1px ≈ 1cm)
+const solids = [];
+const SR = (x, y, w, h, kind) => { const r = { x, y, w, h, kind }; solids.push(r); return r; };
+// world edges
+SR(-40, -40, WW + 80, 40); SR(-40, WH, WW + 80, 40); SR(-40, 0, 40, WH); SR(WW, 0, 40, WH);
+// outer walls — entrance gap x 940–1060 on the south wall
+SR(200, 100, 1600, 20, 'wall'); SR(200, 100, 20, 1000, 'wall'); SR(1780, 100, 20, 1000, 'wall');
+SR(200, 1080, 740, 20, 'wall'); SR(1060, 1080, 740, 20, 'wall');
+// west/east divider with the hallway opening at y 620–740
+SR(1100, 120, 20, 500, 'wall'); SR(1100, 740, 20, 340, 'wall');
+// treatment room (north) and tea lounge (south) open off the hallway through doors at x 1400–1500
+SR(1120, 600, 280, 20, 'wall'); SR(1500, 600, 280, 20, 'wall'); SR(1120, 760, 280, 20, 'wall'); SR(1500, 760, 280, 20, 'wall');
+// relaxation room, door at x 600–720
+SR(220, 560, 380, 20, 'wall'); SR(720, 560, 380, 20, 'wall');
+const F = {
+  desk: SR(300, 826, 250, 58), sofa: SR(730, 626, 260, 66), coffee: SR(800, 756, 120, 40), cabinet: SR(222, 616, 46, 150),
+  fountain: SR(600, 950, 84, 84), plantL1: SR(232, 1030, 40, 40), plantL2: SR(1050, 590, 36, 36),
+  table: SR(1340, 236, 220, 104), cart: SR(1640, 132, 124, 58), shelf: SR(1124, 136, 44, 150), plantA: SR(1730, 540, 40, 44),
+  tea: SR(1600, 782, 172, 56), lowtable: SR(1310, 920, 150, 80), zen: SR(1136, 960, 140, 104), plantB: SR(1730, 1030, 40, 40),
+  lockers: SR(240, 122, 400, 42), lounger1: SR(770, 230, 74, 160), lounger2: SR(900, 230, 74, 160), bench: SR(300, 420, 180, 46), plantC: SR(1050, 130, 40, 40),
+  pond: SR(300, 1190, 240, 140), tree1: SR(100, 1180, 44, 44), tree2: SR(1700, 1220, 44, 44), tree3: SR(1880, 300, 44, 44), tree4: SR(60, 400, 44, 44), tree5: SR(1300, 1300, 44, 44), tree6: SR(1880, 800, 44, 44),
+  lantern1: SR(900, 1160, 26, 26), lantern2: SR(1074, 1160, 26, 26),
+};
+const SPOT = { door: { x: 1000, y: 1050 }, gate: { x: 1000, y: 1385 }, desk: { x: 425, y: 912 }, table: { x: 1450, y: 382 }, cabinet: { x: 292, y: 690 }, tea: { x: 1686, y: 872 },
+  seats: [{ x: 772, y: 704 }, { x: 860, y: 704 }, { x: 948, y: 704 }], seatFrontY: 738, start: { x: 1000, y: 980 } };
+
+function circleRect(x, y, r, b) { const cx = clamp(x, b.x, b.x + b.w), cy = clamp(y, b.y, b.y + b.h); return (x - cx) ** 2 + (y - cy) ** 2 < r * r; }
+function isFree(x, y, r) { for (const b of solids) if (circleRect(x, y, r, b)) return false; return true; }
+const grid = new Uint8Array(GC * GR);
+for (let j = 0; j < GR; j++) for (let i = 0; i < GC; i++) grid[j * GC + i] = isFree(i * CELL + CELL / 2, j * CELL + CELL / 2, PR) ? 1 : 0;
+function cellOf(x, y) { return [clamp(Math.floor(x / CELL), 0, GC - 1), clamp(Math.floor(y / CELL), 0, GR - 1)]; }
+function nearestFree(i, j) {
+  if (grid[j * GC + i]) return [i, j];
+  for (let r = 1; r < 12; r++) for (let dj = -r; dj <= r; dj++) for (let di = -r; di <= r; di++) {
+    const a = i + di, b = j + dj; if (a >= 0 && b >= 0 && a < GC && b < GR && grid[b * GC + a]) return [a, b];
+  }
+  return [i, j];
+}
+function lineFree(ax, ay, bx, by) { const n = Math.ceil(dist(ax, ay, bx, by) / 8); for (let k = 1; k <= n; k++) { const t = k / n; if (!isFree(lerp(ax, bx, t), lerp(ay, by, t), PR - 1)) return false; } return true; }
+function findPath(sx, sy, tx, ty) {
+  let [si, sj] = nearestFree(...cellOf(sx, sy)), [ti, tj] = nearestFree(...cellOf(tx, ty));
+  const start = sj * GC + si, goal = tj * GC + ti;
+  const gs = new Float32Array(GC * GR).fill(1e9), from = new Int32Array(GC * GR).fill(-1), closed = new Uint8Array(GC * GR);
+  const heap = []; const push = (n, f) => { heap.push([f, n]); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = i * 2 + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top[1]; };
+  const h = n => Math.hypot(n % GC - ti, Math.floor(n / GC) - tj);
+  gs[start] = 0; push(start, h(start));
+  while (heap.length) {
+    const n = pop(); if (n === goal) break; if (closed[n]) continue; closed[n] = 1;
+    const ci = n % GC, cj = Math.floor(n / GC);
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      if (!di && !dj) continue; const a = ci + di, b = cj + dj; if (a < 0 || b < 0 || a >= GC || b >= GR) continue;
+      const m = b * GC + a; if (!grid[m] || closed[m]) continue;
+      if (di && dj && (!grid[cj * GC + a] || !grid[b * GC + ci])) continue; // no corner cutting
+      const g2 = gs[n] + (di && dj ? 1.414 : 1); if (g2 < gs[m]) { gs[m] = g2; from[m] = n; push(m, g2 + h(m)); }
+    }
+  }
+  if (from[goal] < 0 && goal !== start) return [{ x: tx, y: ty }];
+  const pts = []; for (let n = goal; n !== -1 && n !== start; n = from[n]) pts.push({ x: (n % GC) * CELL + CELL / 2, y: Math.floor(n / GC) * CELL + CELL / 2 });
+  pts.reverse(); if (isFree(tx, ty, PR - 1)) pts.push({ x: tx, y: ty });
+  // string-pull: skip waypoints that are in direct line of sight
+  const out = []; let cx = sx, cy = sy, i = 0;
+  while (i < pts.length) { let k = pts.length - 1; while (k > i && !lineFree(cx, cy, pts[k].x, pts[k].y)) k--; out.push(pts[k]); cx = pts[k].x; cy = pts[k].y; i = k + 1; }
+  return out;
+}
+
+// ---------- People in the world ----------
+const OUTFITS = [['#e8d9c4', '#4a5a78'], ['#c9506b', '#2f3440'], ['#4d8fb8', '#e9e4da'], ['#f2c14e', '#3a3a46'], ['#7a5cb0', '#2c2c36'], ['#2f7d6d', '#d8cfc0'],
+  ['#ffffff', '#3b4f6b'], ['#d97b4a', '#2f2a26'], ['#9bb7d4', '#5a4636'], ['#1f2328', '#8a6a52'], ['#e88fb0', '#f3efe7'], ['#6b8f5a', '#2e2a24']];
+function lookFor(c) {
+  const b = c.body, [top, bottom] = pick(OUTFITS);
+  return { skin: b.skin.base, hairColor: b.hairColor, hair: b.hair, eye: b.eye, masc: b.masc, top, bottom, shoe: pick(['#f4f4f4', '#2b2b2b', '#b07a50', '#c94f4f']),
+    skirt: !b.masc && Math.random() < 0.3, sw: b.sw / 7.4, ww: b.ww / 6.6, hw: b.hw / 7.2, h: b.masc ? rand(1, 1.07) : rand(0.93, 1.02) };
+}
+const PLAYER_LOOK = { skin: '#d6a27a', hairColor: '#2a221e', hair: 'short', eye: '#4a3020', masc: true, top: '#2d6a6e', bottom: '#24494c', shoe: '#ececec', skirt: false, sw: 13.6, ww: 11.4, hw: 10, h: 1.07 };
+const player = { x: 1000, y: 980, dir: 'up', ph: 0, moving: false, path: null, goal: null, trail: [] };
+const ents = [];
+const world = { spawned: 0, spawnT: 1, cam: { x: 360, y: 640 }, curEnt: null, buildK: 0 };
+let view = 'world';
+
+function capsuleStroke(g, x1, y1, x2, y2, w, col, out) {
+  g.lineCap = 'round'; g.strokeStyle = out; g.lineWidth = w + 1.6; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+  g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+}
+function drawPerson(g, x, y, L, dir, ph, moving, pose, mood) {
+  g.save(); g.translate(x, y); g.scale(L.h * PS, L.h * PS);
+  g.fillStyle = 'rgba(0,0,0,.26)'; g.beginPath(); g.ellipse(0, 1, 15, 5.5, 0, 0, 7); g.fill();
+  const sit = pose === 'sit', sk = L.skin, ln = shade(sk, -0.45), sv = moving ? Math.sin(ph) : 0;
+  g.translate(0, moving ? -Math.abs(Math.cos(ph)) * 1.4 : 0);
+  const side = dir === 'left' || dir === 'right';
+  if (dir === 'left') g.scale(-1, 1);
+  const topD = shade(L.top, -0.35), botD = shade(L.bottom, -0.4), sw = L.sw, ww = L.ww, hw = L.hw;
+  const hy = -40, wy = -52, sy = -66, headY = -78, hr = 8.6;
+  // ---- legs
+  if (sit) { // hips on the cushion, thighs coming toward the viewer, shins down to the floor
+    for (const s of [-1, 1]) {
+      capsuleStroke(g, s * hw * 0.42, -15, s * hw * 0.5, -6, 6.4, L.skirt ? sk : L.bottom, L.skirt ? ln : botD);
+      g.fillStyle = L.shoe; g.beginPath(); g.ellipse(s * hw * 0.5, -2.5, 4.4, 3, 0, 0, 7); g.fill();
+      capsuleStroke(g, s * hw * 0.4, -24, s * hw * 0.48, -15, 9.5, L.bottom, botD);
+    }
+    if (L.skirt) { g.fillStyle = L.bottom; g.beginPath(); g.ellipse(0, -21, hw + 3, 7, 0, 0, 7); g.fill(); }
+    g.translate(0, 18);
+  } else if (!side) {
+    for (const s of [-1, 1]) {
+      const lift = Math.max(0, s * sv) * 4.5, fx = s * hw * 0.44;
+      capsuleStroke(g, fx, hy + 2, fx * 0.92, -4 - lift, 7, L.skirt ? sk : L.bottom, L.skirt ? ln : botD);
+      g.fillStyle = L.shoe; g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1; g.beginPath(); g.ellipse(fx * 0.92, -2 - lift, 4.4, 3, 0, 0, 7); g.fill(); g.stroke();
+    }
+  } else {
+    for (const s of [-1, 1]) {
+      const fx = s * sv * 8;
+      capsuleStroke(g, 0, hy + 2, fx, -4, 7, L.skirt ? sk : L.bottom, L.skirt ? ln : botD);
+      g.fillStyle = L.shoe; g.beginPath(); g.ellipse(fx + 2, -2, 5, 3, 0, 0, 7); g.fill();
+    }
+  }
+  if (L.skirt && !sit) { g.fillStyle = L.bottom; g.strokeStyle = botD; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-hw, hy); g.lineTo(hw, hy); g.lineTo(hw + 3, hy + 15); g.lineTo(-hw - 3, hy + 15); g.closePath(); g.fill(); g.stroke(); }
+  // ---- long hair behind the body when facing the camera
+  if (dir === 'down' && (L.hair === 'long')) { g.fillStyle = shade(L.hairColor, -0.1); g.beginPath(); g.moveTo(-hr - 1, headY); g.quadraticCurveTo(-hr - 4, -56, -hr + 1, -50); g.lineTo(hr - 1, -50); g.quadraticCurveTo(hr + 4, -56, hr + 1, headY); g.closePath(); g.fill(); }
+  // ---- torso
+  const tw = side ? 0.62 : 1;
+  const torso = () => { g.beginPath(); g.moveTo(-sw * tw, sy); g.quadraticCurveTo(-sw * tw - 1, sy + 6, -ww * tw, wy); g.quadraticCurveTo(-hw * tw - 0.5, wy + 6, -hw * tw, hy + 1);
+    g.lineTo(hw * tw, hy + 1); g.quadraticCurveTo(hw * tw + 0.5, wy + 6, ww * tw, wy); g.quadraticCurveTo(sw * tw + 1, sy + 6, sw * tw, sy); g.quadraticCurveTo(0, sy - 3, -sw * tw, sy); g.closePath(); };
+  // arm behind the torso in side view
+  if (side) capsuleStroke(g, -1, sy + 3, -sv * 7, hy + 4, 5.4, L.top, topD);
+  torso(); const tg = g.createLinearGradient(-sw, 0, sw, 0); tg.addColorStop(0, shade(L.top, -0.12)); tg.addColorStop(0.45, shade(L.top, 0.1)); tg.addColorStop(1, shade(L.top, -0.22));
+  g.fillStyle = tg; g.fill(); g.strokeStyle = topD; g.lineWidth = 1.2; g.stroke();
+  // trousers waistband / hip
+  g.fillStyle = L.skirt ? L.bottom : L.bottom; g.beginPath(); g.moveTo(-hw * tw, hy - 3); g.lineTo(hw * tw, hy - 3); g.lineTo(hw * tw, hy + 2); g.lineTo(-hw * tw, hy + 2); g.closePath(); g.fill();
+  if (dir === 'down') { g.fillStyle = sk; g.beginPath(); g.moveTo(-3.2, sy - 1.5); g.lineTo(3.2, sy - 1.5); g.lineTo(0, sy + 4); g.closePath(); g.fill(); } // neckline
+  if (L === PLAYER_LOOK && !side) { g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-sw * 0.5, sy + 8); g.lineTo(-sw * 0.5 + 4, sy + 8); g.stroke(); }
+  // ---- arms (sleeve to the elbow, then skin)
+  if (!side) for (const s of [-1, 1]) {
+    const hx = s * (sw + 1), handY = hy + 4 - (sit ? 2 : 0) - s * sv * 3, ex = s * (sw + 1.6), ey = (sy + handY) / 2;
+    capsuleStroke(g, s * (sw - 1.5), sy + 2.5, ex, ey, 5.8, L.top, topD);
+    capsuleStroke(g, ex, ey, hx * (sit ? 0.7 : 1), handY, 4.6, sk, ln);
+    g.fillStyle = sk; g.beginPath(); g.arc(hx * (sit ? 0.7 : 1), handY + 2, 2.8, 0, 7); g.fill();
+  } else {
+    capsuleStroke(g, 1, sy + 3, sv * 7, (sy + hy) / 2 + 2, 5.8, L.top, topD);
+    capsuleStroke(g, sv * 7, (sy + hy) / 2 + 2, sv * 9, hy + 4, 4.6, sk, ln);
+  }
+  // ---- neck & head
+  g.fillStyle = sk; g.fillRect(-2.6, sy - 6, 5.2, 7);
+  g.fillStyle = 'rgba(0,0,0,.12)'; g.fillRect(-2.6, sy - 3, 5.2, 3);
+  const hc = L.hairColor, hd = shade(hc, -0.35), hl = shade(hc, 0.35);
+  if (dir === 'up' && L.hair === 'twintails') for (const s of [-1, 1]) { g.fillStyle = hc; g.beginPath(); g.ellipse(s * 10, headY + 12, 3.6, 11, s * 0.15, 0, 7); g.fill(); }
+  g.fillStyle = sk; g.strokeStyle = ln; g.lineWidth = 1; g.beginPath(); g.ellipse(0, headY, hr * (side ? 0.95 : 0.92), hr, 0, 0, 7); g.fill(); g.stroke();
+  if (dir !== 'up') { // ears & face
+    g.fillStyle = sk; for (const s of side ? [-1] : [-1, 1]) { g.beginPath(); g.ellipse(s * hr * 0.9, headY + 1, 1.8, 2.6, 0, 0, 7); g.fill(); }
+    const eyes = side ? [4.3] : [-3.2, 3.2], happy = mood === 'happy';
+    for (const ex of eyes) {
+      if (happy) { g.strokeStyle = '#2a1e1e'; g.lineWidth = 1.2; g.beginPath(); g.arc(ex, headY + 1.6, 1.7, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); continue; }
+      g.fillStyle = '#fff'; g.beginPath(); g.ellipse(ex, headY + 0.8, 1.7, L.masc ? 1.5 : 2, 0, 0, 7); g.fill();
+      g.fillStyle = L.eye; g.beginPath(); g.ellipse(ex + (side ? 0.4 : 0), headY + 1, 1.2, L.masc ? 1.4 : 1.8, 0, 0, 7); g.fill();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(ex - 0.5, headY + 0.2, 0.5, 0, 7); g.fill();
+      g.strokeStyle = '#2a1e1e'; g.lineWidth = 1; g.beginPath(); g.moveTo(ex - 1.9, headY - 0.8); g.quadraticCurveTo(ex, headY - 1.9, ex + 1.9, headY - 0.6); g.stroke();
+    }
+    if (!L.masc || happy) { g.fillStyle = 'rgba(255,120,130,.35)'; for (const ex of eyes) { g.beginPath(); g.ellipse(ex + (ex < 0 ? -0.6 : 0.6), headY + 3.6, 1.6, 0.9, 0, 0, 7); g.fill(); } }
+    g.strokeStyle = '#8a4a44'; g.lineWidth = 0.9; g.beginPath(); const mx = side ? 3.6 : 0; if (happy) g.arc(mx, headY + 4.4, 1.5, 0.2, Math.PI - 0.2); else { g.moveTo(mx - 1.1, headY + 5.2); g.lineTo(mx + 1.1, headY + 5.2); } g.stroke();
+  }
+  // hair cap
+  g.fillStyle = hc; g.strokeStyle = hd; g.lineWidth = 1;
+  g.beginPath();
+  if (dir === 'up') g.ellipse(0, headY - 0.5, hr + 0.8, hr + 0.6, 0, 0, 7);
+  else if (side) { g.moveTo(5.5, headY - 3); g.quadraticCurveTo(4, headY - hr - 2, -2, headY - hr - 1); g.quadraticCurveTo(-hr - 2, headY - hr + 1, -hr - 0.5, headY + (L.hair === 'short' || L.hair === 'undercut' ? 3 : 7)); g.quadraticCurveTo(-3, headY + 1, 0, headY - 2); g.closePath(); }
+  else { g.moveTo(-hr - 0.8, headY + (L.hair === 'bob' || L.hair === 'long' ? 6 : 1)); g.quadraticCurveTo(-hr - 1.5, headY - hr - 2, 0, headY - hr - 1.5); g.quadraticCurveTo(hr + 1.5, headY - hr - 2, hr + 0.8, headY + (L.hair === 'bob' || L.hair === 'long' ? 6 : 1));
+    g.lineTo(hr - 1.5, headY - 3); g.lineTo(hr - 4, headY - 1.5); g.lineTo(2, headY - 4); g.lineTo(-1.5, headY - 1.2); g.lineTo(-4.5, headY - 3.6); g.lineTo(-hr + 1.5, headY - 1.5); g.lineTo(-hr + 1, headY - 3); g.closePath(); }
+  g.fill(); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,.4)'; g.lineWidth = 1.2; g.beginPath(); g.arc(0, headY - 1, hr - 2, -2.4, -1.6); g.stroke();
+  if (L.hair === 'ponytail' && dir !== 'down') { g.fillStyle = hc; g.beginPath(); g.ellipse(side ? -hr - 2 : 0, headY + (side ? 3 : 7), 3.2, 8, side ? 0.5 : 0, 0, 7); g.fill(); }
+  if (L.hair === 'buns') for (const s of [-1, 1]) { g.fillStyle = hc; g.strokeStyle = hd; g.beginPath(); g.arc(s * 5.5, headY - hr + 0.5, 3.6, 0, 7); g.fill(); g.stroke(); }
+  if (L.hair === 'twintails' && dir !== 'up') for (const s of side ? [-1] : [-1, 1]) { g.fillStyle = hc; g.beginPath(); g.ellipse(s * 10.5, headY + 9, 3.4, 10, s * 0.2, 0, 7); g.fill(); g.strokeStyle = hd; g.stroke(); }
+  if (L.hair === 'long' && dir !== 'down') { g.fillStyle = hc; g.beginPath(); g.moveTo(-hr, headY); g.quadraticCurveTo(-hr - 1, -54, side ? -hr + 2 : -hr + 1, -50); g.lineTo(side ? -1 : hr - 1, -50); g.quadraticCurveTo(side ? 0 : hr + 1, -54, side ? 2 : hr, headY); g.closePath(); g.fill(); g.strokeStyle = hd; g.stroke(); }
+  g.restore();
+}
+
+// ---------- World map rendering (cached) ----------
+const worldC = document.createElement('canvas'), wctx = worldC.getContext('2d');
+function woodFloor(g, x, y, w, h, base, plank) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  let seed = (x * 7 + y * 13) | 0; const sr = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let yy = y; yy < y + h; yy += plank) for (let xx = x - ((yy / plank) % 2) * 90; xx < x + w; xx += 180) {
+    g.fillStyle = shade(base, (sr() - 0.5) * 0.14); g.fillRect(xx + 1, yy + 1, 178, plank - 2);
+    g.strokeStyle = 'rgba(40,25,15,.18)'; g.lineWidth = 1; g.beginPath(); const gy = yy + plank * (0.3 + sr() * 0.4); g.moveTo(xx + 6, gy); g.bezierCurveTo(xx + 60, gy + 2, xx + 120, gy - 2, xx + 174, gy); g.stroke();
+  }
+  g.restore();
+}
+function tileFloor(g, x, y, w, h, base, size) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.fillStyle = shade(base, -0.25); g.fillRect(x, y, w, h);
+  let seed = 3; const sr = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let yy = y; yy < y + h; yy += size) for (let xx = x; xx < x + w; xx += size) {
+    const gr = g.createLinearGradient(xx, yy, xx + size, yy + size); const c = shade(base, (sr() - 0.5) * 0.08);
+    gr.addColorStop(0, shade(c, 0.06)); gr.addColorStop(1, shade(c, -0.04)); g.fillStyle = gr; g.fillRect(xx + 1.5, yy + 1.5, size - 3, size - 3);
+    g.strokeStyle = 'rgba(120,100,80,.08)'; g.beginPath(); g.moveTo(xx + sr() * size, yy + 4); g.quadraticCurveTo(xx + size / 2, yy + size / 2, xx + sr() * size, yy + size - 4); g.stroke();
+  }
+  g.restore();
+}
+function tatami(g, x, y, w, h) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  for (let yy = y; yy < y + h; yy += 90) for (let xx = x + ((yy - y) / 90 % 2) * 90; xx < x + w + 180; xx += 180) {
+    g.fillStyle = '#c9c08f'; g.fillRect(xx - 180, yy, 178, 88);
+    g.strokeStyle = 'rgba(110,100,60,.25)'; g.lineWidth = 1; for (let k = 4; k < 88; k += 4) { g.beginPath(); g.moveTo(xx - 180, yy + k); g.lineTo(xx - 2, yy + k); g.stroke(); }
+    g.fillStyle = '#3f5a3a'; g.fillRect(xx - 180, yy, 178, 5); g.fillRect(xx - 180, yy + 83, 178, 5);
+  }
+  g.restore();
+}
+function tree(g, x, y, s) {
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x + 14, y + 18, 64 * s, 54 * s, 0, 0, 7); g.fill();
+  const cols = ['#2f6b3a', '#3c8247', '#4f9a55', '#67b166'];
+  for (let i = 0; i < 4; i++) { g.fillStyle = cols[i]; for (let k = 0; k < 7; k++) { const a = k / 7 * 7 + i, r = (52 - i * 11) * s; g.beginPath(); g.arc(x + Math.cos(a) * r * 0.45 - i * 3, y + Math.sin(a) * r * 0.4 - i * 4, r * 0.55, 0, 7); g.fill(); } }
+}
+function lanternStone(g, x, y) {
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(x + 4, y + 5, 18, 14, 0, 0, 7); g.fill();
+  g.fillStyle = '#8d8a83'; rr(g, x - 14, y - 14, 28, 28, 4); g.fill(); g.fillStyle = '#a6a39b'; rr(g, x - 9, y - 9, 18, 18, 3); g.fill();
+  g.fillStyle = '#ffd98a'; g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill();
+}
+function sofa(g, b) {
+  g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, b.x + 4, b.y + 6, b.w, b.h, 14); g.fill();
+  g.fillStyle = '#5f7a72'; rr(g, b.x, b.y, b.w, b.h, 14); g.fill();
+  g.fillStyle = '#6f8c83'; rr(g, b.x + 10, b.y + 20, b.w - 20, b.h - 26, 10); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 2; for (let i = 1; i < 3; i++) { g.beginPath(); g.moveTo(b.x + 10 + i * (b.w - 20) / 3, b.y + 22); g.lineTo(b.x + 10 + i * (b.w - 20) / 3, b.y + b.h - 6); g.stroke(); }
+  for (const xx of [b.x + 30, b.x + b.w - 52]) { g.fillStyle = '#e6d6b8'; rr(g, xx, b.y + 6, 22, 16, 6); g.fill(); }
+}
+function label(g, text, x, y) { g.save(); g.font = '800 13px Nunito, system-ui'; g.textAlign = 'center'; g.fillStyle = 'rgba(30,25,20,.55)'; const w = g.measureText(text).width + 18; rr(g, x - w / 2, y - 12, w, 22, 11); g.fill(); g.fillStyle = '#f3ead8'; g.fillText(text, x, y + 4); g.restore(); }
+function buildWorld() {
+  const KW = Math.min(K, 1.4); world.buildK = KW;
+  worldC.width = Math.round(WW * KW); worldC.height = Math.round(WH * KW);
+  const g = wctx; g.setTransform(KW, 0, 0, KW, 0, 0);
+  // grounds: lawn with mown stripes
+  g.fillStyle = '#4f8a4a'; g.fillRect(0, 0, WW, WH);
+  for (let x = 0; x < WW; x += 80) { g.fillStyle = (x / 80) % 2 ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.03)'; g.fillRect(x, 0, 80, WH); }
+  let seed = 11; const sr = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  g.strokeStyle = 'rgba(30,70,30,.35)'; g.lineWidth = 1;
+  for (let i = 0; i < 2600; i++) { const x = sr() * WW, y = sr() * WH; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 1.5, y - 4); g.stroke(); }
+  // gravel apron + stepping-stone path to the gate
+  g.fillStyle = '#b9ae98'; rr(g, 170, 70, 1660, 1060, 20); g.fill();
+  for (let i = 0; i < 1800; i++) { g.fillStyle = sr() < 0.5 ? 'rgba(0,0,0,.08)' : 'rgba(255,255,255,.1)'; g.fillRect(170 + sr() * 1660, 70 + sr() * 1060, 2, 2); }
+  for (let y = 1120; y < WH; y += 46) { g.fillStyle = 'rgba(0,0,0,.2)'; g.beginPath(); g.ellipse(1003, y + 3, 44, 18, 0, 0, 7); g.fill(); g.fillStyle = '#a9a39a'; g.beginPath(); g.ellipse(1000 + (y % 92 ? 6 : -6), y, 44, 18, 0, 0, 7); g.fill(); }
+  // pond with lilies
+  const pb = F.pond; g.fillStyle = '#6e6a60'; g.beginPath(); g.ellipse(pb.x + pb.w / 2, pb.y + pb.h / 2, pb.w / 2 + 10, pb.h / 2 + 10, 0, 0, 7); g.fill();
+  const pg = g.createRadialGradient(pb.x + pb.w / 2, pb.y + pb.h / 2, 10, pb.x + pb.w / 2, pb.y + pb.h / 2, pb.w / 2); pg.addColorStop(0, '#2c6f86'); pg.addColorStop(1, '#1d4a5c');
+  g.fillStyle = pg; g.beginPath(); g.ellipse(pb.x + pb.w / 2, pb.y + pb.h / 2, pb.w / 2, pb.h / 2, 0, 0, 7); g.fill();
+  for (const [lx, ly] of [[350, 1220], [480, 1290], [500, 1215]]) { g.fillStyle = '#5c9a4f'; g.beginPath(); g.arc(lx, ly, 13, 0.4, Math.PI * 2); g.lineTo(lx, ly); g.fill(); g.fillStyle = '#f2b6c8'; g.beginPath(); g.arc(lx + 3, ly - 2, 4, 0, 7); g.fill(); }
+  for (const k of ['tree1', 'tree2', 'tree3', 'tree4', 'tree5', 'tree6']) { const t = F[k]; tree(g, t.x + 22, t.y + 22, 1); }
+  // bamboo fence along the bottom edge with a gate opening
+  for (let x = 0; x < WW; x += 14) { if (x > 930 && x < 1070) continue; g.fillStyle = (x / 14) % 2 ? '#a99a5e' : '#bfae6c'; rr(g, x, WH - 22, 12, 22, 4); g.fill(); }
+  lanternStone(g, F.lantern1.x + 13, F.lantern1.y + 13); lanternStone(g, F.lantern2.x + 13, F.lantern2.y + 13);
+  // building shadow
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(212, 116, 1600, 1000);
+  // floors
+  tileFloor(g, 220, 580, 880, 500, '#e7dccb', 80);            // lobby: travertine
+  woodFloor(g, 220, 120, 880, 440, '#c69c6d', 36);            // relaxation room: light oak
+  woodFloor(g, 1120, 620, 660, 140, '#6b4630', 30);           // hallway: dark walnut
+  woodFloor(g, 1120, 120, 660, 480, '#8a5d3f', 34);           // treatment room: warm teak
+  tatami(g, 1120, 780, 660, 300);                              // tea lounge
+  g.fillStyle = 'rgba(150,40,40,.55)'; rr(g, 1150, 655, 600, 70, 8); g.fill(); g.strokeStyle = 'rgba(230,190,120,.5)'; g.lineWidth = 2; rr(g, 1158, 662, 584, 56, 6); g.stroke();
+  // lobby rugs
+  g.fillStyle = '#9a8166'; rr(g, 700, 600, 320, 220, 16); g.fill(); g.strokeStyle = '#d9c6a3'; g.lineWidth = 3; rr(g, 712, 612, 296, 196, 12); g.stroke();
+  g.fillStyle = '#7d5b48'; rr(g, 930, 980, 140, 80, 10); g.fill(); g.fillStyle = 'rgba(255,255,255,.12)'; g.font = '800 14px Nunito'; g.textAlign = 'center'; g.fillText('WELCOME', 1000, 1025); g.textAlign = 'left';
+  // reception desk with computer, bell and orchid
+  const d = F.desk; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, d.x + 5, d.y + 8, d.w, d.h, 10); g.fill();
+  g.fillStyle = '#5a3a28'; rr(g, d.x, d.y, d.w, d.h, 10); g.fill(); g.fillStyle = '#e8e0d0'; rr(g, d.x + 6, d.y + 6, d.w - 12, d.h - 22, 6); g.fill();
+  g.fillStyle = '#2a2e33'; rr(g, d.x + 30, d.y + 10, 60, 22, 3); g.fill(); g.fillStyle = '#7fd0e0'; g.fillRect(d.x + 33, d.y + 13, 54, 16);
+  g.fillStyle = '#d4a63a'; g.beginPath(); g.arc(d.x + 140, d.y + 22, 7, Math.PI, 0); g.fill(); g.fillRect(d.x + 132, d.y + 22, 16, 3);
+  g.fillStyle = '#efe6f2'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(d.x + 200 + (i % 3) * 7, d.y + 15 + Math.floor(i / 3) * 8, 4, 0, 7); g.fill(); }
+  g.fillStyle = '#c070a8'; g.beginPath(); g.arc(d.x + 207, d.y + 19, 2, 0, 7); g.fill();
+  sofa(g, F.sofa);
+  const ct = F.coffee; g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, ct.x + 4, ct.y + 5, ct.w, ct.h, 8); g.fill(); g.fillStyle = '#3d2b20'; rr(g, ct.x, ct.y, ct.w, ct.h, 8); g.fill();
+  g.fillStyle = '#e0d4c0'; rr(g, ct.x + 14, ct.y + 10, 30, 20, 2); g.fill(); g.fillStyle = '#f1efe8'; g.beginPath(); g.arc(ct.x + 90, ct.y + 20, 8, 0, 7); g.fill();
+  // supply cabinet
+  const cb = F.cabinet; g.fillStyle = '#6a4a35'; rr(g, cb.x, cb.y, cb.w, cb.h, 6); g.fill(); g.strokeStyle = 'rgba(0,0,0,.3)'; for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(cb.x + 4, cb.y + i * cb.h / 4); g.lineTo(cb.x + cb.w - 4, cb.y + i * cb.h / 4); g.stroke(); }
+  for (let i = 0; i < 4; i++) { g.fillStyle = Object.values(SCENT_COLOR)[i]; g.beginPath(); g.arc(cb.x + 23, cb.y + 18 + i * 37, 7, 0, 7); g.fill(); }
+  // fountain
+  const fo = F.fountain; g.fillStyle = '#8f8b84'; g.beginPath(); g.arc(fo.x + 42, fo.y + 42, 44, 0, 7); g.fill(); g.fillStyle = '#3f7f95'; g.beginPath(); g.arc(fo.x + 42, fo.y + 42, 36, 0, 7); g.fill();
+  g.fillStyle = '#9e9a92'; g.beginPath(); g.arc(fo.x + 42, fo.y + 42, 11, 0, 7); g.fill();
+  // relaxation room: lockers, loungers, bench, window light
+  const lk = F.lockers; for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#b89a76' : '#c4a581'; rr(g, lk.x + i * 40, lk.y, 38, lk.h, 3); g.fill(); g.fillStyle = '#5a4636'; g.fillRect(lk.x + i * 40 + 28, lk.y + 18, 4, 6); }
+  for (const k of ['lounger1', 'lounger2']) { const b = F[k]; g.fillStyle = 'rgba(0,0,0,.22)'; rr(g, b.x + 4, b.y + 6, b.w, b.h, 14); g.fill(); g.fillStyle = '#f0ebe1'; rr(g, b.x, b.y, b.w, b.h, 14); g.fill(); g.fillStyle = '#d8cfbf'; rr(g, b.x + 8, b.y + 6, b.w - 16, 34, 10); g.fill(); g.fillStyle = '#9fc2c9'; rr(g, b.x + 6, b.y + 90, b.w - 12, 50, 8); g.fill(); }
+  const bn = F.bench; g.fillStyle = '#7a5a40'; rr(g, bn.x, bn.y, bn.w, bn.h, 8); g.fill(); g.strokeStyle = 'rgba(0,0,0,.2)'; for (let i = 1; i < 6; i++) { g.beginPath(); g.moveTo(bn.x + 4, bn.y + i * 8); g.lineTo(bn.x + bn.w - 4, bn.y + i * 8); g.stroke(); }
+  // treatment room: rug, table, cart, towel shelf, candles
+  g.fillStyle = '#d9c9ac'; rr(g, 1250, 180, 400, 260, 20); g.fill(); g.strokeStyle = '#b39a74'; g.lineWidth = 4; rr(g, 1264, 194, 372, 232, 14); g.stroke();
+  const tb = F.table; g.fillStyle = 'rgba(0,0,0,.3)'; rr(g, tb.x + 6, tb.y + 8, tb.w, tb.h, 22); g.fill();
+  g.fillStyle = S.owned.table ? '#3d5c58' : '#4c3c35'; rr(g, tb.x, tb.y, tb.w, tb.h, 22); g.fill(); g.fillStyle = '#f6f3ee'; rr(g, tb.x + 40, tb.y + 8, tb.w - 50, tb.h - 16, 12); g.fill();
+  g.fillStyle = '#f2eee8'; g.beginPath(); g.ellipse(tb.x + 22, tb.y + tb.h / 2, 18, 22, 0, 0, 7); g.fill(); g.fillStyle = '#d9d2c8'; g.beginPath(); g.ellipse(tb.x + 20, tb.y + tb.h / 2, 9, 11, 0, 0, 7); g.fill();
+  g.fillStyle = '#e8e2d6'; rr(g, tb.x + 120, tb.y + 10, 70, tb.h - 20, 8); g.fill();
+  const ca = F.cart; g.fillStyle = '#8a6b52'; rr(g, ca.x, ca.y, ca.w, ca.h, 10); g.fill();
+  for (let i = 0; i < 3; i++) { g.fillStyle = '#f3efe6'; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 11, 0, 7); g.fill(); g.strokeStyle = '#d8d0c2'; g.lineWidth = 1.5; g.beginPath(); g.arc(ca.x + 22 + i * 26, ca.y + 29, 6, 0, 6); g.stroke(); }
+  g.fillStyle = '#c9b06b'; g.beginPath(); g.arc(ca.x + 104, ca.y + 29, 9, 0, 7); g.fill();
+  const sh = F.shelf; g.fillStyle = '#6a4a35'; rr(g, sh.x, sh.y, sh.w, sh.h, 6); g.fill(); for (let i = 0; i < 5; i++) { g.fillStyle = ['#f3efe6', '#e8dfcf', '#cfe0dc'][i % 3]; rr(g, sh.x + 6, sh.y + 8 + i * 28, sh.w - 12, 22, 5); g.fill(); }
+  // tea lounge: counter, low table with cushions, zen sand garden
+  const te = F.tea; g.fillStyle = '#5a3a28'; rr(g, te.x, te.y, te.w, te.h, 8); g.fill(); g.fillStyle = '#d8ccb6'; rr(g, te.x + 6, te.y + 6, te.w - 12, te.h - 12, 5); g.fill();
+  g.fillStyle = '#3a3a3a'; g.beginPath(); g.arc(te.x + 40, te.y + 28, 12, 0, 7); g.fill(); g.fillStyle = '#7a9a5a'; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(te.x + 80 + i * 18, te.y + 28, 6, 0, 7); g.fill(); }
+  const lt = F.lowtable; for (const [cx, cy] of [[lt.x - 22, lt.y + 40], [lt.x + lt.w + 22, lt.y + 40], [lt.x + 40, lt.y - 22], [lt.x + 110, lt.y + lt.h + 22]]) { g.fillStyle = '#8a3b3b'; rr(g, cx - 18, cy - 18, 36, 36, 8); g.fill(); }
+  g.fillStyle = 'rgba(0,0,0,.25)'; rr(g, lt.x + 4, lt.y + 5, lt.w, lt.h, 6); g.fill(); g.fillStyle = '#3a2a1f'; rr(g, lt.x, lt.y, lt.w, lt.h, 6); g.fill();
+  const zn = F.zen; g.fillStyle = '#e7dfcc'; rr(g, zn.x, zn.y, zn.w, zn.h, 6); g.fill(); g.strokeStyle = 'rgba(150,130,100,.5)'; g.lineWidth = 1.5;
+  for (let i = 8; i < zn.h; i += 8) { g.beginPath(); g.moveTo(zn.x + 6, zn.y + i); g.bezierCurveTo(zn.x + 50, zn.y + i - 4, zn.x + 90, zn.y + i + 4, zn.x + zn.w - 6, zn.y + i); g.stroke(); }
+  for (const [rx, ry, r] of [[zn.x + 40, zn.y + 40, 14], [zn.x + 100, zn.y + 70, 10]]) { g.fillStyle = '#6f6b64'; g.beginPath(); g.arc(rx, ry, r, 0, 7); g.fill(); g.strokeStyle = 'rgba(150,130,100,.6)'; g.beginPath(); g.arc(rx, ry, r + 6, 0, 7); g.stroke(); }
+  for (const k of ['plantL1', 'plantL2', 'plantA', 'plantB', 'plantC']) { const b = F[k]; plant(g, b.x + b.w / 2, b.y + b.h / 2, 0.7); }
+  if (S.owned.decor) for (const [x, y] of [[480, 600], [1080, 900], [1300, 140], [1760, 400], [260, 300]]) plant(g, x, y, 0.55);
+  // walls: plaster tops with soft drop shadows
+  for (const b of solids) if (b.kind === 'wall') { g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(b.x + 3, b.y + 6, b.w, b.h); }
+  for (const b of solids) if (b.kind === 'wall') { g.fillStyle = '#ede3d2'; g.fillRect(b.x, b.y, b.w, b.h); g.fillStyle = '#c9bba3'; g.fillRect(b.x, b.y + b.h - 4, b.w, 4); }
+  // shoji door frames
+  for (const [x, y, w, h] of [[940, 1080, 120, 20], [1400, 600, 100, 20], [1400, 760, 100, 20], [600, 560, 120, 20]]) { g.fillStyle = '#7a5a40'; g.fillRect(x - 4, y, 4, h); g.fillRect(x + w, y, 4, h); g.fillStyle = 'rgba(122,90,64,.35)'; g.fillRect(x, y + h / 2 - 1, w, 2); }
+  // windows (light shafts) along the north wall
+  for (const x of [320, 520, 820, 1260, 1560]) { const lg = g.createLinearGradient(0, 120, 0, 300); lg.addColorStop(0, 'rgba(255,240,200,.28)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.beginPath(); g.moveTo(x, 120); g.lineTo(x + 90, 120); g.lineTo(x + 150, 300); g.lineTo(x + 40, 300); g.closePath(); g.fill(); g.fillStyle = '#bcd8e6'; g.fillRect(x, 102, 90, 6); }
+  // warm lamp pools
+  for (const [x, y, r] of [[430, 760, 220], [860, 860, 260], [1450, 300, 280], [1450, 690, 200], [1450, 930, 240], [660, 340, 260], [1000, 1180, 160]]) {
+    const lg = g.createRadialGradient(x, y, 10, x, y, r); lg.addColorStop(0, 'rgba(255,200,130,.16)'); lg.addColorStop(1, 'rgba(255,200,130,0)'); g.fillStyle = lg; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  label(g, 'RECEPTION', 425, 810); label(g, 'WAITING AREA', 860, 600); label(g, 'TREATMENT ROOM', 1450, 150); label(g, 'TEA LOUNGE', 1450, 800); label(g, 'RELAXATION ROOM', 660, 540); label(g, 'SERENITY HANDS SPA', 1000, 1118);
+}
+
+// ---------- World simulation ----------
+const keys = new Set();
+function follower() { return ents.find(e => e.state === 'follow'); }
+function freeSeat() { return SPOT.seats.findIndex((s, i) => !ents.some(e => e.seat === i && e.state !== 'gone' && e.state !== 'leaving')); }
+function spawnClient() {
+  const seat = freeSeat(); if (seat < 0) return false;
+  const c = makeClient(); c.look = lookFor(c);
+  const e = { c, x: SPOT.door.x + rand(-10, 10), y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat, state: 'arrive', wait: 0,
+    patience: 140, maxPatience: 140, tasks: [{ to: SPOT.desk, wait: 0.5, say: 'checkin' }, { to: { x: SPOT.seats[seat].x, y: SPOT.seatFrontY }, then: 'sit' }], emote: null, emoteT: 0 };
+  ents.push(e); world.spawned++;
+  toast(`🔔 ${c.name} just arrived`); return true;
+}
+function setEmote(e, em, t) { e.emote = em; e.emoteT = t || 2.5; }
+function walkEnt(e, dt, speed) {
+  if (!e.path || !e.path.length) { e.moving = false; return true; }
+  const t = e.path[0], dx = t.x - e.x, dy = t.y - e.y, d = Math.hypot(dx, dy), st = speed * dt;
+  if (d <= st) { e.x = t.x; e.y = t.y; e.path.shift(); } else { e.x += dx / d * st; e.y += dy / d * st; }
+  e.moving = true; e.ph += dt * speed * 0.11;
+  e.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  return !e.path.length;
+}
+function updateEnt(e, dt) {
+  e.emoteT -= dt; if (e.emoteT <= 0) e.emote = null;
+  if (e.state === 'arrive' || e.state === 'leaving') {
+    if (e.wait > 0) { e.wait -= dt; e.moving = false; return; }
+    if (!e.path) { const t = e.tasks[0]; if (!t) return; e.path = findPath(e.x, e.y, t.to.x, t.to.y); }
+    if (walkEnt(e, dt, 150)) {
+      const t = e.tasks.shift(); e.path = null;
+      if (t.wait) { e.wait = t.wait; e.dir = 'up'; if (t.say === 'checkin') setEmote(e, '📋', 1.2); if (t.say === 'pay') setEmote(e, '💵', 1.4); }
+      if (t.then === 'sit') { e.state = 'seated'; e.x = SPOT.seats[e.seat].x; e.y = SPOT.seats[e.seat].y; e.dir = 'down'; setEmote(e, '❕', 3); }
+      if (t.then === 'gone') e.state = 'gone';
+    }
+  } else if (e.state === 'seated') {
+    e.patience -= dt; e.moving = false;
+    if (e.patience < e.maxPatience * 0.3 && !e.warned) { e.warned = true; setEmote(e, '😤', 3); toast(`⏳ ${e.c.name} is getting impatient`); }
+    if (e.patience <= 0) {
+      e.state = 'leaving'; e.seat = -1; setEmote(e, '💢', 4); e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }]; e.path = null;
+      S.clientNo++; S.dayLog.push({ name: e.c.name, stars: 0, total: 0, left: true }); saveGame();
+      toast(`😞 ${e.c.name} got tired of waiting and left`);
+    }
+  } else if (e.state === 'follow') {
+    const tr = player.trail, tgt = tr[Math.max(0, tr.length - 5)] || player;
+    const d = dist(e.x, e.y, tgt.x, tgt.y);
+    if (d > 6 && dist(e.x, e.y, player.x, player.y) > 42) { e.path = [{ x: tgt.x, y: tgt.y }]; walkEnt(e, dt, d > 120 ? 230 : 160); } else e.moving = false;
+    if (dist(e.x, e.y, player.x, player.y) > 420) { e.x = tgt.x; e.y = tgt.y; } // never lose the client behind a corner
+  }
+}
+function playerMove(dt) {
+  let mx = 0, my = 0;
+  if (keys.has('arrowleft') || keys.has('a')) mx--; if (keys.has('arrowright') || keys.has('d')) mx++;
+  if (keys.has('arrowup') || keys.has('w')) my--; if (keys.has('arrowdown') || keys.has('s')) my++;
+  const run = keys.has('shift'), sp = run ? 270 : 175;
+  let moved = false, vx = 0, vy = 0;
+  if (mx || my) {
+    player.path = null; player.goal = null;
+    const n = Math.hypot(mx, my); vx = mx / n * sp * dt; vy = my / n * sp * dt;
+  } else if (player.path && player.path.length) {
+    const t = player.path[0], dx = t.x - player.x, dy = t.y - player.y, d = Math.hypot(dx, dy), st = sp * dt;
+    if (d <= st) { vx = dx; vy = dy; player.path.shift(); } else { vx = dx / d * st; vy = dy / d * st; }
+    if (!player.path.length && player.goal) { const gl = player.goal; player.goal = null; player.path = null; setTimeout(() => { const n = state === 'world' && nearInteract(); if (n && n.label === gl.label) n.act(); }, 0); }
+  }
+  if (vx || vy) {
+    if (isFree(player.x + vx, player.y, PR)) player.x += vx; if (isFree(player.x, player.y + vy, PR)) player.y += vy;
+    player.dir = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? 'right' : 'left') : (vy > 0 ? 'down' : 'up');
+    player.ph += Math.hypot(vx, vy) * 0.11; moved = true;
+    const last = player.trail[player.trail.length - 1];
+    if (!last || dist(last.x, last.y, player.x, player.y) > 12) { player.trail.push({ x: player.x, y: player.y }); if (player.trail.length > 40) player.trail.shift(); }
+  }
+  player.moving = moved;
+}
+function interactables() {
+  const list = [], f = follower();
+  for (const e of ents) if (e.state === 'seated' || e.state === 'arrive') list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? { x: e.x, y: SPOT.seatFrontY } : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
+  list.push({ x: SPOT.table.x, y: 290, spot: SPOT.table, label: f ? `Start ${f.c.name}'s massage` : 'Bring a client here to start a massage', act: () => f ? beginMassage(f) : toast('Greet a client in the waiting area first.') });
+  list.push({ x: F.cabinet.x + 23, y: F.cabinet.y + 75, spot: SPOT.cabinet, label: 'Supply cabinet (upgrades)', act: () => openShopWorld() });
+  list.push({ x: F.tea.x + 86, y: F.tea.y + 28, spot: SPOT.tea, label: S.teaBuff ? 'Tea is ready (+comfort next session)' : 'Brew calming tea', act: () => brewTea() });
+  return list;
+}
+let nearCache = null;
+function nearInteract() {
+  let best = null, bd = 72;
+  for (const it of interactables()) { const d = Math.min(dist(player.x, player.y, it.spot.x, it.spot.y), dist(player.x, player.y, it.x, it.y)); if (d < bd) { bd = d; best = it; } }
+  nearCache = best; return best;
+}
+function interact() { if (state !== 'world') return; const it = nearInteract(); if (it) it.act(); else toast('Walk up to a client or object to interact.'); }
+function greet(e) {
+  if (follower()) { toast(`Finish with ${follower().c.name} first.`); return; }
+  const c = e.c; state = 'modal';
+  showModal(`<h2>👋 ${esc(c.name)}</h2>
+    <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
+    <div style="flex:1;min-width:220px">
+      <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span><span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="req">“${esc(c.req.text)}”</div>
+      <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
+    </div></div>`,
+    [['Follow me to the treatment room →', () => { hideModal(); state = 'world'; e.state = 'follow'; e.seat = -1; e.path = null; player.trail = [{ x: e.x, y: e.y }]; setEmote(e, '🙂', 2); toast(`Lead ${c.name} to the Treatment Room`); }, 'primary'],
+     ['Not yet', () => { hideModal(); state = 'world'; }, '']]);
+  drawPortrait(c, 'happy'); const ip = $('introP'); if (ip) ip.getContext('2d').drawImage(pcv, 0, 0, 300, 300);
+}
+function beginMassage(e) {
+  if (dist(e.x, e.y, SPOT.table.x, SPOT.table.y) > 260) { toast(`Wait for ${e.c.name} to catch up.`); return; }
+  state = 'modal'; $('fade').classList.add('on');
+  setTimeout(() => {
+    world.curEnt = e; e.state = 'onTable';
+    view = 'massage'; document.body.classList.remove('world'); resize();
+    state = 'session'; startSession(e.c);
+    if (S.teaBuff) { ses.comfort = Math.min(100, ses.comfort + 8); S.teaBuff = false; saveGame(); toast('🍵 Your calm from the tea carries into the session'); }
+    $('fade').classList.remove('on');
+  }, 380);
+}
+function returnToWorld() {
+  hideModal(); $('fade').classList.add('on');
+  setTimeout(() => {
+    view = 'world'; document.body.classList.add('world'); resize(); state = 'world';
+    const e = world.curEnt; world.curEnt = null;
+    if (e) { e.state = 'leaving'; e.x = SPOT.table.x + 50; e.y = SPOT.table.y; e.path = null; e.tasks = [{ to: SPOT.desk, wait: 1.2, say: 'pay' }, { to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
+      const st = S.ratings[S.ratings.length - 1]; setEmote(e, st >= 4 ? '💖' : st >= 3 ? '🙂' : '😒', 3); e.c.look.mood = st >= 4 ? 'happy' : ''; }
+    player.x = SPOT.table.x; player.y = SPOT.table.y + 10; player.dir = 'down'; player.path = null; player.trail = [];
+    ses = null; $('fade').classList.remove('on'); refreshUI(true);
+  }, 380);
+}
+function brewTea() {
+  if (S.teaBuff) { toast('🍵 Your tea is ready — it will help your next session.'); return; }
+  S.teaBuff = true; saveGame(); toast('🍵 You brew a pot of green tea. Next client starts more relaxed.');
+}
+function openShopWorld() { state = 'modal'; showShop(() => { hideModal(); state = 'world'; }); }
+function startDayWorld() {
+  hideModal(); view = 'world'; document.body.classList.add('world'); state = 'world';
+  ents.length = 0; world.curEnt = null; world.spawned = S.clientNo; world.spawnT = 0.6; ses = null;
+  player.x = SPOT.start.x; player.y = SPOT.start.y; player.dir = 'up'; player.path = null; player.trail = [];
+  buildWorld(); resize(); refreshUI(true);
+  toast(`☀️ Day ${S.day} — the spa is open!`);
+}
+function updateWorld(dt) {
+  playerMove(dt);
+  for (const e of ents) updateEnt(e, dt);
+  for (let i = ents.length - 1; i >= 0; i--) if (ents[i].state === 'gone') ents.splice(i, 1);
+  world.spawnT -= dt;
+  if (world.spawnT <= 0 && world.spawned < todayTotal()) { if (spawnClient()) world.spawnT = rand(5, 9); else world.spawnT = 1; }
+  if (world.spawned >= todayTotal() && S.clientNo >= todayTotal() && !ents.length && state === 'world') { showDayEnd(); return; }
+  const c = world.cam, tx = clamp(player.x - W / 2, 0, WW - W), ty = clamp(player.y - H / 2, 0, WH - H);
+  c.x += (tx - c.x) * Math.min(1, dt * 6); c.y += (ty - c.y) * Math.min(1, dt * 6);
+  refreshWorldUI();
+}
+let lastWUI = 0;
+function refreshWorldUI() {
+  const now = performance.now(); if (now - lastWUI < 200) return; lastWUI = now;
+  const f = follower(), seated = ents.filter(e => e.state === 'seated');
+  let obj;
+  if (f) obj = `Lead <b>${esc(f.c.name)}</b> to the <b>Treatment Room</b> and press <b>E</b> at the table.`;
+  else if (seated.length) obj = `<b>${esc(seated[0].c.name)}</b> is waiting. Walk to the waiting area and press <b>E</b> to greet them.`;
+  else if (ents.some(e => e.state === 'arrive')) obj = `<b>${esc(ents.find(e => e.state === 'arrive').c.name)}</b> just walked in. Go say hi (press <b>E</b> next to them).`;
+  else if (world.spawned < todayTotal()) obj = 'A client is on the way. Brew tea in the lounge or check the supply cabinet while you wait.';
+  else obj = 'That was the last booking. Wait for everyone to leave to close up for the day.';
+  $('objective').innerHTML = obj;
+  $('queueList').innerHTML = ents.filter(e => e.state !== 'gone').map(e => {
+    const st = { arrive: 'Checking in', seated: 'Waiting', follow: 'Following you', leaving: 'Leaving', onTable: 'On the table' }[e.state] || '';
+    const p = e.state === 'seated' ? clamp(e.patience / e.maxPatience, 0, 1) : 1;
+    return `<div class="qi"><span class="dot" style="background:${e.c.look.top}"></span><span style="width:70px">${esc(e.c.name)}</span><span style="width:86px;color:var(--muted)">${st}</span>${e.state === 'seated' ? `<div class="bar"><div style="width:${p * 100}%"></div></div>` : ''}</div>`;
+  }).join('') || '<div class="ctl">Nobody here yet.</div>';
+  $('moneyStat').textContent = `💵 $${S.money}`;
+  $('dayStat').textContent = `Day ${S.day} · ${S.clientNo}/${todayTotal()} clients`;
+  $('repStat').textContent = `⭐ ${rep().toFixed(1)}`;
+}
+function renderWorld() {
+  const g = ctx, cam = world.cam, KW = world.buildK || 1;
+  if (!world.buildK) buildWorld();
+  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
+  g.drawImage(worldC, cam.x * KW, cam.y * KW, W * KW, H * KW, 0, 0, cv.width, cv.height);
+  g.setTransform(K, 0, 0, K, -cam.x * K, -cam.y * K);
+  // animated details: koi, fountain ripples, candle flames, tea steam
+  const pb = F.pond, pcx = pb.x + pb.w / 2, pcy = pb.y + pb.h / 2;
+  for (let i = 0; i < 4; i++) { const a = time * (0.35 + i * 0.07) + i * 1.7, fx = pcx + Math.cos(a) * (60 - i * 10), fy = pcy + Math.sin(a) * (32 - i * 4);
+    g.save(); g.translate(fx, fy); g.rotate(a + Math.PI / 2); g.fillStyle = i % 2 ? '#f08a3c' : '#f4f0e6'; g.beginPath(); g.ellipse(0, 0, 9, 3.6, 0, 0, 7); g.fill(); g.beginPath(); g.moveTo(-8, 0); g.lineTo(-14, -4 + Math.sin(time * 8 + i) * 2); g.lineTo(-14, 4); g.fill(); g.restore(); }
+  const fo = F.fountain; for (let i = 0; i < 3; i++) { const r = ((time * 14 + i * 12) % 34) + 6; g.strokeStyle = `rgba(255,255,255,${0.35 * (1 - r / 40)})`; g.lineWidth = 1.2; g.beginPath(); g.arc(fo.x + 42, fo.y + 42, r, 0, 7); g.stroke(); }
+  for (const [x, y] of [[1620, 560], [1290, 560], [1700, 220]]) { const f = 1 + Math.sin(time * 12 + x) * 0.15; const gl = g.createRadialGradient(x, y, 1, x, y, 30 * f); gl.addColorStop(0, 'rgba(255,190,90,.35)'); gl.addColorStop(1, 'rgba(255,190,90,0)'); g.fillStyle = gl; g.beginPath(); g.arc(x, y, 30 * f, 0, 7); g.fill(); g.fillStyle = '#f5ecd9'; g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill(); g.fillStyle = '#ffd36e'; g.beginPath(); g.arc(x, y, 2.6 * f, 0, 7); g.fill(); }
+  if (S.teaBuff) for (let i = 0; i < 3; i++) { const t = (time * 0.6 + i / 3) % 1; g.fillStyle = `rgba(255,255,255,${0.3 * (1 - t)})`; g.beginPath(); g.arc(F.tea.x + 40 + Math.sin(time * 2 + i) * 3, F.tea.y + 22 - t * 26, 4 + t * 5, 0, 7); g.fill(); }
+  // people, depth-sorted
+  const people = ents.filter(e => e.state !== 'onTable').map(e => ({ y: e.y, draw: () => {
+    drawPerson(g, e.x, e.y, e.c.look, e.dir, e.ph, e.moving, e.state === 'seated' ? 'sit' : '', e.c.look.mood);
+    if (e.state === 'seated') { const p = clamp(e.patience / e.maxPatience, 0, 1); g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 4; g.beginPath(); g.arc(e.x + 22, e.y - 142, 7, 0, 7); g.stroke(); g.strokeStyle = p > 0.5 ? '#6fd08c' : p > 0.25 ? '#e8c37a' : '#e86a5f'; g.lineWidth = 3; g.beginPath(); g.arc(e.x + 22, e.y - 142, 7, -Math.PI / 2, -Math.PI / 2 + p * Math.PI * 2); g.stroke(); }
+    if (e.emote) { g.font = '20px system-ui'; g.textAlign = 'center'; g.fillText(e.emote, e.x, e.y - 150 - Math.sin(time * 4) * 2); g.textAlign = 'left'; }
+    if (dist(e.x, e.y, player.x, player.y) < 260) { g.font = '800 12px Nunito, system-ui'; g.textAlign = 'center'; g.fillStyle = 'rgba(0,0,0,.5)'; g.fillText(e.c.name, e.x + 1, e.y + 21); g.fillStyle = '#fff'; g.fillText(e.c.name, e.x, e.y + 20); g.textAlign = 'left'; }
+  } }));
+  people.push({ y: player.y, draw: () => drawPerson(g, player.x, player.y, PLAYER_LOOK, player.dir, player.ph, player.moving, '') });
+  people.sort((a, b) => a.y - b.y).forEach(p => p.draw());
+  // click-to-walk marker
+  if (player.path && player.path.length) { const t = player.path[player.path.length - 1]; g.strokeStyle = 'rgba(120,230,200,.8)'; g.lineWidth = 2; g.beginPath(); g.arc(t.x, t.y, 8 + Math.sin(time * 6) * 2, 0, 7); g.stroke(); }
+  // interaction prompt
+  const it = state === 'world' ? nearInteract() : null;
+  if (it) { const txt = (it.label.startsWith('Bring') ? '' : 'E  ') + it.label; g.font = '800 14px Nunito, system-ui'; const w = g.measureText(txt).width + 22, px = it.x - w / 2, py = it.y - (it.ent ? 185 : 60);
+    g.fillStyle = 'rgba(12,16,18,.85)'; rr(g, px, py, w, 28, 14); g.fill(); g.strokeStyle = '#e8c37a'; g.lineWidth = 1.5; g.stroke(); g.fillStyle = '#fff'; g.fillText(txt, px + 11, py + 19); }
+  g.setTransform(K, 0, 0, K, 0, 0);
+  // off-screen objective arrow
+  const f = follower(), seated = ents.find(e => e.state === 'seated') || ents.find(e => e.state === 'arrive');
+  const target = f ? SPOT.table : seated ? { x: seated.x, y: seated.y - 30 } : null;
+  if (target && state === 'world') {
+    const sx = target.x - cam.x, sy = target.y - cam.y;
+    if (sx < 30 || sx > W - 30 || sy < 30 || sy > H - 30) {
+      const cx = W / 2, cy = H / 2, a = Math.atan2(sy - cy, sx - cx), ex = clamp(cx + Math.cos(a) * 2000, 40, W - 40), ey = clamp(cy + Math.sin(a) * 2000, 40, H - 40);
+      g.save(); g.translate(ex, ey); g.rotate(a); g.fillStyle = 'rgba(232,195,122,.95)'; g.beginPath(); g.moveTo(16, 0); g.lineTo(-10, -11); g.lineTo(-4, 0); g.lineTo(-10, 11); g.closePath(); g.fill(); g.restore();
+    }
+  }
+}
 
 // ---------- Main loop ----------
 let lastT = performance.now();
