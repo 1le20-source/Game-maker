@@ -265,6 +265,13 @@ function shade(hex, amt) { // amt -1..1
 }
 function rgba(hex, a) { const [r, g, b] = hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
 function rr(g, x, y, w, h, r) { g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, r) : g.rect(x, y, w, h); }
+function hash1(n) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function blinkAmt(t, seed) {
+  const P = 2.7, q = t + seed * 3, k = Math.floor(q / P), u = q - k * P, at = 0.25 + hash1(k + seed) * 2.0;
+  const b = d => d >= 0 && d < 0.14 ? Math.sin(d / 0.14 * Math.PI) : 0;
+  return Math.max(b(u - at), hash1(k * 3.1 + seed) < 0.18 ? b(u - at - 0.27) : 0);
+}
+function saccade(t, seed) { return (hash1(Math.floor(t * 0.75 + seed)) - 0.5) * 0.8; }
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 // ---------- Save data ----------
@@ -719,7 +726,7 @@ function update(dt) {
   const z = ptr.inside ? (ptr.forceZone !== undefined ? ptr.forceZone : zoneAt(ptr.x, ptr.y)) : null; ptr.zone = z;
   const active = ptr.down && ptr.inside && z && z !== 'towel';
   if (!active) ses.idle += dt; else ses.idle = 0;
-  if (ses.idle > 7) { ses.comfort -= dt * 0.8; if (ses.idle > 9 && ses.idle < 9 + dt * 1.5) say(pick(LINES.idle), 'neutral'); }
+  if (ses.idle > 7 && !ses.asleep) { ses.comfort -= dt * 0.8; if (ses.idle > 9 && ses.idle < 9 + dt * 1.5) say(pick(LINES.idle), 'neutral'); }
 
   updateBodySim(dt, active, z);
   if (active && tool === 'hands') massage(z, move, dt);
@@ -793,6 +800,18 @@ function updateBodySim(dt, active, z) {
   for (const k of ['T', 'B']) ses.handTw[k] = Math.max(0, ses.handTw[k] - dt * 1.2);
   for (const z in ses.goose) ses.goose[z] = Math.max(0, ses.goose[z] - dt * 0.5);
   ses.feelT -= dt; ses.thoughtCd -= dt; if (ses.thought) ses.thought.t -= dt;
+  // a long exhale you can see and hear about
+  if (ses.sigh > 0.55 && !ses.sighShown) { ses.sighShown = true; if (!ses.thought || ses.thought.t <= 0) { ses.thought = { text: pick(['*long, slow exhale*', 'Hahh… that\'s the spot.', '*deep sigh*', 'Mmh…']), t: 2.4 }; } }
+  if (ses.sigh < 0.2) ses.sighShown = false;
+  // drifting off: deep relaxation, no pain, gentle enough pressure
+  const drowsy = relaxScore() > 0.7 && ses.comfort > 75 && ses.painT <= 0 && pressure <= c.pref && !ses.ended;
+  if (!ses.asleep) { ses.sleepT = drowsy ? (ses.sleepT || 0) + dt : Math.max(0, (ses.sleepT || 0) - dt * 2);
+    if (ses.sleepT > 10) { ses.asleep = true; ses.sleptOnce = true; ses.thought = { text: '💤 …zzz…', t: 4 }; toast(`😴 ${c.name} dozed off. That's the sign of a great massage.`); } }
+  else {
+    ses.breathPh -= dt * 0.06 * Math.PI * 2; // slower, deeper sleep breathing
+    if (Math.random() < dt * 0.12) ses.thought = { text: pick(['💤 zzz…', '💤 …mm…', '💤']), t: 2.5 };
+    if (ses.painT > 0 || ses.tense > 0.45 || pressure > c.pref) { ses.asleep = false; ses.sleepT = 0; say(pick(['Hm?! Oh— sorry, I drifted off.', 'Wha— was I asleep? That was amazing.', 'Mm… I totally dozed off.']), 'surprised', true); }
+  }
 }
 
 function bodyLanguage(fl, z, dt) {
@@ -909,6 +928,7 @@ function computeResult(walked) {
   if (c.req.service === 'Hot Stone') { if (ses.usedStones) { score += 0.06; bonus.push('Hot stones used ✔'); } else { score -= 0.1; bonus.push('No hot stones used ✘'); } }
   if (ses.scentPraised) { score += 0.04; bonus.push('Favorite scent ✔'); }
   if (ses.released === ses.knots.length) { score += 0.03; bonus.push('All knots released ✔'); }
+  if (ses.sleptOnce) { score += 0.05; bonus.push('They fell asleep on the table ✔'); }
   let stars = walked ? 0.5 : clamp(Math.round(score * 5.3 * 2) / 2, 1, 5);
   const pay = walked ? 0 : c.price; // the price is the price, however the session goes
   const tip = stars >= 4 ? Math.round(c.price * (0.1 + (stars - 4) * 0.15 + (c.chatty && ses.talkCount ? 0.05 : 0)) * tipMult()) : 0;
@@ -1535,7 +1555,7 @@ function drawPortrait(c, expr, t, talking) {
   const bg = g.createLinearGradient(0, 0, 0, 160); bg.addColorStop(0, c.bg[0]); bg.addColorStop(1, c.bg[1]); g.fillStyle = bg; g.fillRect(0, 0, 160, 160);
   for (let i = 0; i < 7; i++) { const bx = (i * 37 + seed * 20) % 170, by = 20 + (i * 53) % 90, r = 6 + (i % 3) * 5; const bk = g.createRadialGradient(bx, by, 0, bx, by, r); bk.addColorStop(0, 'rgba(255,240,210,.16)'); bk.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = bk; g.beginPath(); g.arc(bx, by, r, 0, 7); g.fill(); }
   const br = Math.sin(t * 1.6 + seed) * 0.9, sway = Math.sin(t * 0.7 + seed) * 0.02 + (expr === 'bliss' ? 0.05 : 0) + (expr === 'wince' ? -0.04 : 0) + (expr === 'laugh' ? Math.sin(t * 18) * 0.02 : 0);
-  const hsw = Math.sin(t * 1.1 + seed) * 1.4, bp = (t + seed * 3) % 3.4, blink = bp < 0.15 ? Math.sin(bp / 0.15 * Math.PI) : 0;
+  const hsw = Math.sin(t * 1.1 + seed) * 1.4, blink = blinkAmt(t, seed);
   const head = fn => { g.save(); g.translate(80, 126 - br * 0.4); g.rotate(sway); g.translate(-80, -126); fn(); g.restore(); };
   g.lineJoin = 'round'; g.lineCap = 'round';
   // --- hair behind the head and shoulders
@@ -1814,7 +1834,7 @@ function refreshUI(full) {
     <div class="know"><span>Oil in hair</span>${k.hairOil ? `<b>${c.hairOil ? 'Avoid!' : 'Fine'}</b>` : u}</div>
     <div class="know"><span>Chatty</span>${ses.talkCount ? `<b>${c.chatty ? 'Yes' : 'Prefers quiet'}</b>` : u}</div>`;
   // portrait expression
-  let e = ses.exprT > 0 && ses.expr ? ses.expr : ses.comfort > 80 ? 'bliss' : ses.comfort > 55 ? 'happy' : ses.comfort > 30 ? 'neutral' : 'annoyed';
+  let e = ses.asleep ? 'bliss' : ses.exprT > 0 && ses.expr ? ses.expr : ses.comfort > 80 ? 'bliss' : ses.comfort > 55 ? 'happy' : ses.comfort > 30 ? 'neutral' : 'annoyed';
   ses.curExpr = e; c._comfort = ses.comfort;
   const fl = ses.feel && ses.feelT > 0 ? ses.feel : null;
   $('feelTxt').textContent = fl ? fl.text : ses.comfort > 80 ? 'Calm and relaxed, waiting for your hands.' : ses.comfort > 45 ? 'Settled on the table. Touch a spot to see how it feels.' : 'Tense and uneasy.';
@@ -2406,7 +2426,7 @@ function returnToWorld() {
     view = 'world'; document.body.classList.add('world'); resize(); state = 'world';
     const e = world.curEnt; world.curEnt = null;
     if (e) { e.state = 'leaving'; e.x = SPOT.table.x + 50; e.y = SPOT.table.y; e.path = null; e.tasks = [{ to: SPOT.desk, wait: 1.2, say: 'pay' }, { to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
-      const st = S.ratings[S.ratings.length - 1]; setEmote(e, st >= 4 ? 'heart' : st >= 3 ? 'note' : 'dots', 3.5); e.c.look.mood = st >= 4 ? 'happy' : st >= 3 ? '' : 'impatient'; }
+      const st = S.ratings[S.ratings.length - 1]; setEmote(e, st >= 4 ? 'heart' : st >= 3 ? 'note' : 'dots', 3.5); if (st >= 4) { e.wait = 2.4; e.stretchT = time + 2.4; } e.c.look.mood = st >= 4 ? 'happy' : st >= 3 ? '' : 'impatient'; }
     player.x = SPOT.table.x; player.y = SPOT.table.y + 10; player.dir = 'down'; player.path = null; player.trail = []; fp.yaw = Math.PI / 2; fp.pitch = -0.04;
     ses = null; $('fade').classList.remove('on'); refreshUI(true);
   }, 380);
@@ -2670,6 +2690,7 @@ function finishStaffSession(st) {
   e.state = 'leaving'; e.x = home.x + 40; e.y = home.y; e.path = null;
   e.tasks = [{ to: SPOT.door }, { to: SPOT.gate, then: 'gone' }];
   e.c.look.mood = stars >= 4 ? 'happy' : stars >= 3 ? '' : 'impatient'; setEmote(e, stars >= 4 ? 'heart' : stars >= 3 ? 'note' : 'dots', 3);
+  if (stars >= 4) { e.wait = 2.4; e.stretchT = time + 2.4; }
   st.client = null; st.state = 'idle'; if (tip) cashSound(); saveGame();
   toast(`💆 ${st.s.c.name} (Lv ${levelOf(st.s)}) finished with ${c.name}: ${stars}★${tip ? ` · tip +$${tip}` : ''}`);
 }
@@ -3726,14 +3747,15 @@ function disposeHuman(h) {
 function exprFor(mood) { return { happy: 'happy', bliss: 'bliss', impatient: 'annoyed', angry: 'annoyed', wince: 'wince', laugh: 'laugh', surprised: 'surprised', annoyed: 'annoyed' }[mood] || 'neutral'; }
 function redrawFace(h, expr, t, talking) {
   const b = h.sp.faceSrc.body, seed = h.sp.faceSrc.seed, g = h.face.g, m = h.sp.masc;
-  const bp = (t + seed * 3) % 3.4, blink = bp < 0.15 ? Math.sin(bp / 0.15 * Math.PI) : 0;
-  const key = expr + '|' + (blink > 0.3 ? 1 : 0) + '|' + (talking ? Math.round(t * 8) % 2 : 0);
+  const blink = blinkAmt(t, seed);
+  const gaze = expr === 'bliss' ? 0 : Math.round(saccade(t, seed) * 4) / 4;
+  const key = expr + '|' + (blink > 0.3 ? 1 : 0) + '|' + (talking ? Math.round(t * 8) % 2 : 0) + '|' + gaze;
   if (key === h.lastExpr) return; h.lastExpr = key;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, 256, 256); g.setTransform(2.85, 0, 0, 2.85, -100, -125);
   g.lineJoin = 'round'; g.lineCap = 'round';
   const blushy = ['happy', 'bliss', 'laugh', 'surprised'].includes(expr) || !m;
   if (blushy) for (const s of [-1, 1]) { const bl = g.createRadialGradient(80 + s * 17, 100, 0, 80 + s * 17, 100, 9); bl.addColorStop(0, 'rgba(255,110,140,.45)'); bl.addColorStop(1, 'rgba(255,110,140,0)'); g.fillStyle = bl; g.beginPath(); g.ellipse(80 + s * 17, 100, 9, 5, 0, 0, 7); g.fill(); }
-  const eo = { w: m ? 7 : 7.4, h: m ? 6.2 : 8.4, iris: b.eye, masc: m, open: 1 - blink, look: 0, mode: '' };
+  const eo = { w: m ? 7 : 7.4, h: m ? 6.2 : 8.4, iris: b.eye, masc: m, open: 1 - blink, look: gaze, mode: '' };
   if (expr === 'bliss') eo.mode = 'closedCalm'; else if (expr === 'laugh') eo.mode = 'closedHappy'; else if (expr === 'wince') eo.mode = 'wince';
   else if (expr === 'annoyed') eo.open = Math.min(eo.open, 0.5); else if (expr === 'happy') { eo.lower = 0.62; eo.open *= 0.92; } else if (expr === 'surprised') { eo.open = 1.12; eo.irisScale = 0.82; }
   for (const s of [-1, 1]) animeEye(g, 80 + s * 15, 87, s, eo);
@@ -3765,17 +3787,23 @@ function setHumanEmote(h, type) {
 function poseHuman(h, p) {
   const J = h.j, H = h.H, walk = p.walk || 0, ph = p.ph || 0, br = p.breath || 0, t = time;
   h.pelvis.position.set(0, h.yHip + Math.abs(Math.cos(ph)) * 0.012 * walk, 0); h.pelvis.rotation.set(0, Math.sin(ph) * 0.06 * walk, 0);
-  h.spine.rotation.set(0.03 * walk + (p.lean || 0), -Math.sin(ph) * 0.08 * walk, 0);
+  const idle = p.lie || p.sit ? 0 : 1 - walk, sd = h.seedPh ?? (h.seedPh = Math.random() * 20), w8 = Math.sin(t * 0.33 + sd) * 0.8 + Math.sin(t * 0.11 + sd * 2) * 0.2;
+  h.pelvis.position.x = w8 * 0.011 * H * idle; h.pelvis.rotation.z = -w8 * 0.045 * idle;
+  h.spine.rotation.set(0.03 * walk + (p.lean || 0) - (p.stretch ? 0.12 : 0), -Math.sin(ph) * 0.08 * walk, w8 * 0.06 * idle);
   h.chest.scale.set(1 + br * 0.4, 1, 1 + br * 1.5);
   if (h.shirt) h.shirt.scale.set(1 + br * 0.4, 1, 1 + br * 1.5);
-  J.head.rotation.set(p.nod || 0, clamp(p.look || 0, -0.9, 0.9), p.tilt || 0);
+  const glance = idle * (Math.sin(t * 0.23 + sd * 3) * 0.12 + saccade(t * 0.5, sd) * 0.15);
+  J.head.rotation.set((p.nod || 0) - (p.stretch ? 0.2 : 0) + Math.sin(t * 0.4 + sd) * 0.02 * idle, clamp((p.look || 0) + glance, -0.9, 0.9), (p.tilt || 0) - w8 * 0.035 * idle);
   for (const s of [1, -1]) {
     const L = s > 0 ? 'L' : 'R', side = s > 0 ? 'B' : 'T', sh = J['sh' + L], el = J['el' + L], wr = J['wr' + L], fg = J['fg' + L], hp = J['hip' + L], kn = J['kn' + L], an = J['an' + L];
     const legPh = s > 0 ? ph : ph + Math.PI, armPh = s > 0 ? ph + Math.PI : ph;
-    sh.position.copy(sh.userData.rest); sh.position.y += (p.hunch || 0) * 0.03 * H;
+    sh.position.copy(sh.userData.rest); sh.position.y += (p.hunch || 0) * 0.03 * H + br * 0.45 * H;
     hp.rotation.set(-Math.sin(legPh) * 0.45 * walk, 0, 0); kn.rotation.set((0.08 + 0.65 * Math.max(0, Math.sin(legPh + 1.3))) * walk, 0, 0); an.rotation.set(0, 0, 0);
     sh.rotation.set(-Math.sin(armPh) * 0.35 * walk, 0, s * 0.07); el.rotation.set(-0.1 - (0.12 + 0.2 * Math.max(0, Math.sin(armPh))) * walk, 0, 0); wr.rotation.set(0, 0, 0); fg.rotation.set(0.25 + (p['curl' + side] || 0) * 1.2, 0, 0); for (const tg of (J['tips' + L] || [])) tg.rotation.x = 0.18 + (p['curl' + side] || 0) * 0.9;
-    if (p.sit) { hp.rotation.x = -1.5; kn.rotation.x = 1.45; sh.rotation.x = -0.32; el.rotation.x = -0.85; }
+    if (idle) { const soft = Math.max(0, -s * w8) * 0.16 * idle; kn.rotation.x += soft; hp.rotation.x -= soft * 0.45; an.rotation.x -= soft * 0.4; hp.rotation.z = w8 * 0.045 * idle; // relaxed leg
+      sh.rotation.x += Math.sin(t * 0.33 + sd + s) * 0.035 * idle; el.rotation.x -= 0.08 * idle; }
+    if (p.sit) { hp.rotation.x = -1.5; kn.rotation.x = 1.45; sh.rotation.x = -0.32; el.rotation.x = -0.85; if (p.tap && s > 0) { an.rotation.x = Math.max(0, Math.sin(t * 9)) * 0.28; kn.rotation.x += Math.max(0, Math.sin(t * 9)) * 0.05; } }
+    if (p.stretch) { sh.rotation.set(-0.15, 0, s * 2.65); el.rotation.x = -0.3; fg.rotation.x = 0.1; }
     if (p.phone) { sh.rotation.set(-0.5, 0, s * 0.16); el.rotation.x = -1.55; wr.rotation.z = -s * 0.3; }
     if (p.cross) { sh.rotation.set(-0.3, -s * 0.35, s * 0.22); el.rotation.x = -1.95; }
     if (p.work) { sh.rotation.set(-0.95 + Math.sin(t * 5 + s) * 0.12, 0, s * 0.12); el.rotation.x = -0.55 + Math.sin(t * 5 + s) * 0.15; }
@@ -3856,7 +3884,7 @@ function syncHumans(third) {
     if (dc > 1500 && h.posed) { setHumanEmote(h, e.emote || ''); continue; } h.posed = true; // far away: keep the last pose, save the work
     h.walkAmt += ((e.moving ? 1 : 0) - h.walkAmt) * 0.2;
     const dp = dist(e.x, e.y, player.x, player.y), rel = Math.atan2(Math.sin(Math.atan2(player.y - e.y, player.x - e.x) - h.angle), Math.cos(Math.atan2(player.y - e.y, player.x - e.x) - h.angle));
-    poseHuman(h, { walk: h.walkAmt, ph: e.ph * 0.42, sit: seated, phone: mf.opts.phone, cross: mf.opts.cross, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.7 + e.c.seed)),
+    poseHuman(h, { walk: h.walkAmt, ph: e.ph * 0.42, sit: seated, phone: mf.opts.phone, cross: mf.opts.cross, tap: mf.opts.tap, stretch: e.stretchT > time && !e.moving, breath: 0.012 * (0.5 - 0.5 * Math.cos(time * 1.7 + e.c.seed)),
       look: dp < 320 && Math.abs(rel) < 1.9 ? -rel : 0, nod: mf.opts.phone ? 0.38 : 0, wave: e.state === 'follow' && e.waveT > time });
     if (time - h.faceT > 0.08) { h.faceT = time; redrawFace(h, exprFor(mf.mood), time, false); }
     setHumanEmote(h, e.emote || '');
