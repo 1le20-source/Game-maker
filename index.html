@@ -658,7 +658,7 @@ function startSession(c) {
     knots.push({ x, y, z, amt: 100, done: false });
   }
   ses = { c, L, tension, init, knots, oil: Object.fromEntries(ZONES.map(z => [z, 0])), red: Object.fromEntries(ZONES.map(z => [z, 0])),
-    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + (S.owned.steam ? 5 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0) - (c.crowded ? 8 : 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
+    stones: [], minutes: 0, comfort: clamp(62 + (S.owned.table ? 12 : 0) + (S.owned.diffuser ? 5 : 0) + (hasStaff() ? 6 : 0) + (S.owned.steam ? 5 : 0) + ({ friend: 3, dating: 6, partner: 10 }[(personOfC(c) || {}).status] || 0) - (c.crowded ? 8 : 0) + (c.comfortBonus || 0), 0, 100), talkCd: 0, talkCount: 0, lineCd: 0, idle: 0,
     known: { pref: false, scent: false, tickle: false, hairOil: false }, scentPraised: false, usedStones: false, usedScent: {},
     overWarn: false, expr: null, exprT: 0, released: 0, ended: false, complainCd: 0, lastExpr: '', zoneLineDone: {},
     head: { a: 0, v: 0 }, handTw: { T: 0, B: 0 }, goose: {}, tense: 0, melt: 0, feel: null, feelT: 0, thought: null, thoughtCd: 1, lastThought: '', lovedSaid: false,
@@ -1888,6 +1888,7 @@ function showHelp(back) {
     <li><b>Robbers:</b> sometimes a masked robber goes for the register. Press 🛡️ Defend (F). Buy pepper spray, a baton, a taser, a silent alarm or a security guard in Upgrades.</li>
     <li><b>Your mansion:</b> at the end of each day choose 🏠 Go home. Invite someone over from the phone in the foyer or 💞 People. On a first-person date you walk them around, do activities together, talk, and say goodnight at the front door. Sleep in the bedroom or drive to work to start the next day.</li>
     <li><b>Real life:</b> people have good and bad days, so ask how they are. Partners can move in, you can buy a ring and propose, and plan a wedding. Renovate the mansion (bar, cinema, telescope, roses, art, chef's kitchen, koi pond, blackjack, sports car). Bills and taxes are due every 7 days.</li>
+    <li><b>Free choices:</b> walk up to anyone and press E to decide what to do: small talk, offer tea, tell a joke, compliment them, swap numbers, give a gift; chat with, praise or tip your staff; ask your date about their dreams, hug them, and more. At home you can sit on any sofa, chair or lounger.</li>
     <li><b>Relationships:</b> dating someone while you have a partner can get you caught. Partners react differently: some are fine with it, some forgive, some break up, and some come to the spa to make a scene.</li></ul>`,
     [['Got it', back, 'primary']]);
 }
@@ -2358,7 +2359,7 @@ function updateEnt(e, dt) {
   }
 }
 function playerMove(dt) {
-  if (world.loc === 'home' && (dlg.current || world.scene)) { player.moving = false; return; }
+  if (dlg.current || (world.loc === 'home' && world.scene)) { player.moving = false; return; }
   let mx = 0, my = 0;
   if (keys.has('arrowleft') || keys.has('a')) mx--; if (keys.has('arrowright') || keys.has('d')) mx++;
   if (keys.has('arrowup') || keys.has('w')) my--; if (keys.has('arrowdown') || keys.has('s')) my++;
@@ -2388,13 +2389,13 @@ function interactables() {
     if (e.robber) { if (['robApproach', 'robbing'].includes(e.state)) list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: anyWeapon() ? `Stop the robber (${WEAPONS[anyWeapon()].name})` : 'Confront the robber', act: () => defend(), ent: e }); continue; }
     if (e.state === 'drama') { list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Talk to ${e.c.name} (making a scene)`, act: () => calmDrama(e), ent: e }); continue; }
     if (e.state === 'checkin') list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `Check in ${e.c.name} · collect $${e.c.price}`, act: () => checkIn(e), ent: e });
-    else if ((e.state === 'seated' || (e.state === 'arrive' && e.c.paid)) && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? e.seatFront : { x: e.x, y: e.y }, label: `Greet ${e.c.name}`, act: () => greet(e), ent: e });
+    else if ((e.state === 'seated' || (e.state === 'arrive' && e.c.paid)) && !e.claimed) list.push({ x: e.x, y: e.y, spot: e.state === 'seated' ? e.seatFront : { x: e.x, y: e.y }, label: `Talk to ${e.c.name}`, act: () => clientMenu(e), ent: e });
   }
   list.push({ x: SPOT.table.x, y: 290, spot: SPOT.table, label: f ? `Start ${f.c.name}'s massage` : 'Bring a client here to start a massage', act: () => f ? beginMassage(f) : toast('Greet a client in the waiting area first.') });
   list.push({ x: F.desk.x + 125, y: F.desk.y + 28, spot: SPOT.desk, label: 'Manage staff (hire / let go)', act: () => openStaffWorld() });
   list.push({ x: F.cabinet.x + 23, y: F.cabinet.y + 75, spot: SPOT.cabinet, label: 'Supply cabinet (upgrades)', act: () => openShopWorld() });
   list.push({ x: F.bossDesk.x + 30, y: F.bossDesk.y + 75, spot: SPOT.office, label: 'Watch the security cameras', act: () => openCams() });
-  for (const st of staffEnts) if (st.incident) list.push({ x: st.x, y: st.y, spot: { x: st.x, y: st.y }, label: `Confront ${st.s.c.name} (${INCIDENTS[st.incident.type].label})`, act: () => confront(st) });
+  for (const st of staffEnts) if (st.incident || st.state !== 'work') list.push({ x: st.x, y: st.y, spot: { x: st.x, y: st.y }, label: st.incident ? `Confront ${st.s.c.name} (${INCIDENTS[st.incident.type].label})` : `Talk to ${st.s.c.name}`, act: () => staffMenu(st), ent: st });
   list.push({ x: F.tea.x + 86, y: F.tea.y + 28, spot: SPOT.tea, label: S.teaBuff ? 'Tea is ready (+comfort next session)' : 'Brew calming tea', act: () => brewTea() });
   return list;
 }
@@ -4067,6 +4068,7 @@ function homeInteractables() {
       if (k === 'cat') { if (dist(homeCat.x, homeCat.y, player.x, player.y) < 200) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: lab, act: () => startActivity(k) }); continue; }
       list.push({ x: A.at.x, y: A.at.y, spot: A.spot, label: lab, act: () => startActivity(k) });
     }
+    if (dist(e.x, e.y, player.x, player.y) < 140) list.push({ x: e.x, y: e.y, spot: { x: e.x, y: e.y }, label: `💬 Talk to ${e.c.name}`, act: () => dateMenu(e), ent: e });
     if (e.live) list.push({ x: HOME.F.bed.x + 110, y: HOME.F.bed.y + 200, spot: S2.bed, label: `🌙 Call it a night with ${e.c.name}`, act: () => endHomeDate() });
     else list.push({ x: S2.door.x, y: S2.door.y + 60, spot: S2.door, label: `👋 Walk ${e.c.name} out and say goodnight`, act: () => endHomeDate() });
   } else {
@@ -4080,10 +4082,86 @@ function homeInteractables() {
     if (HOME.F.cards) list.push({ x: 520, y: 1005, spot: { x: 520, y: 1080 }, label: '🃏 Play blackjack', act: () => { state = 'modal'; playBlackjack(() => { hideModal(); state = 'world'; }); } });
     if (dist(homeCat.x, homeCat.y, player.x, player.y) < 160) list.push({ x: homeCat.x, y: homeCat.y, spot: { x: homeCat.x, y: homeCat.y }, label: '🐱 Pet Mochi', act: () => petCat() });
   }
+  list.push(...seatInteractables());
   return list;
 }
 
 function bodyTag(c) { const b = c.body; return b && b.build ? `<span class="tag">${BUILDS[b.build].label} · ${b.age}</span>` : ''; }
+
+// =====================================================================
+//  Free choices: walk up to anyone and decide what to do; sit anywhere
+// =====================================================================
+const CLIENT_MOODS = { great: 2, good: 5, tired: 2, stressed: 3, sad: 1 };
+const SMALL_TALK = {
+  great: ['Honestly? Best week I\'ve had in ages. I got the apartment I wanted!', 'I\'m in such a good mood today. The sun is out, I\'m getting a massage… life is good.'],
+  good: ['Pretty good! Work was fine, and now I get to relax.', 'Not bad! I\'ve been looking forward to this all week.'],
+  tired: ['Exhausted. I pulled a double shift. This massage is my reward.', 'I could fall asleep right here on this sofa, no joke.'],
+  stressed: ['Ugh, deadlines. My shoulders are basically made of rocks right now.', 'My boss, my landlord, my phone… everything wants something from me today.'],
+  sad: ['Honestly, not great. Rough breakup last week. I just needed to do something nice for myself.', 'My dog is sick and I\'m worried. Sorry, I\'m a bit quiet today.'],
+};
+const JOKES = ['Why did the massage therapist break up with the chiropractor? Too many cracks in the relationship.', 'I tried to massage my own shoulders once. Terrible service, no tip.', 'What do you call a relaxed knot? A not.', 'My favourite exercise? A cross between a lunge and a crunch. I call it lunch.'];
+function clientMood(c) { if (!c.mood) c.mood = weighted(CLIENT_MOODS); return c.mood; }
+function clientMenu(e) {
+  const c = e.c, p = personOfC(c), opts = [];
+  fp.yaw = Math.atan2(e.y - player.y, e.x - player.x); try { fp.pitch = clamp(pitchToFace(Object.assign({}, e, { pose: e.state === 'seated' ? 'sit' : 'stand' })), -0.7, 0.3); } catch (_) {}
+  if (e.state === 'checkin') opts.push([`💵 Check them in ($${c.price})`, () => checkIn(e)]);
+  if ((e.state === 'seated' || (e.state === 'arrive' && c.paid)) && !e.claimed) opts.push(['👋 Bring them to the treatment room', () => greet(e)]);
+  if (!e.didTalk) opts.push(['💬 Ask how their day is going', () => { e.didTalk = true; const m = clientMood(c); e.patience = Math.min(e.maxPatience, e.patience + 25); if (p) p.aff = Math.min(100, p.aff + 2);
+    setEmote(e, m === 'great' ? 'heart' : m === 'sad' ? 'dots' : 'note', 2.5);
+    dlg(c.name, pick(SMALL_TALK[m]), m === 'sad' || m === 'stressed' ? [['I\'m sorry. Today\'s session is all about you.', () => { c.comfortBonus = (c.comfortBonus || 0) + 6; setEmote(e, 'heart', 2); dlg(c.name, 'Thank you. That actually means a lot.', null); }], ['Hang in there.', null]] : null); }]);
+  if (!e.didTea) opts.push(['☕ Offer them a cup of tea', () => { e.didTea = true; e.patience = Math.min(e.maxPatience, e.patience + 35); c.comfortBonus = (c.comfortBonus || 0) + 3; setEmote(e, 'heart', 2.5); dlg(c.name, pick(['Oh, that\'s so thoughtful. Thank you!', 'Mm, jasmine? Perfect.']), null); }]);
+  if (!e.didJoke) opts.push(['😄 Tell a joke', () => { e.didJoke = true; const hit = Math.random() < (c.chatty ? 0.7 : 0.45); setEmote(e, hit ? 'note' : 'sweat', 2.5); if (hit) e.patience = Math.min(e.maxPatience, e.patience + 15);
+    dlg('You', pick(JOKES), [['…', () => dlg(c.name, hit ? pick(['*laughs* Okay, that was good.', 'Ha! I\'m stealing that one.']) : pick(['…Wow. Okay. *polite smile*', 'I\'m going to pretend I didn\'t hear that.']), null)]]); }]);
+  if (!e.didCompliment) opts.push(['🌟 Compliment their style', () => { e.didCompliment = true; const ok = (p && p.aff >= 30) || Math.random() < 0.7; setEmote(e, ok ? 'heart' : 'sweat', 2.5); if (ok && p) p.aff = Math.min(100, p.aff + 3);
+    dlg(c.name, ok ? pick(['Aww, thank you! I picked this out this morning.', 'Really? You just made my day.']) : pick(['Oh… um, thanks.', 'Haha… thanks, I guess?']), null); }]);
+  if (!p && !e.didNumber) opts.push(['📱 Ask if they want to stay in touch', () => { e.didNumber = true; const ok = c.chatty || Math.random() < 0.5;
+    if (ok) { recordVisit(c, 3, true, true); const q = personOfC(c); if (q) { q.aff = Math.max(q.aff, 22); q.visits = Math.max(0, q.visits - 1); } saveGame(); setEmote(e, 'heart', 2.5); }
+    dlg(c.name, ok ? 'Sure! Here, let me put my number in your phone. 📱' : 'Maybe after the massage? I\'m a bit shy, haha.', null); }]);
+  const inv = GIFTS.filter(g => (S.gifts || {})[g.id] > 0);
+  if (p && inv.length && p.giftDay !== S.day) opts.push([`🎁 Give a gift (${inv[0].name})`, () => { const g = inv[0]; S.gifts[g.id]--; p.giftDay = S.day; p.aff = Math.min(100, p.aff + g.aff); saveGame(); setEmote(e, 'heart', 3); chime(); dlg(c.name, `For me? ${g.name.slice(0, 2)} Oh, you didn't have to… thank you!`, null); }]);
+  opts.push(['Never mind', null]);
+  const hello = p ? (isCommitted(p) ? 'Hey, you. 💕' : p.status === 'dating' ? 'Oh! Hi… 😊' : `Hey! Good to see you again.`) : e.state === 'checkin' ? 'Hi! I have an appointment?' : 'Hi there!';
+  dlg(c.name, hello, opts);
+}
+function staffMenu(st) {
+  const s = st.s, name = s.c.name, opts = [];
+  if (st.incident) opts.push([`⚠️ Confront them (${INCIDENTS[st.incident.type].label})`, () => confront(st)]);
+  if (s.chatDay !== S.day) opts.push(['💬 Chat for a minute', () => { s.chatDay = S.day; s.morale = Math.min(1, morale(s) + 0.05); setEmote(st, 'note', 2); dlg(name, pick(['Busy day, but a good one!', 'Honestly, I love working here.', 'My last client fell asleep. Best compliment there is.']), null); }]);
+  if (s.praiseDay !== S.day) opts.push(['🙌 Praise their work', () => { s.praiseDay = S.day; s.morale = Math.min(1, morale(s) + 0.1); setEmote(st, 'heart', 2.5); dlg(name, pick(['Thanks, boss! That means a lot.', 'Aw, really? You made my day.']), null); }]);
+  if (s.bonusDay !== S.day && S.money >= 30) opts.push(['💵 Hand them a $30 bonus', () => { S.money -= 30; s.bonusDay = S.day; s.morale = Math.min(1, morale(s) + 0.25); saveGame(); cashSound(); setEmote(st, 'heart', 3); dlg(name, 'Wait, seriously? Thank you so much!', null); }]);
+  opts.push(['👥 Open the staff screen', () => openStaffWorld()]);
+  opts.push(['Never mind', null]);
+  dlg(name, `${ROLES[s.role] ? ROLES[s.role].label : 'Staff'} · level ${levelOf(s)} · morale ${Math.round(morale(s) * 100)}%`, opts);
+}
+function dateMenu(e) {
+  const p = S.people[e.pid], info = world.dateInfo, opts = [], romantic = p && ['dating', ...COMMITTED].includes(p.status);
+  info.free = info.free || {};
+  if (!info.free.dream) opts.push(['💭 Ask about their dreams', () => { info.free.dream = 1; info.gained += 3; e.expr = 'happy'; setEmote(e, 'heart', 2.5); dlg(e.c.name, pick(['Someday I want to open a little bakery by the sea. Is that silly?', 'I want to see the northern lights. Just once, with someone I love.', 'Honestly? I just want a quiet life with people I care about.']), [['That\'s beautiful. I hope you get it.', null]]); }]);
+  if (!info.free.family) opts.push(['👪 Ask about their family', () => { info.free.family = 1; info.gained += 2; dlg(e.c.name, pick(['My mom calls every Sunday. She\'d love you, by the way.', 'I have two little brothers. They\'re chaos. I adore them.', 'It\'s complicated… but I\'m working on it.']), [['Thanks for telling me.', null]]); }]);
+  if (!info.free.joke) opts.push(['😄 Tell a joke', () => { info.free.joke = 1; const hit = Math.random() < 0.65; info.gained += hit ? 2 : -1; e.expr = hit ? 'laugh' : 'neutral'; dlg('You', pick(JOKES), [['…', () => dlg(e.c.name, hit ? '*laughs* Stop, that\'s so dumb. I love it.' : '…That was terrible. *smiles anyway*', null)]]); }]);
+  if (!info.free.hug && (romantic || p.aff >= 60)) opts.push(['🤗 Give them a hug', () => { info.free.hug = 1; info.gained += 2; e.pose = 'hug'; e.state = 'date'; e.expr = 'bliss'; setEmote(e, 'heart', 3); fp.pitch = pitchToFace(e);
+    setTimeout(() => { if (e.state === 'date' && !world.scene) { e.state = 'follow'; e.pose = null; } }, 2600); }]);
+  if (!info.free.cheek && romantic) opts.push(['😘 Kiss them on the cheek', () => { info.free.cheek = 1; info.gained += 3; e.expr = 'bliss'; setEmote(e, 'heart', 3); chime(); dlg(e.c.name, pick(['*blushes* …Hey. What was that for?', 'Smooth. Very smooth. 💕']), null); }]);
+  opts.push(['Never mind', null]);
+  dlg(e.c.name, pick(['Hm? What\'s up?', 'Yes? 😊', 'Mm?']), opts);
+}
+
+function unstickPlayer() { // step out of furniture you were sitting in
+  if (isFree(player.x, player.y, 20)) return;
+  for (let r = 20; r <= 200; r += 15) for (let k = 0; k < 16; k++) { const a = fp.yaw + Math.PI + k / 16 * Math.PI * 2, x = player.x + Math.cos(a) * r, y = player.y + Math.sin(a) * r; if (isFree(x, y, 21)) { player.x = x; player.y = y; return; } }
+}
+// ---------- sit anywhere at home ----------
+const HOME_SEATS = [
+  { x: 905, y: 1470, yaw: Math.PI, name: 'the sofa' }, { x: 905, y: 1565, yaw: Math.PI, name: 'the sofa' }, { x: 905, y: 1650, yaw: Math.PI, name: 'the sofa' },
+  { x: 1160, y: 1740, yaw: Math.PI, name: 'the armchair' }, { x: 660, y: 910, yaw: -Math.PI / 2, name: 'a bean bag', pose: 'controller' }, { x: 775, y: 910, yaw: -Math.PI / 2, name: 'a bean bag', pose: 'controller' },
+  { x: 2150, y: 1549, yaw: Math.PI / 2, name: 'a dining chair' }, { x: 2270, y: 1549, yaw: Math.PI / 2, name: 'a dining chair' }, { x: 2390, y: 1549, yaw: Math.PI / 2, name: 'a dining chair' },
+  { x: 2150, y: 1741, yaw: -Math.PI / 2, name: 'a dining chair' }, { x: 2390, y: 1741, yaw: -Math.PI / 2, name: 'a dining chair' },
+  { x: 2232, y: 330, yaw: 0, name: 'a lounger by the fire' }, { x: 2468, y: 330, yaw: Math.PI, name: 'a lounger by the fire' }, { x: 1305, y: 950, yaw: -Math.PI / 2, name: 'the piano bench', pose: 'piano' },
+];
+function seatInteractables() {
+  if (world.loc !== 'home' || world.scene || player.pose) return [];
+  return HOME_SEATS.filter(s => dist(s.x, s.y, player.x, player.y) < 150).map(s => ({ x: s.x, y: s.y, spot: s, label: `🪑 Sit on ${s.name}`, act: () => { Object.assign(player, { x: s.x, y: s.y, pose: s.pose || 'sit', path: null }); fp.yaw = s.yaw; fp.pitch = -0.05; toast('🪑 You sit down. Move to stand up again.'); } }));
+}
 
 // ---------- Upgrades you can see ----------
 function applyUpgradeSolids() {
@@ -4364,7 +4442,9 @@ function updateHUD3D() {
   g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 3; g.beginPath(); g.arc(mm.width / 2, mm.height / 2, mm.width / 2 - 2, 0, 7); g.stroke();
 }
 function playerMoveFP(dt) {
-  if (world.loc === 'home' && (dlg.current || world.scene)) { player.moving = false; return; }
+  if (dlg.current || (world.loc === 'home' && world.scene)) { player.moving = false; return; }
+  if (player.pose && !world.scene && view === 'world') { // sitting: any movement stands you up
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown'].some(k => keys.has(k)) || Math.hypot(fp.joy.x, fp.joy.y) > 0.3) { player.pose = ''; unstickPlayer(); } else { player.moving = false; return; } }
   let f = 0, sd = 0;
   if (keys.has('w') || keys.has('arrowup')) f++; if (keys.has('s') || keys.has('arrowdown')) f--;
   if (keys.has('d')) sd++; if (keys.has('a')) sd--;
