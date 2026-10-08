@@ -202,6 +202,12 @@
     // --- outfits
     const U = { type: 'microfiber', color: c1, pattern: 'solid', scale: 1 };
     const id = p.outfit || 'underwear';
+    // outfits defined in other files (js/swimwear.js): BS.OUTFIT_BUILDERS[id](kit) -> garment list
+    const ext = BS.OUTFIT_BUILDERS && BS.OUTFIT_BUILDERS[id];
+    if (ext) {
+      const kit = { p, ctx, L, part, pos, x, y, z, trunk, wear, fem, c1, c2, U, smooth, clamp, briefs, bra, top, bottoms, shoes, sole, onePiece };
+      return G.concat(ext(kit) || []);
+    }
     if (id === 'underwear') {
       G.push(briefs(fem ? 'briefs' : 'boxer', wear('underwear', Object.assign({}, U, { type: fem ? 'microfiber' : 'jersey' }))));
       if (fem) G.push(bra('bra', wear('underwear', Object.assign({}, U, { type: 'microfiber' }))));
@@ -600,6 +606,9 @@
         const m = this._shell(g, ctx);
         if (m) { m.name = 'garment-' + g.slot; this.meshes.push(m); this.group.add(m); }
       }
+      // free-standing pieces from other files (ties, bows, straps): BS.OUTFIT_EXTRAS[id](ctx, this, p) -> Object3D[]
+      const extra = BS.OUTFIT_EXTRAS && BS.OUTFIT_EXTRAS[p.outfit];
+      if (extra) for (const m of extra(ctx, this, p) || []) { if (!m) continue; m.name = m.name || 'garment-extra'; this.meshes.push(m); this.group.add(m); }
       if (p.outfit === 'dress') {
         const w = (p.wardrobe && p.wardrobe.bottom) || (p.wardrobe && p.wardrobe.top) || {};
         const m = this._skirt(Object.assign({ type: 'satin', color: p.outfitColor || '#5e3a5a', pattern: 'solid' }, w), ctx);

@@ -127,6 +127,8 @@
         P[o + 2] += d[q + 2] * w;
       }
     }
+    // procedural shape corrections on the base mesh (js/shape.js)
+    if (BS.shapeCorrect) BS.shapeCorrect(D, p, P);
     // extra uniform scale reaches heights the height targets alone can't
     const k = p.heightScale || 1;
     if (k !== 1) for (let i = 0; i < P.length; i++) P[i] *= k;
