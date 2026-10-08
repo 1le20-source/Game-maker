@@ -507,7 +507,7 @@ gl_FragColor.a *= uFade;`);
   const PREFABS = {};
   function prefab(key, res, build) {
     const k = key + '@' + res;
-    if (!PREFABS[k]) { const [f, lo, hi] = build(); PREFABS[k] = polygonize(f, lo, hi, res); }
+    if (!PREFABS[k]) { const t0 = performance.now(); const [f, lo, hi] = build(); PREFABS[k] = polygonize(f, lo, hi, res); PREFABS[k].ms = performance.now() - t0; }
     return PREFABS[k];
   }
 
@@ -1189,6 +1189,7 @@ diffuseColor.rgb = mix(mRed, mTen, smoothstep(0.35, 0.75, mTendon));`,
       this.objects = {};
       this.proxies = [];
       this.xray = 0;
+      this.xrayGoal = 0;
       this.cutValue = null;
       this.cutAxis = 'z';
       this.plane = new THREE.Plane(new V3(0, 0, -1), 0);
@@ -1233,7 +1234,7 @@ diffuseColor.rgb = mix(mRed, mTen, smoothstep(0.35, 0.75, mTendon));`,
       this.params = p;
       this.body = null;
       for (const k of ['muscles', 'skeleton', 'organs', 'vessels', 'nerves']) this.dirty[k] = true;
-      if (this._pending) { Object.assign(this.state, this._pending); this._pending = null; }
+      if (this._pending) { Object.assign(this.state, this._pending); this._pending = null; this._sync(); this._fade(1); return; }
       this._sync();
     }
 
@@ -1394,19 +1395,27 @@ diffuseColor.rgb = mix(mRed, mTen, smoothstep(0.35, 0.75, mTendon));`,
       }
     }
 
+    // x-ray fade (k = blend factor toward the goal; 1 = jump)
+    _fade(k) {
+      const h = this.human;
+      if (abs(this.xray - this.xrayGoal) <= 1e-3) return;
+      this.xray += (this.xrayGoal - this.xray) * k;
+      if (abs(this.xray - this.xrayGoal) < 0.01) this.xray = this.xrayGoal;
+      const U = h.skinUniforms;
+      if (U && U.uXray) U.uXray.value = this.xray;
+      // the skin module turns blending on for x-ray; without it, do it here
+      const own = !this.app.modules.skin, m = h.skinMat;
+      if (m && (own || !(U && U.uXray))) {
+        const tr = this.xray > 0.001;
+        if (m.transparent !== tr) { m.transparent = tr; m.depthWrite = !tr; m.needsUpdate = true; }
+        if (!(U && U.uXray)) m.opacity = 1 - 0.85 * this.xray;
+        h.body.castShadow = !tr;
+      }
+    }
+
     update(dt, t) {
       const h = this.human;
-      // x-ray fade
-      if (abs(this.xray - this.xrayGoal) > 1e-3) {
-        this.xray += (this.xrayGoal - this.xray) * (1 - Math.exp(-dt * 6));
-        if (abs(this.xray - this.xrayGoal) < 0.01) this.xray = this.xrayGoal;
-        if (h.skinUniforms && h.skinUniforms.uXray) h.skinUniforms.uXray.value = this.xray;
-        else if (h.skinMat) {
-          const m = h.skinMat, tr = this.xray > 0.001;
-          if (m.transparent !== tr) { m.transparent = tr; m.depthWrite = !tr; m.needsUpdate = true; }
-          m.opacity = 1 - 0.85 * this.xray;
-        }
-      }
+      this._fade(1 - Math.exp(-dt * 6));
       for (const m of this.mats) if (m.userData.u) { m.userData.u.uTime.value = t; m.userData.u.uHi.value = this.hiId ?? -1; }
       if (this.cutValue !== null && this.cutAxis !== 'y') {
         const r = h.rootOffset, v = this.cutValue;
@@ -1484,5 +1493,6 @@ diffuseColor.rgb *= mix(0.86, 1.04, bTone) * mix(0.92, 1.0, bPore);`,
   const _rc1 = new V3(), _rc2 = new V3(), _rc3 = new V3();
 
   BS.Anatomy = Anatomy;
+  BS.anatomyPrefabs = PREFABS;
   BS.registerModule({ name: 'anatomy', order: 20, create: (app) => new Anatomy(app) });
 })();

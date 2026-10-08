@@ -357,12 +357,17 @@
   }
 
   // Hem, stitching, woven borders and fold shading for flat textiles. UVs
-  // are in meters; uSize is the flat size of the piece.
+  // are in meters; uSize is the flat size of the piece. Runs after the
+  // fabric shader (at alphamap_fragment), so with BS.Fabric the hem is real
+  // relief (fHd), the woven border flattens the weave (fG) and the fold
+  // occlusion from the simulation darkens ambient light (fAO).
   function addTextileDetail(mat, U) {
     if (!mat.isMeshStandardMaterial) return mat;
     mat.vertexColors = true;
+    if (mat.userData.fabric) mat.defines = Object.assign(mat.defines || {}, { TEX_FAB: '' });
+    mat.userData.detail = U;
     BS.patch(mat, 'textile-detail', (shader) => {
-      if (shader.vertexShader.indexOf('#include <uv_vertex>') < 0 || shader.fragmentShader.indexOf('#include <map_fragment>') < 0) return;
+      if (shader.fragmentShader.indexOf('#include <alphamap_fragment>') < 0) return;
       Object.assign(shader.uniforms, U);
       shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec2 vCloth;')
@@ -371,29 +376,38 @@
         .replace('#include <common>', `#include <common>
 varying vec2 vCloth;
 uniform vec2 uSize;
-uniform vec4 uHem;      // hem width on the long sides, on the ends, hem shading, stitch on
-uniform vec4 uBand;     // woven border: start, end (m from the ends), strength, on
+uniform vec4 uHem;      // hem width on the long sides, on the ends, hem relief (m), stitching on
+uniform vec4 uBand;     // woven border: from, to (m from the ends), tint, on
 uniform vec3 uBandColor;
 uniform vec3 uThread;
 float clothStitch(float d, float along) {
-  float w = fwidth(d) * 0.8 + 0.0003;
+  float w = fwidth(d) * 0.7 + 0.00025;
   float line = 1.0 - smoothstep(w, w * 2.2, abs(d));
   float f = fract(along / 0.0042);
   return line * smoothstep(0.1, 0.25, f) * (1.0 - smoothstep(0.7, 0.85, f));
 }`)
-        .replace('#include <map_fragment>', `#include <map_fragment>
+        .replace('#include <alphamap_fragment>', `#include <alphamap_fragment>
 {
   float dU = min(vCloth.x, uSize.x - vCloth.x), dV = min(vCloth.y, uSize.y - vCloth.y);
-  float band = uBand.w * step(uBand.x, dV) * step(dV, uBand.y);
-  float bandEdge = uBand.w * (exp(-pow((dV - uBand.x) / 0.0025, 2.0)) + exp(-pow((dV - uBand.y) / 0.0025, 2.0)));
-  diffuseColor.rgb = mix(diffuseColor.rgb, uBandColor, band * uBand.z);
-  diffuseColor.rgb *= 1.0 - 0.18 * bandEdge;
-  float inHemU = 1.0 - step(uHem.x, dU), inHemV = 1.0 - step(uHem.y, dV);
-  float hemLine = exp(-pow((dU - uHem.x) / 0.0018, 2.0)) * step(0.0001, uHem.x) + exp(-pow((dV - uHem.y) / 0.0018, 2.0)) * step(0.0001, uHem.y);
-  diffuseColor.rgb *= 1.0 - uHem.z * (0.22 * hemLine + 0.05 * max(inHemU, inHemV));
-  float st = uHem.w * (clothStitch(dU - uHem.x * 0.55, vCloth.y) * step(0.0001, uHem.x) * (1.0 - inHemV * (1.0 - inHemU))
-    + clothStitch(dV - uHem.y * 0.55, vCloth.x) * step(0.0001, uHem.y));
-  diffuseColor.rgb = mix(diffuseColor.rgb, uThread, clamp(st, 0.0, 1.0) * 0.85);
+  float aaU = fwidth(dU) + 1e-5, aaV = fwidth(dV) + 1e-5;
+  float onU = step(1e-4, uHem.x), onV = step(1e-4, uHem.y);
+  float band = uBand.w * smoothstep(uBand.x - aaV, uBand.x + aaV, dV) * (1.0 - smoothstep(uBand.y - aaV, uBand.y + aaV, dV));
+  float bandEdge = uBand.w * (exp(-pow((dV - uBand.x) / 0.0018, 2.0)) + exp(-pow((dV - uBand.y) / 0.0018, 2.0)));
+  float hem = max(onU * (1.0 - smoothstep(uHem.x - aaU, uHem.x + aaU, dU)), onV * (1.0 - smoothstep(uHem.y - aaV, uHem.y + aaV, dV)));
+  float st = uHem.w * clamp(clothStitch(dU - uHem.x * 0.6, vCloth.y) * onU * (1.0 - onV * step(dV, uHem.y)) + clothStitch(dV - uHem.y * 0.6, vCloth.x) * onV, 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uBandColor * (0.92 + 0.16 * dot(diffuseColor.rgb, vec3(0.33))), band * uBand.z);
+  diffuseColor.rgb *= (1.0 - 0.22 * bandEdge) * (1.0 - 0.08 * hem);
+#ifdef TEX_FAB
+  diffuseColor.rgb = mix(diffuseColor.rgb, fabThread, st * 0.9);
+  fG *= 1.0 - 0.8 * band;
+  float hemH = max(onU * (1.0 - smoothstep(uHem.x - 0.0025, uHem.x + 0.0004, dU)), onV * (1.0 - smoothstep(uHem.y - 0.0025, uHem.y + 0.0004, dV)));
+  fHd += uHem.z * hemH - 0.0003 * st - 0.0015 * uBand.w * (smoothstep(uBand.x - 0.0015, uBand.x + 0.0015, dV) - smoothstep(uBand.y - 0.0015, uBand.y + 0.0015, dV));
+#ifdef USE_COLOR
+  fAO *= vColor.r;
+#endif
+#else
+  diffuseColor.rgb = mix(diffuseColor.rgb, uThread, st * 0.85);
+#endif
 }`);
     });
     return mat;
@@ -524,6 +538,17 @@ float clothStitch(float d, float along) {
       this.q.set(this.p);
       if (this.self) this._initSelf();
     }
+    // a folded piece keeps its creases (rest lengths across the folds take
+    // the folded distance) until it is picked up
+    memorize(rank) {
+      this.cr0 = this.cr.slice();
+      for (let c = 0; c < this.ca.length; c++) {
+        const a = this.ca[c], b = this.cb[c];
+        if (rank[a] !== rank[b]) this.cr[c] = Math.min(this.cr[c], this.dist(a, b));
+      }
+    }
+    forget() { if (this.cr0) { this.cr.set(this.cr0); this.cr0 = null; } }
+    setSelf(on) { if (on && !this.hashHead) this._initSelf(); this.self = on; this.wake(); }
     setTris(tris) { this.tris = tris; }
     // folded stacks: breakable spacers between layers
     setStack(a, b, rest) {
@@ -968,7 +993,7 @@ float clothStitch(float d, float along) {
       this.dir[r * 3] = dx; this.dir[r * 3 + 1] = dy; this.dir[r * 3 + 2] = dz;
     }
     update(dt, colliders, cam) {
-      const S = this.segs + 1, p = this.p, q = this.q, seg = this.seg, R = this.roots.length, root = [0, 0, 0];
+      const S = this.segs + 1, p = this.p, q = this.q, seg = this.seg, R = this.roots.length, root = this._root3 || (this._root3 = [0, 0, 0]);
       const sub = 3, h = dt / sub, g = -9.81 * h * h;
       for (let r = 0; r < R; r++) {
         this._root(r, root);

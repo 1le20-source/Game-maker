@@ -76,8 +76,8 @@
         const ax = pos[a], ay = pos[a + 1], az = pos[a + 2], bx = pos[b], by = pos[b + 1], bz = pos[b + 2], cx = pos[c], cy = pos[c + 1], cz = pos[c + 2];
         if ((ax < m0 && bx < m0 && cx < m0) || (ax > M0 && bx > M0 && cx > M0) || (ay < m1 && by < m1 && cy < m1) ||
           (ay > M1 && by > M1 && cy > M1) || (az < m2 && bz < m2 && cz < m2) || (az > M2 && bz > M2 && cz > M2)) continue;
-        const e = Math.max(Math.hypot(bx - ax, by - ay, bz - az), Math.hypot(cx - bx, cy - by, cz - bz), Math.hypot(ax - cx, ay - cy, az - cz));
-        const m = Math.max(1, Math.ceil(e / (h * 0.6)));
+        const e2 = Math.max((bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2, (cx - bx) ** 2 + (cy - by) ** 2 + (cz - bz) ** 2, (ax - cx) ** 2 + (ay - cy) ** 2 + (az - cz) ** 2);
+        const m = Math.max(1, Math.ceil(Math.sqrt(e2) / (h * 0.6)));
         for (let i = 0; i <= m; i++) for (let j = 0; j <= m - i; j++) {
           const u = i / m, v = j / m, w = 1 - u - v;
           const gx = Math.round((ax * w + bx * u + cx * v - lo[0]) * ih), gy = Math.round((ay * w + by * u + cy * v - lo[1]) * ih), gz = Math.round((az * w + bz * u + cz * v - lo[2]) * ih);
@@ -87,37 +87,38 @@
       // dilate once so the flood fill can't leak in through the eye openings
       const dil = surf.slice();
       for (let z = 1; z < nz - 1; z++) for (let y = 1; y < ny - 1; y++) for (let x = 1, i = 1 + y * nx + z * nxy; x < nx - 1; x++, i++) {
-        if (!surf[i]) continue;
-        dil[i - 1] = dil[i + 1] = dil[i - nx] = dil[i + nx] = dil[i - nxy] = dil[i + nxy] = 1;
+        if (surf[i]) dil[i - 1] = dil[i + 1] = dil[i - nx] = dil[i + nx] = dil[i - nxy] = dil[i + nxy] = 1;
       }
-      // flood the outside from the faces of the box
+      // flood the outside from the top face (above the head is always air;
+      // other faces may cut through the neck, torso or arms)
       const out = new Uint8Array(N), q = new Int32Array(N);
       let qh = 0, qt = 0;
-      const seed = (i) => { if (!dil[i] && !out[i]) { out[i] = 1; q[qt++] = i; } };
-      for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
-        if (x === 0 || y === 0 || z === 0 || x === nx - 1 || y === ny - 1 || z === nz - 1) seed(x + y * nx + z * nxy);
+      for (let z = 0; z < nz; z++) for (let x = 0; x < nx; x++) {
+        const i = x + (ny - 1) * nx + z * nxy;
+        if (!dil[i]) { out[i] = 1; q[qt++] = i; }
       }
       while (qh < qt) {
         const i = q[qh++], x = i % nx, y = ((i / nx) | 0) % ny, z = (i / nxy) | 0;
-        if (x > 0) seed(i - 1);
-        if (x < nx - 1) seed(i + 1);
-        if (y > 0) seed(i - nx);
-        if (y < ny - 1) seed(i + nx);
-        if (z > 0) seed(i - nxy);
-        if (z < nz - 1) seed(i + nxy);
+        let j;
+        if (x > 0 && !dil[(j = i - 1)] && !out[j]) { out[j] = 1; q[qt++] = j; }
+        if (x < nx - 1 && !dil[(j = i + 1)] && !out[j]) { out[j] = 1; q[qt++] = j; }
+        if (y > 0 && !dil[(j = i - nx)] && !out[j]) { out[j] = 1; q[qt++] = j; }
+        if (y < ny - 1 && !dil[(j = i + nx)] && !out[j]) { out[j] = 1; q[qt++] = j; }
+        if (z > 0 && !dil[(j = i - nxy)] && !out[j]) { out[j] = 1; q[qt++] = j; }
+        if (z < nz - 1 && !dil[(j = i + nxy)] && !out[j]) { out[j] = 1; q[qt++] = j; }
       }
       // undo the dilation wherever it touches the outside
-      const undo = [];
+      qt = 0;
       for (let z = 1; z < nz - 1; z++) for (let y = 1; y < ny - 1; y++) for (let x = 1, i = 1 + y * nx + z * nxy; x < nx - 1; x++, i++) {
-        if (dil[i] && !surf[i] && (out[i - 1] || out[i + 1] || out[i - nx] || out[i + nx] || out[i - nxy] || out[i + nxy])) undo.push(i);
+        if (dil[i] && !surf[i] && (out[i - 1] || out[i + 1] || out[i - nx] || out[i + nx] || out[i - nxy] || out[i + nxy])) q[qt++] = i;
       }
-      for (const i of undo) out[i] = 1;
+      for (let k = 0; k < qt; k++) out[q[k]] = 1;
+      // chamfer distances to the other side, both directions at once
       const dO = new Float32Array(N), dI = new Float32Array(N);
-      for (let i = 0; i < N; i++) { dO[i] = out[i] ? 1e6 : 0; dI[i] = out[i] ? 0 : 1e6; }
-      chamfer(dO, nx, ny, nz);
-      chamfer(dI, nx, ny, nz);
+      for (let i = 0; i < N; i++) { dO[i] = out[i] ? 64 : 0; dI[i] = out[i] ? 0 : 8; }
+      chamfer2(dO, dI, nx, ny, nz);
       const d = (this.d = new Float32Array(N));
-      for (let i = 0; i < N; i++) d[i] = out[i] ? Math.min(0.25, (dO[i] - 0.5) * h) : -(Math.min(dI[i], 1e3) - 0.5) * h;
+      for (let i = 0; i < N; i++) d[i] = out[i] ? (dO[i] - 0.5) * h : -(dI[i] - 0.5) * h;
     }
     // trilinear distance; writes the outward gradient into g when given.
     // Outside the box the field reports "far away".
@@ -133,12 +134,20 @@
       if (g) {
         const gx = ((c100 - c000) * (1 - ty) + (c110 - c010) * ty) * (1 - tz) + ((c101 - c001) * (1 - ty) + (c111 - c011) * ty) * tz;
         const gy = (c10 - c00) * (1 - tz) + (c11 - c01) * tz, gz = c1 - c0;
-        const l = Math.hypot(gx, gy, gz);
+        const l = Math.sqrt(gx * gx + gy * gy + gz * gz);
         if (l > 1e-9) g.set(gx / l, gy / l, gz / l); else g.set(0, 0, 0);
       }
       return c0 + (c1 - c0) * tz;
     }
-    // push p out to at least `off` from the skin
+  }
+  // the fine head field first, then the coarser body field
+  class Field {
+    constructor(list) { this.list = list; }
+    dist(x, y, z, g) {
+      for (const f of this.list) { const d = f.dist(x, y, z, g); if (d !== 1) return d; }
+      return 1;
+    }
+    // push p out to at least `off` from the skin; returns the distance
     push(p, off) {
       for (let it = 0; it < 3; it++) {
         const d = this.dist(p.x, p.y, p.z, _g);
@@ -149,25 +158,37 @@
     }
   }
   const _g = V();
-  function chamfer(d, nx, ny, nz) {
-    const nxy = nx * ny, offs = [], wts = [];
+  // two-pass 3x3x3 chamfer distance (in voxels) for two fields at once
+  function chamfer2(a, b, nx, ny, nz) {
+    const nxy = nx * ny, offs = new Int32Array(13), wts = new Float32Array(13);
+    let K = 0;
     for (let dz = -1; dz <= 0; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (dz === 0 && (dy > 0 || (dy === 0 && dx >= 0))) continue;
-      offs.push(dx + dy * nx + dz * nxy);
-      wts.push(Math.hypot(dx, dy, dz));
+      offs[K] = dx + dy * nx + dz * nxy;
+      wts[K++] = Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
-    const K = offs.length;
     for (let z = 1; z < nz - 1; z++) for (let y = 1; y < ny - 1; y++) for (let x = 1, i = 1 + y * nx + z * nxy; x < nx - 1; x++, i++) {
-      let m = d[i];
-      for (let k = 0; k < K; k++) { const c = d[i + offs[k]] + wts[k]; if (c < m) m = c; }
-      d[i] = m;
+      let ma = a[i], mb = b[i];
+      for (let k = 0; k < 13; k++) {
+        const j = i + offs[k], w = wts[k];
+        const ca = a[j] + w, cb = b[j] + w;
+        if (ca < ma) ma = ca;
+        if (cb < mb) mb = cb;
+      }
+      a[i] = ma; b[i] = mb;
     }
     for (let z = nz - 2; z >= 1; z--) for (let y = ny - 2; y >= 1; y--) for (let x = nx - 2, i = x + y * nx + z * nxy; x >= 1; x--, i--) {
-      let m = d[i];
-      for (let k = 0; k < K; k++) { const c = d[i - offs[k]] + wts[k]; if (c < m) m = c; }
-      d[i] = m;
+      let ma = a[i], mb = b[i];
+      for (let k = 0; k < 13; k++) {
+        const j = i - offs[k], w = wts[k];
+        const ca = a[j] + w, cb = b[j] + w;
+        if (ca < ma) ma = ca;
+        if (cb < mb) mb = cb;
+      }
+      a[i] = ma; b[i] = mb;
     }
   }
+
 
   // --------------------------------------------------------- head frame
   // Landmarks measured on the rest mesh: the cranium as an ellipsoid (centre
@@ -216,10 +237,11 @@
     for (let t = 0; t < tris.length; t += 3) {
       const i0 = tris[t], i1 = tris[t + 1], i2 = tris[t + 2];
       const m = (mask[i0] + mask[i1] + mask[i2]) / 3;
-      if (m <= 0.002) continue;
+      if (!(m > 0.002)) continue;
       const ux = a[i1 * 3] - a[i0 * 3], uy = a[i1 * 3 + 1] - a[i0 * 3 + 1], uz = a[i1 * 3 + 2] - a[i0 * 3 + 2];
       const vx = a[i2 * 3] - a[i0 * 3], vy = a[i2 * 3 + 1] - a[i0 * 3 + 1], vz = a[i2 * 3 + 2] - a[i0 * 3 + 2];
-      acc += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) * m;
+      const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+      acc += 0.5 * Math.sqrt(cx * cx + cy * cy + cz * cz) * m;
       list.push(t);
       cdf.push(acc);
     }
@@ -239,7 +261,7 @@
         const nn = nr[i0 * 3 + c] * w + nr[i1 * 3 + c] * u + nr[i2 * 3 + c] * v;
         if (c === 0) nx = nn; else if (c === 1) ny = nn; else nz = nn;
       }
-      const l = Math.hypot(nx, ny, nz) || 1;
+      const l = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
       nrm[i * 3] = nx / l; nrm[i * 3 + 1] = ny / l; nrm[i * 3 + 2] = nz / l;
       vtx[i] = w >= u && w >= v ? i0 : u >= v ? i1 : i2;
       m[i] = mask[i0] * w + mask[i1] * u + mask[i2] * v;
@@ -314,7 +336,7 @@
         for (let k = 0; k < np; k++) {
           const i = s * np + k, a = k > 0 ? i - 1 : i, b = k < np - 1 ? i + 1 : i;
           let tx = P[b * 3] - P[a * 3], ty = P[b * 3 + 1] - P[a * 3 + 1], tz = P[b * 3 + 2] - P[a * 3 + 2];
-          const tl = Math.hypot(tx, ty, tz) || 1;
+          const tl = Math.sqrt(tx * tx + ty * ty + tz * tz) || 1;
           tx /= tl; ty /= tl; tz /= tl;
           for (let side = 0; side < 2; side++) {
             const v = i * 2 + side;
@@ -687,7 +709,9 @@ void main() {
       const wx = reach > 0.3 ? 0.3 : F.R.x + 0.09 + (R.afro || 0);
       const lo = [-wx, F.top - reach - 0.05, reach > 0.3 ? -0.22 : F.back - 0.06 - (R.afro || 0)];
       const hi = [wx, F.top + 0.04 + (R.afro || 0), reach > 0.3 ? 0.3 : F.front + 0.05];
+      const t0 = performance.now();
       const sdf = (this.sdf = new BodySDF(a, human.S.tris, lo, hi, h));
+      const t1 = performance.now();
 
       const ns = Math.max(200, Math.round(R.n * this.q)), segs = Math.max(2, Math.round(R.segs * (this.q < 0.3 ? 0.55 : this.q < 0.6 ? 0.8 : 1)));
       const np = segs + 1;
@@ -705,6 +729,7 @@ void main() {
         const crand = rng(c * 7919 + 17);
         CL[c] = this.growPath(R, sdf, root, nrm, q, crand, CP, c * np, segs);
       }
+      const t2 = performance.now();
       const hash = new Hash(CR.pos, K, 0.02);
       const B = new Batch(ns, np, {});
       const P = B.P, Q = V(), p0 = V(), d = V(), fz = V();
@@ -740,8 +765,10 @@ void main() {
         }
         B.n++;
       }
+      const t3 = performance.now();
       const geo = B.geometry();
       this.setMesh('scalp', geo, this.mats.scalp, false);
+      this.stats = { sdf: t1 - t0, clumps: t2 - t1, strands: t3 - t2, geometry: performance.now() - t3, voxels: sdf.d.length, strandCount: ns, vertices: ns * np * 2 };
       this.mats.scalp.uniforms.uWidth.value = 0.00007 * R.width / Math.sqrt(this.q);
     }
 
@@ -848,7 +875,7 @@ void main() {
       const xIn = ex - 0.0175 * k, xOut = ex + 0.027 * k;
       // centre line and half height along the brow, v = 0 inner .. 1 tail
       const cy = (v) => ey + 0.0185 * k + arch * Math.sin(Math.PI * Math.min(1, v / 0.68) * 0.5) - (v > 0.68 ? arch * 1.4 * ((v - 0.68) / 0.32) ** 2 : 0);
-      const hh = (v) => 0.5 * height * (1 - 0.6 * v ** 1.6) * smooth(-0.15, 0.12, v);
+      const hh = (v) => 0.5 * height * (1 - 0.6 * Math.max(0, v) ** 1.6) * smooth(-0.15, 0.12, v);
       const mask = new Float32Array(n);
       for (let i = 0; i < n; i++) {
         const z = a[i * 3 + 2];
