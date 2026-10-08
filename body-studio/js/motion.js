@@ -1638,6 +1638,13 @@
         const st = this.talk.stress * v[0];
         F.LeftOuterBrowUp += 0.35 * st; F.RightOuterBrowUp += 0.3 * st; F.LeftInnerBrowUp += 0.2 * st; F.RightInnerBrowUp += 0.2 * st;
       }
+      // relaxed lids rest a little over the iris; only surprise or fear
+      // opens them wide
+      for (let s = 0; s < 2; s++) {
+        const open = clamp(F[LID_OPEN[s]], 0, 1);
+        F[LID_CLOSE[s]] += 0.2 * (1 - open);
+        F[LID_LOW[s]] += 0.12 * (1 - open);
+      }
       // blinks close whatever the lids are doing
       for (let s = 0; s < 2; s++) {
         const w = Math.max(this.blink, s ? 0 : this.wink), c = LID_CLOSE[s], o = LID_OPEN[s];

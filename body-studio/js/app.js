@@ -213,6 +213,7 @@
         back: [T(height * 0.52), height * 2.15 * narrow, Math.PI, 0.04],
         side: [T(height * 0.52), height * 2.15 * narrow, Math.PI / 2, 0.04],
         upper: [T(height * 0.75), height * 1.05 * narrow, 0.25, 0.04],
+        upperBack: [T(height * 0.72), height * 1.15 * narrow, Math.PI - 0.5, 0.04],
         face: [T(eyeY - 0.03), 0.62 * narrow, 0.18, 0.02],
         faceFront: [T(eyeY - 0.03), 0.55 * narrow, 0, 0.0],
         faceSide: [T(eyeY - 0.03), 0.6 * narrow, Math.PI / 2, 0.0],

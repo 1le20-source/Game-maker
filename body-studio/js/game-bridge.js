@@ -84,8 +84,8 @@
     p.heightCm = Math.round(((sp.H || BS.expectedHeight(p.gender) / 100) + bd[2] * 0.03) * 100);
     p.identity = { woman: 'woman', man: 'man', transwoman: 'transwoman', transman: 'transman', femboy: 'man', nonbinary: 'nonbinary', genderfluid: 'genderfluid' }[id] || (fem ? 'woman' : 'man');
     p.pronouns = (BS.IDENTITIES[p.identity] || {}).pronouns || 'they/them';
-    p.breastSize = fem ? clamp(0.42 + r() * 0.3 + (p.weight - 0.5) * 0.3, 0.3, 0.9) : 0.5;
-    p.breastFirmness = clamp(0.65 - (p.age - 30) / 80 + (r() - 0.5) * 0.2, 0.1, 0.9);
+    p.breastSize = fem ? clamp(0.32 + r() * 0.55 + (p.weight - 0.5) * 0.3, 0.25, 0.95) : 0.5;
+    p.breastFirmness = clamp(0.55 - (p.age - 30) / 80 + (r() - 0.5) * 0.2, 0.1, 0.65);
     const tone = toneOf((b.skin && b.skin.base) || sp.skin || '#d6a27a');
     p.skinTone = clamp(tone + (r() - 0.5) * 0.04, 0, 1);
     p.undertone = 0.35 + r() * 0.4;
@@ -95,11 +95,17 @@
     p.freckles = b.freckles && b.freckles.length ? 0.45 : 0;
     p.blush = fem ? 0.3 : 0.15;
     p.hairStyle = HAIR_MAP[b.hair || sp.hair] || 'short';
-    if (p.hairStyle === 'long' && r() < 0.35) p.hairStyle = 'wavy';
+    if (p.hairStyle === 'long') {
+      // long hair worn many ways
+      const x = r();
+      p.hairStyle = af > 0.55 && x < 0.35 ? (x < 0.12 ? 'afro' : 'curly') : x < 0.45 ? 'long' : x < 0.7 ? 'wavy' : x < 0.82 ? 'braid' : x < 0.92 ? 'ponytail' : 'curly';
+    }
+    p.hairLength = 0.35 + r() * 0.5;
+    p.hairVolume = 0.35 + r() * 0.4;
     p.hairColorHex = b.hairColor || sp.hairColor || null;
     p.eyeColorHex = b.eye || sp.eye || null;
     p.beard = b.stubble ? 'stubble' : !fem && id === 'man' && r() < 0.15 ? 'short' : 'none';
-    p.lashLength = fem ? 0.65 : 0.4;
+    p.lashLength = fem ? 0.55 + r() * 0.3 : 0.4;
     // about half of feminine clients wear some makeup, a few others too
     const femStyle = fem || id === 'femboy';
     p.makeupStyle = femStyle && r() < 0.55 ? ['natural', 'everyday', 'everyday', 'soft glam', 'bold lip', 'smoky eye'][Math.floor(r() * 6)] : r() < 0.05 ? 'natural' : 'none';
@@ -108,8 +114,25 @@
     p.bodyHair = fem ? 0 : 0.1 + r() * 0.3;
     p.details = {};
     for (const k of FACE_KEYS) if (r() < 0.6) p.details[k] = Math.round((r() - 0.5) * 0.7 * 100) / 100;
-    if (p.weight > 0.75 && fem) p.details['shape-hourglass'] = 0.3;
-    if (b.build === 'curvy') { p.details.hips = 0.35; p.details.glutes = 0.3; p.details['shape-hourglass'] = 0.5; }
+    // a face "look" on top of the individual features, most people get one
+    const looks = femStyle ? ['cute', 'doll', 'glam', 'girlnextdoor', 'model', 'exotic', 'soft', 'pretty', 'pretty', 'cute'] : ['rugged', 'prettyboy', 'rugged'];
+    if (BS.LOOKS && r() < 0.8) {
+      const look = BS.LOOKS[looks[Math.floor(r() * looks.length)]] || {}, k = 0.6 + r() * 0.4;
+      for (const key in look) p.details[key] = Math.round(((p.details[key] || 0) * 0.35 + look[key] * k) * 100) / 100;
+    }
+    if (p.details.eyesize > 0.2) p.details.eyesize = 0.2;
+    // figure: every body differs in bust, waist, hips, butt, stomach, thighs
+    const v = (a, b) => Math.round((a + (b - a) * r()) * 100) / 100;
+    if (fem) {
+      Object.assign(p.details, { glutes: v(-0.15, 0.8), hips: v(-0.1, 0.5), waist: v(-0.45, 0.1) + (p.weight - 0.5) * 0.4, belly: clamp(v(-0.35, 0.1) + (p.weight - 0.5) * 0.5, -0.4, 0.2), thighs: v(-0.15, 0.45) });
+      const shape = r();
+      if (shape < 0.35) p.details['shape-hourglass'] = v(0.3, 0.8);
+      else if (shape < 0.5) p.details['shape-pear'] = v(0.3, 0.7);
+      else if (shape < 0.6) p.details['shape-neathourglass'] = v(0.3, 0.7);
+    } else {
+      Object.assign(p.details, { shoulders: v(-0.1, 0.45), vshape: v(-0.1, 0.5), pecs: v(-0.1, 0.45), glutes: v(-0.1, 0.4), belly: clamp(v(-0.3, 0.1) + (p.weight - 0.5) * 0.6, -0.35, 0.3) });
+    }
+    if (b.build === 'curvy') { p.details.hips = Math.max(p.details.hips || 0, 0.35); p.details.glutes = Math.max(p.details.glutes || 0, 0.45); p.details['shape-hourglass'] = 0.6; }
     p.name = b.name || '';
     return outfitFrom(p);
   };
@@ -294,8 +317,12 @@
     const per = 3.6 + (seed % 1.7), ph = (t + seed * 3.1) % per;
     let blink = ph < 0.16 ? Math.sin((ph / 0.16) * Math.PI) : ph > 0.5 && ph < 0.62 && seed % 1 > 0.6 ? Math.sin(((ph - 0.5) / 0.12) * Math.PI) : 0;
     blink = Math.max(blink, h.expr === 'bliss' ? 0.85 : 0);
-    w.LeftUpperLidClosed = Math.max(w.LeftUpperLidClosed || 0, blink);
-    w.RightUpperLidClosed = Math.max(w.RightUpperLidClosed || 0, blink);
+    // relaxed lids rest a little over the iris unless the expression opens them
+    for (const s of ['Left', 'Right']) {
+      const open = Math.min(1, w[s + 'UpperLidOpen'] || 0);
+      w[s + 'UpperLidClosed'] = Math.max((w[s + 'UpperLidClosed'] || 0) + 0.2 * (1 - open), blink);
+      w[s + 'LowerLidUp'] = (w[s + 'LowerLidUp'] || 0) + 0.12 * (1 - open);
+    }
     // small eye glances
     const g = Math.sin(t * 0.37 + seed) * 0.5 + Math.sin(t * 1.7 + seed * 2) * 0.15;
     const gq = Math.round(g * 3) / 3;

@@ -89,11 +89,12 @@
         // band all the way round, just under the bust
         let s = bandH / 2 - Math.abs(yy - (L.bandY + bandH / 2));
         if (front) {
-          // rounded cups centred a little below and inside the nipple
-          const r = L.cupR, dx = xx - L.nippleX * 0.97, dy = yy - (L.nippleY - r * 0.12);
-          const cup = r - Math.hypot(dx * 1.05, dy);
+          // cups: round over the top of the breast, full width below the
+          // nipple down to the band, joined by a centre gore
+          const r = L.cupR, cy = L.nippleY - r * 0.12, dx = xx - L.nippleX * 0.97, dy = yy - cy;
+          const cup = dy > 0 ? r - Math.hypot(dx * 1.05, dy) : Math.min(r * 1.02 - Math.abs(dx), yy - L.bandY + 0.006);
           const topLine = (sports ? L.nippleY + r * 1.1 : L.nippleY + r * (kind === 'swim' ? 0.75 : 0.62)) - yy;
-          s = Math.max(s, Math.min(cup, topLine), Math.min(L.bandY + L.cupR * 0.55 - yy, yy - L.bandY, 0.016 - xx));
+          s = Math.max(s, Math.min(cup, topLine), Math.min(L.bandY + r * 0.5 - yy, yy - L.bandY + 0.006, L.nippleX - xx));
           if (sports) s = Math.max(s, Math.min(topLine - xx * 0.15, yy - L.bandY + 0.01, L.nippleX + r - xx));
         } else if (sports) {
           // racerback
@@ -145,7 +146,7 @@
       ease: (i) => (part[i].k === 'torso' && y(i) < L.waistY + 0.03 ? 0.006 : 0) + (cfg.loose || 0),
     });
     const bottoms = (cfg, fabric) => ({
-      slot: 'bottom', thick: cfg.thick || 0.004, fabric, tent: 6, slope: 0.3,
+      slot: 'bottom', thick: cfg.thick || 0.004, fabric, tent: 12, slope: 0.24,
       cov(i) {
         const k = part[i].k, yy = y(i);
         if (trunk(k)) return (cfg.riseY !== undefined ? cfg.riseY : L.waistY - 0.015) - yy;
@@ -153,7 +154,13 @@
         if (k === 'shin') return cfg.endY !== undefined ? yy - cfg.endY : yy - (L.ankleY + 0.035);
         return -1;
       },
-      ease: (i) => { const k = part[i].k; return (k === 'shin' ? cfg.looseShin || 0 : k === 'thigh' ? cfg.looseThigh || 0 : 0); },
+      ease: (i) => {
+        const k = part[i].k;
+        // trousers bridge the crotch with a seam instead of following the body into it
+        const yy = y(i), xx = Math.abs(x(i));
+        const crotch = (cfg.thick || 0.004) * 2.2 * (1 - smooth(0.0, 0.08, Math.abs(yy - (L.crotchY + 0.015)))) * (1 - smooth(0.02, 0.075, xx));
+        return crotch + (k === 'shin' ? cfg.looseShin || 0 : k === 'thigh' ? cfg.looseThigh || 0 : 0);
+      },
     });
     const shoes = (cfg, fabric) => ({
       slot: 'shoes', thick: cfg.thick || 0.006, fabric,
@@ -199,22 +206,18 @@
       G.push(bottoms({ riseY: L.waistY - 0.03, endY: L.kneeY + 0.09, looseThigh: 0.01, thick: 0.003 }, wear('bottom', { type: 'nylon', color: c2 })));
       G.push(shoes({}, wear('shoes', { type: 'canvas', color: '#eceae6' })), sole({}, { type: 'rubber', color: '#f4f2ee' }));
     } else if (id === 'casual') {
-      if (fem) G.push(bra('bra', wear('underwear', Object.assign({}, U, { color: '#d9cfc6' }))));
       G.push(top({ neck: 'crew', sleeve: 0.45, loose: 0.003 }, wear('top', { type: 'jersey', color: c1 })));
       G.push(bottoms({ looseShin: 0.022, looseThigh: 0.01, thick: 0.005 }, wear('bottom', { type: 'denim', color: c2 === '#d9d4cc' ? '#2f4466' : c2 })));
       G.push(shoes({}, wear('shoes', { type: 'canvas', color: '#f1efea' })), sole({}, { type: 'rubber', color: '#f7f6f2' }));
     } else if (id === 'dress') {
-      if (fem) G.push(bra('bra', wear('underwear', Object.assign({}, U, { color: '#d9cfc6' }))));
       G.push(top({ neck: 'scoop', sleeveless: true, strapW: 0.028, hemY: L.hipY - 0.01, thick: 0.003 }, wear('top', { type: 'satin', color: c1 })));
       G.push(briefs('briefs', U));
       G.push(shoes({ low: true, thick: 0.004 }, wear('shoes', { type: 'leather', color: '#2a1f1c' })), sole({ soleH: 0.012, thick: 0.004 }, { type: 'leather', color: '#1a1412' }));
     } else if (id === 'formal') {
-      if (fem) G.push(bra('bra', wear('underwear', Object.assign({}, U, { color: '#d9cfc6' }))));
       G.push(top({ neck: 'crew', sleeve: 1.97, thick: 0.004, loose: 0.004 }, wear('top', { type: 'cotton', color: c1 })));
       G.push(bottoms({ looseShin: 0.026, looseThigh: 0.014, thick: 0.005 }, wear('bottom', { type: 'wool', color: c2 === '#d9d4cc' ? '#2b2d33' : c2 })));
       G.push(shoes({ low: true }, wear('shoes', { type: 'leather', color: '#1d1714' })), sole({}, { type: 'leather', color: '#120e0c' }));
     } else if (id === 'scrubs') {
-      if (fem) G.push(bra('bra', wear('underwear', Object.assign({}, U, { color: '#d9cfc6' }))));
       G.push(top({ neck: 'v', sleeve: 0.5, hemY: L.hipY - 0.07, loose: 0.009, thick: 0.004 }, wear('top', { type: 'cotton', color: c1 })));
       G.push(bottoms({ looseShin: 0.03, looseThigh: 0.018, thick: 0.004 }, wear('bottom', { type: 'cotton', color: c1 })));
       G.push(shoes({}, wear('shoes', { type: 'rubber', color: '#e8e8ea' })), sole({}, { type: 'rubber', color: '#d0d0d4' }));
@@ -343,7 +346,7 @@
             const j = nb[k];
             if (!live(j)) continue;
             const dx = P[j * 3] - px, dy = P[j * 3 + 1] - py, dz = P[j * 3 + 2] - pz;
-            const rise = dx * nx + dy * ny + dz * nz + t[j] - slope * Math.hypot(dx, dy, dz);
+            const rise = dx * nx + dy * ny + dz * nz + t[j] + cov[j * 2 + 1] - cov[i * 2 + 1] - slope * Math.hypot(dx, dy, dz);
             if (rise > m) m = rise;
           }
           t2[i] = Math.min(m, 0.04);
@@ -362,9 +365,89 @@
       return t;
     }
 
-    _smoothNormals(iters) {
+    // per-vertex lift that turns each nipple into part of a smooth dome: the
+    // height of the bump above a smoothed chest, filled in around it and
+    // faded out across the breast
+    _chestLift() {
+      const h = this.human;
+      if (this._lift && this._liftGeo === h.restAttr && this._liftVer === h.restAttr.version) return this._lift;
+      const n = h.S.nOut, P = h.restAttr.array, N = h.bodyNrm.array, reg = h.bodyGeo.attributes.region2;
+      if (!reg) return null;
+      const A = reg.array, { off, nb } = this._adjacency();
+      // the two areolae: weighted centres and their reach
+      const c = [[0, 0, 0, 0], [0, 0, 0, 0]];
+      for (let i = 0; i < n; i++) {
+        const m = A[i * 4 + 1];
+        if (m < 0.05) continue;
+        const k = P[i * 3] > 0 ? 0 : 1;
+        c[k][0] += P[i * 3] * m; c[k][1] += P[i * 3 + 1] * m; c[k][2] += P[i * 3 + 2] * m; c[k][3] += m;
+      }
+      if (!c[0][3] || !c[1][3]) return null;
+      for (const q of c) { q[0] /= q[3]; q[1] /= q[3]; q[2] /= q[3]; }
+      const near = (i) => {
+        let best = 1;
+        for (const q of c) best = Math.min(best, Math.hypot(P[i * 3] - q[0], P[i * 3 + 1] - q[1], P[i * 3 + 2] - q[2]));
+        return best;
+      };
+      const R0 = 0.03, R1 = 0.085;
+      const idx = [];
+      const r = new Float32Array(n).fill(1);
+      for (let i = 0; i < n; i++) { const d = near(i); if (d < R1) { r[i] = d; idx.push(i); } }
+      // smooth the chest around the nipples (pinned outside)
+      let S = Float32Array.from(P), T = Float32Array.from(P);
+      for (let it = 0; it < 32; it++) {
+        for (const i of idx) {
+          if (r[i] > R0 * 1.5) continue;
+          let x = 0, y = 0, z = 0, k = 0;
+          for (let e = off[i]; e < off[i + 1]; e++) { const j = nb[e] * 3; x += S[j]; y += S[j + 1]; z += S[j + 2]; k++; }
+          if (k) { T[i * 3] = x / k; T[i * 3 + 1] = y / k; T[i * 3 + 2] = z / k; }
+        }
+        [S, T] = [T, S];
+      }
+      // a bell-shaped dome over the smoothed chest, just tall enough to clear
+      // the nipple: the cloth takes whichever is higher, dome or skin
+      const d = new Float32Array(n), w = new Float32Array(n);
+      let H = 0;
+      for (const i of idx) {
+        const v = (P[i * 3] - S[i * 3]) * N[i * 3] + (P[i * 3 + 1] - S[i * 3 + 1]) * N[i * 3 + 1] + (P[i * 3 + 2] - S[i * 3 + 2]) * N[i * 3 + 2];
+        d[i] = Math.max(0, v);
+        w[i] = 1 - smooth(0, R1, r[i]);
+        if (r[i] < R0 * 1.5 && w[i] > 0.05) H = Math.max(H, d[i] / w[i]);
+      }
+      H = Math.min(H + 0.0006, 0.025);
+      const lift = new Float32Array(n);
+      for (const i of idx) lift[i] = Math.max(0, w[i] * H - d[i]);
+      this._liftGeo = h.restAttr; this._liftVer = h.restAttr.version;
+      return (this._lift = lift);
+    }
+
+    // normals of the garment's own surface (the body pushed out by the ease),
+    // so it shades like smooth cloth rather than like the skin under it
+    _shellNormals(cov, thick, iters) {
+      const h = this.human, n = h.S.nOut, P = h.restAttr.array, tris = h.S.tris;
+      const N0 = this._smoothNormals(2), Q = new Float32Array(n * 3), acc = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        const e = thick + cov[i * 2 + 1];
+        Q[i * 3] = P[i * 3] + N0[i * 3] * e; Q[i * 3 + 1] = P[i * 3 + 1] + N0[i * 3 + 1] * e; Q[i * 3 + 2] = P[i * 3 + 2] + N0[i * 3 + 2] * e;
+      }
+      for (let f = 0; f < tris.length; f += 3) {
+        const a = tris[f] * 3, b = tris[f + 1] * 3, c = tris[f + 2] * 3;
+        const ux = Q[b] - Q[a], uy = Q[b + 1] - Q[a + 1], uz = Q[b + 2] - Q[a + 2];
+        const vx = Q[c] - Q[a], vy = Q[c + 1] - Q[a + 1], vz = Q[c + 2] - Q[a + 2];
+        const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+        for (const k of [a, b, c]) { acc[k] += nx; acc[k + 1] += ny; acc[k + 2] += nz; }
+      }
+      for (let i = 0; i < n * 3; i += 3) {
+        const l = Math.hypot(acc[i], acc[i + 1], acc[i + 2]);
+        if (l > 1e-12 && acc[i] * N0[i] + acc[i + 1] * N0[i + 1] + acc[i + 2] * N0[i + 2] > 0) { acc[i] /= l; acc[i + 1] /= l; acc[i + 2] /= l; }
+        else { acc[i] = N0[i]; acc[i + 1] = N0[i + 1]; acc[i + 2] = N0[i + 2]; }
+      }
+      return this._smoothNormals(iters, acc);
+    }
+
+    _smoothNormals(iters, from) {
       const h = this.human, n = h.S.nOut, { off, nb } = this._adjacency();
-      let a = Float32Array.from(h.bodyNrm.array), b = new Float32Array(n * 3);
+      let a = Float32Array.from(from || h.bodyNrm.array), b = new Float32Array(n * 3);
       for (let it = 0; it < iters; it++) {
         for (let i = 0; i < n; i++) {
           let x = a[i * 3], y = a[i * 3 + 1], z = a[i * 3 + 2];
@@ -381,10 +464,11 @@
       const h = this.human, geo0 = h.bodyGeo, n = h.S.nOut;
       const cov = new Float32Array(n * 2);
       for (let i = 0; i < n; i++) { cov[i * 2] = g.cov(i); cov[i * 2 + 1] = g.ease(i); }
-      // cloth sits proud of small bumps (nipples) on anything worn over the chest
+      // cloth over the chest bridges the nipples in one smooth curve, the way a
+      // bra or a top shapes the breast, instead of following every bump
       if (g.slot === 'top' || g.slot === 'underwear') {
-        const reg2 = geo0.attributes.region2.array;
-        for (let i = 0; i < n; i++) cov[i * 2 + 1] += reg2[i * 4 + 1] * 0.009;
+        const lift = this._chestLift();
+        if (lift) for (let i = 0; i < n; i++) cov[i * 2 + 1] += lift[i];
       }
       const tent = this._tent(cov, Math.max(1, Math.round((g.tent !== undefined ? g.tent : 6) * (h.smooth ? 1 : 0.5))), g.slope !== undefined ? g.slope : 0.3);
       for (let i = 0; i < n; i++) cov[i * 2 + 1] += tent[i];
@@ -397,7 +481,7 @@
       const geo = new THREE.BufferGeometry();
       for (const k of ['position', 'restPos', 'skinIndex', 'skinWeight', 'skinIndex2', 'skinWeight2']) geo.setAttribute(k, geo0.attributes[k]);
       // fabric shades like cloth over a soft form, not like skin
-      geo.setAttribute('normal', new THREE.Float32BufferAttribute(this._smoothNormals(g.slot === 'shoes' ? 2 : g.slot === 'top' ? 10 : 7), 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(this._shellNormals(cov, g.thick, g.slot === 'shoes' ? 2 : g.slot === 'top' ? 6 : 4), 3));
       geo.setAttribute('aCov', new THREE.Float32BufferAttribute(cov, 2));
       geo.setIndex(new THREE.BufferAttribute(new Uint32Array(keep), 1));
       const mat = this._material(g.fabric, g.thick, true);
@@ -493,7 +577,8 @@
       mat.side = THREE.DoubleSide;
       const mesh = new THREE.SkinnedMesh(geo, mat);
       mesh.frustumCulled = false;
-      mesh.castShadow = mesh.receiveShadow = true;
+      // a tube shadowing its own inside reads as a dark band; it still shades the legs
+      mesh.castShadow = false; mesh.receiveShadow = true;
       mesh.bind(h.skeleton, new THREE.Matrix4());
       BS.depthMaterials(mesh);
       return mesh;

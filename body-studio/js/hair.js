@@ -495,7 +495,7 @@ void main() {
     float vis = smoothstep(-0.45, 0.55, nl) * shade;
     float tl = dot(T, L);
     float kd = sqrt(max(0.0, 1.0 - tl * tl));
-    col += lc * base * (0.55 * kd + 0.45 * max(nl, 0.0)) * vis * 0.42;
+    col += lc * base * (0.55 * kd + 0.45 * max(nl, 0.0)) * vis * 0.3;
     vec3 H = normalize(L + V);
     float t1 = dot(normalize(T + N * uShift.x), H);
     float t2 = dot(normalize(T + N * uShift.y), H);
@@ -508,7 +508,7 @@ void main() {
 #if NUM_HEMI_LIGHTS > 0
   for (int i = 0; i < NUM_HEMI_LIGHTS; i++) amb += getHemisphereLightIrradiance(hemisphereLights[i], N);
 #endif
-  col += base * (amb * 0.5 + uAmbient) * shade;
+  col += base * (amb * 0.36 + uAmbient) * shade;
   gl_FragColor = vec4(col, vA * uAlpha * (1.0 - 0.7 * smoothstep(0.8, 1.0, u)));
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -540,7 +540,7 @@ void main() {
     const natural = !p.hairColorHex && (DYED[p.hairColor] || p.hairColor === 'Platinum') ? lin('#3a2a1e') : c.clone();
     const browHex = p.hairColor === 'White' || p.hairColor === 'Grey' ? '#8d8984' : null;
     const brow = browHex ? lin(browHex) : natural.clone().multiplyScalar(0.8);
-    return { base: c, tip, brow, lash: natural.clone().multiplyScalar(0.25).lerp(lin('#0d0907'), 0.6) };
+    return { base: c, tip, brow, lash: natural.clone().multiplyScalar(0.25).lerp(lin('#0d0907'), 0.78) };
   }
   // fraction of grey strands for an age (on top of the chosen colour)
   const greyAt = (age, from) => clamp((age - from) / 38, 0, 1) ** 1.3 * 0.9;
@@ -599,8 +599,23 @@ void main() {
         wave: { amp: (0.006 + 0.004 * curl) * vol, wl: 0.032 - 0.012 * curl, ell: 1 }, len: (q) => mix(0.17, 0.22, smooth(-0.5, 0.6, q.y)) * Ls * S });
       case 'afro': return Object.assign(base, { n: 22000, segs: 12, lift: 0.9, grav: 0.4, shell: 0.004, clump: 0.25, clumpN: 12, frizz: 1.6, flow: 'radial', wave: null, kink: 0.9, hug: 0,
         afro: (0.05 + 0.05 * clamp(p.hairLength ?? 0.5, 0, 1)) * vol * S, len: () => 0.16 * vol * S, cut: 'afro' });
+      // gathered styles: strands slide over the scalp to a tie, then form a
+      // tail, a coiled bun or a three-strand braid
+      case 'ponytail': return Object.assign(base, { reach: 'body', n: 16000, segs: 28, lift: 0, shell: 0.003, clump: 0.88, clumpN: 30, frizz: 0.06, cap: 0.95, wave: null,
+        gather: { kind: 'tail', tie: tieAt(F, 0.2, 0.012), r: 0.019 * vol * S, tail: (0.2 + 0.28 * clamp(p.hairLength ?? 0.5, 0, 1)) * S, curl } });
+      case 'bun': return Object.assign(base, { reach: 'head', n: 16000, segs: 26, lift: 0, shell: 0.003, clump: 0.9, clumpN: 30, frizz: 0.05, cap: 0.95, wave: null,
+        gather: { kind: 'bun', tie: tieAt(F, 0.62, 0.01), r: (0.026 + 0.012 * vol) * S } });
+      case 'braid': return Object.assign(base, { reach: 'body', n: 15000, segs: 34, lift: 0, shell: 0.003, clump: 0.9, clumpN: 30, frizz: 0.05, cap: 0.95, wave: null,
+        gather: { kind: 'braid', tie: tieAt(F, -0.15, 0.012), r: 0.014 * vol * S, tail: (0.22 + 0.3 * clamp(p.hairLength ?? 0.5, 0, 1)) * S } });
       default: return null;
     }
+  }
+  // a point on the back of the cranium ellipsoid at height qy (q-space), lifted off it
+  function tieAt(F, qy, lift) {
+    const qz = -Math.sqrt(Math.max(0.05, 1 - qy * qy));
+    const p = new THREE.Vector3(F.C.x, F.C.y + qy * F.R.y, F.C.z + qz * F.R.z);
+    const out = new THREE.Vector3(0, qy / F.R.y, qz / F.R.z).normalize();
+    return { p: p.addScaledVector(out, lift), out };
   }
 
   // initial growth direction at a root, for the style's flow field
@@ -854,7 +869,7 @@ void main() {
       const t3 = performance.now();
       const geo = B.geometry();
       this.setMesh('scalp', geo, this.mats.scalp, false);
-      this.mats.scalp.uniforms.uWidth.value = (0.00007 * R.width) / Math.sqrt(this.q);
+      this.mats.scalp.uniforms.uWidth.value = (0.00019 * R.width) / Math.sqrt(this.q);
       this.stats = { field: t1 - t0, clumps: t2 - t1, strands: t3 - t2, geometry: performance.now() - t3, strands_n: ns, vertices: ns * np * 2 };
     }
 
@@ -887,6 +902,7 @@ void main() {
     // one clump centre: grows from the root, bends under gravity, slides
     // over the head and shoulders, then gets cut and curled. Returns length.
     growPath(R, field, root, nrm, q, rnd, out, o, segs) {
+      if (R.gather) return this.gatherPath(R, field, root, nrm, q, rnd, out, o, segs);
       const F = this.F;
       const L = R.len(q) * (0.9 + 0.2 * rnd());
       const seg = L / segs;
@@ -921,6 +937,81 @@ void main() {
       if (R.cut) len = this.cutPath(R, out, o, segs, seg, rnd);
       if (R.wave) this.curlPath(R, field, out, o, segs, len, rnd);
       return len;
+    }
+
+    // gathered styles: over the scalp to the tie, then the tail / bun / braid
+    gatherPath(R, field, root, nrm, q, rnd, out, o, segs) {
+      const G = R.gather, F = this.F;
+      if (!G.ready) {
+        // sit the tie just off the actual head, not the fitted ellipsoid
+        field.push(G.tie.p, G.r * 0.6 + 0.006);
+        G.ready = true;
+      }
+      const tie = G.tie.p, outw = G.tie.out;
+      const e1 = V().set(1, 0, 0).addScaledVector(outw, -outw.x).normalize(), e2 = V().crossVectors(outw, e1).normalize();
+      // the strand keeps its place around the tie: hair from the left stays left
+      const rel = V().subVectors(root, tie);
+      const a = Math.atan2(rel.dot(e2), rel.dot(e1));
+      const rr = Math.sqrt(rnd()), ca = Math.cos(a) * rr, sa = Math.sin(a) * rr;
+      const end = V().copy(tie).addScaledVector(e1, ca * G.r).addScaledVector(e2, sa * G.r);
+      // pulled smooth over the scalp: along the head's curve, not through it
+      const R0 = F.R, C = F.C;
+      const u0 = V().set((root.x - C.x) / R0.x, (root.y - C.y) / R0.y, (root.z - C.z) / R0.z);
+      const u1 = V().set((end.x - C.x) / R0.x, (end.y - C.y) / R0.y, (end.z - C.z) / R0.z);
+      const l0 = u0.length(), l1 = u1.length();
+      u0.normalize(); u1.normalize();
+      const om = Math.acos(clamp(u0.dot(u1), -1, 1)), so = Math.sin(om);
+      const dist = om * (R0.x + R0.y + R0.z) / 3 + 0.01;
+      const tailLen = G.kind === 'bun' ? 2 * Math.PI * G.r * 0.75 * 2.2 : G.tail * (0.85 + 0.3 * rnd());
+      const n1 = clamp(Math.round(segs * dist / (dist + tailLen)), 2, segs - 3), n2 = segs - n1;
+      const p = V(), dir = V(), c = V(), b = V(), u = V();
+      out[o * 3] = root.x; out[o * 3 + 1] = root.y; out[o * 3 + 2] = root.z;
+      for (let k = 1; k <= n1; k++) {
+        const t = k / n1;
+        if (so < 1e-4) u.copy(u0);
+        else u.copy(u0).multiplyScalar(Math.sin((1 - t) * om) / so).addScaledVector(u1, Math.sin(t * om) / so);
+        u.multiplyScalar(mix(l0, l1, t));
+        p.set(C.x + u.x * R0.x, C.y + u.y * R0.y, C.z + u.z * R0.z);
+        if (k === n1) p.copy(end);
+        else field.push(p, 0.0022 + 0.0015 * t);
+        out[(o + k) * 3] = p.x; out[(o + k) * 3 + 1] = p.y; out[(o + k) * 3 + 2] = p.z;
+      }
+      const seg = tailLen / n2;
+      c.copy(tie);
+      dir.copy(outw).multiplyScalar(0.75).add(V().set(0, -0.5, 0)).normalize();
+      // which of the braid's three strands this hair belongs to
+      const lobe = Math.floor(((a + Math.PI) / (2 * Math.PI)) * 3) % 3;
+      for (let j = 1; j <= n2; j++) {
+        const t = j / n2, k = n1 + j;
+        if (G.kind === 'bun') {
+          // a coil wound against the head, tighter towards its centre
+          const th = a + t * 2 * Math.PI * 2.2, rb = G.r * (0.95 - 0.55 * t) + 0.003;
+          p.copy(tie).addScaledVector(outw, G.r * (0.15 + 0.55 * Math.sin(Math.PI * Math.min(1, t * 1.3))))
+            .addScaledVector(e1, Math.cos(th) * rb + ca * 0.004).addScaledVector(e2, Math.sin(th) * rb + sa * 0.004);
+        } else {
+          // the tail's centre falls under gravity and drapes over the back
+          dir.y -= 22 * seg * smooth(0, 0.05, j * seg);
+          dir.normalize();
+          c.addScaledVector(dir, seg);
+          field.push(c, G.r * 0.9 + 0.004);
+          // cross-section across the tail, not across the tie
+          b.crossVectors(dir, e1).normalize();
+          p.copy(c);
+          if (G.kind === 'braid') {
+            const taper = 1 - 0.5 * t * t;
+            const ph = (j * seg) / 0.05 * 2 * Math.PI + lobe * (2 * Math.PI / 3);
+            const w = G.r * taper;
+            p.addScaledVector(e1, Math.sin(ph) * w * 0.85 + ca * w * 0.45).addScaledVector(b, Math.sin(2 * ph) * w * 0.3 + sa * w * 0.45);
+          } else {
+            const fan = (0.9 + 0.7 * smooth(0, 0.35, t)) * (1 - 0.55 * t * t);
+            p.addScaledVector(e1, ca * G.r * fan).addScaledVector(b, sa * G.r * fan * 0.8);
+            if (G.curl > 0.3) p.addScaledVector(e1, Math.sin(j * 0.9 + a * 3) * 0.008 * G.curl * t);
+          }
+          field.push(p, 0.003);
+        }
+        out[(o + k) * 3] = p.x; out[(o + k) * 3 + 1] = p.y; out[(o + k) * 3 + 2] = p.z;
+      }
+      return dist + tailLen * 0.2;
     }
 
     // trims a path where the style's cut line crosses it and resamples it
@@ -1047,7 +1138,7 @@ void main() {
     // on the lid margins (upper strip = group 2, lower = group 1)
     buildLashes(p) {
       const human = this.human, D = human.D, F = this.F;
-      const len = 0.55 + 0.9 * clamp(p.lashLength ?? 0.5, 0, 1);
+      const len = 0.6 + 0.65 * clamp(p.lashLength ?? 0.5, 0, 1);
       const mascara = p.makeupStyle && p.makeupStyle !== 'none' ? 1 : 0;
       const qs = this.q < 0.3 ? 0.3 : this.q < 0.6 ? 0.6 : 1;
       const parts = [];
@@ -1079,7 +1170,7 @@ void main() {
           nrm.crossVectors(side, dir).normalize();
           if ((upper ? nrm.y : -nrm.y) < 0) nrm.negate();
           const spread = (rand() - 0.5) * 0.35, curlAmt = (upper ? 0.5 : 0.3) * (0.7 + 0.6 * rand()) * (1 + 0.4 * mascara);
-          const L = 0.0095 * ln;
+          const L = 0.0068 * ln;
           for (let j = 0; j < np; j++) {
             const u = j / segs;
             // along the strip direction, curving away from the eye
@@ -1117,10 +1208,12 @@ void main() {
       set(this.mats.lash, C.lash, C.lash, 0);
       this.mats.cap.uniforms.uColor.value.copy(C.base).multiplyScalar(0.6);
       const ml = this.mats.lash.uniforms;
-      ml.uWidth.value = 0.00006;
+      ml.uWidth.value = 0.00005;
       ml.uRootDark.value = 1;
-      ml.uSpec.value.set(0.15, 0.1);
-      this.mats.face.uniforms.uWidth.value = 0.000045;
+      // short facial hair barely shines: a white highlight makes it read grey
+      ml.uSpec.value.set(0.03, 0.05);
+      this.mats.face.uniforms.uWidth.value = 0.00009;
+      this.mats.face.uniforms.uSpec.value.set(0.035, 0.1);
     }
 
     // ---- per frame
