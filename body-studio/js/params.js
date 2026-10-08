@@ -16,18 +16,18 @@
   // body
   pair('Torso', 'shoulders', 'Shoulder width', 'measure', 'measure-shoulder-dist');
   pair('Torso', 'vshape', 'V-shape', 'torso', 'torso-vshape');
-  pair('Torso', 'chest', 'Chest', 'measure', 'measure-bust-circ');
+  pair('Figure', 'chest', 'Bust', 'measure', 'measure-bust-circ');
   pair('Torso', 'underbust', 'Rib cage', 'measure', 'measure-underbust-circ');
   pair('Torso', 'pecs', 'Pecs', 'torso', 'torso-muscle-pectoral');
   pair('Torso', 'lats', 'Back muscles', 'torso', 'torso-muscle-dorsi');
-  pair('Torso', 'waist', 'Waist', 'measure', 'measure-waist-circ');
-  pair('Torso', 'belly', 'Belly', 'stomach', 'stomach-pregnant');
-  pair('Hips & legs', 'hips', 'Hips', 'measure', 'measure-hips-circ');
+  pair('Figure', 'waist', 'Waist', 'measure', 'measure-waist-circ');
+  pair('Figure', 'belly', 'Stomach', 'stomach', 'stomach-pregnant');
+  pair('Figure', 'hips', 'Hips', 'measure', 'measure-hips-circ');
   pair('Hips & legs', 'hipwidth', 'Hip width', 'hip', 'hip-scale-horiz');
   pair('Hips & legs', 'waistline', 'Waist height', 'hip', 'hip-waist', 'down', 'up');
-  pair('Hips & legs', 'glutes', 'Glutes', 'buttocks', 'buttocks-volume');
+  pair('Figure', 'glutes', 'Butt', 'buttocks', 'buttocks-volume');
   pair('Hips & legs', 'pelvis', 'Pelvis tone', 'pelvis', 'pelvis-tone');
-  pair('Hips & legs', 'thighs', 'Thighs', 'measure', 'measure-thigh-circ');
+  pair('Figure', 'thighs', 'Thighs', 'measure', 'measure-thigh-circ');
   pairLR('Hips & legs', 'thighfat', 'Thigh fat', 'armslegs', 'upperleg-fat');
   pairLR('Hips & legs', 'thighmuscle', 'Thigh muscle', 'armslegs', 'upperleg-muscle');
   pair('Hips & legs', 'calves', 'Calves', 'measure', 'measure-calf-circ');
@@ -122,7 +122,7 @@
   add('Ears', 'earpointed', 'Pointed ears', null, LR('ears', 'ear-shape-pointed'));
   add('Ears', 'earround', 'Round ears', null, LR('ears', 'ear-shape-round'));
   BS.DETAILS = D;
-  BS.BODY_GROUPS = ['Body type', 'Torso', 'Chest', 'Hips & legs', 'Arms', 'Neck'];
+  BS.BODY_GROUPS = ['Body type', 'Figure', 'Torso', 'Chest', 'Hips & legs', 'Arms', 'Neck'];
   BS.FACE_GROUPS = ['Head shape', 'Eyes', 'Brows', 'Nose', 'Mouth', 'Jaw & chin', 'Cheeks', 'Ears'];
 
   BS.SKIN_TONES = ['#f8dcca', '#efc6ab', '#e2b08f', '#d29a78', '#bd8463', '#a26d4f', '#85563c', '#6a412c', '#4f2f21', '#3a2219'];
@@ -225,6 +225,21 @@
     return p;
   };
 
+  // Face looks: combinations of the face sliders, each within normal human
+  // variation. Used by presets, by Randomize and by the game's clients.
+  BS.LOOKS = {
+    cute: { eyesize: 0.4, eyespacing: 0.08, mouthwidth: -0.15, upperlip: 0.3, lowerlip: 0.3, nosewidth: -0.25, nosevolume: -0.3, noselength: -0.15, nosetip: 0.25, chinheight: -0.2, jawwidth: -0.3, cheekvolume: 0.25, 'head-round': 0.35, browheight: 0.1 },
+    doll: { eyesize: 0.55, eyespacing: 0.12, mouthwidth: -0.22, upperlip: 0.4, lowerlip: 0.35, cupidsbow: 0.3, nosevolume: -0.4, nosewidth: -0.3, nosetip: 0.3, chinheight: -0.25, jawwidth: -0.35, cheekvolume: 0.35, 'head-round': 0.5 },
+    glam: { cheekbones: 0.55, cheekinner: -0.25, jawline: 0.25, eyetilt: 0.35, eyesize: 0.15, upperlip: 0.5, lowerlip: 0.45, cupidsbow: 0.35, nosewidth: -0.3, nosebridge: -0.25, nosetip: 0.15, chinprominent: 0.15, 'head-oval': 0.45, browangle: 0.25 },
+    girlnextdoor: { eyesize: 0.18, upperlip: 0.15, lowerlip: 0.2, nosewidth: -0.12, nosetip: 0.12, cheekvolume: 0.15, 'head-oval': 0.35, dimples: 0.35 },
+    model: { cheekbones: 0.6, cheekinner: -0.35, jawline: 0.35, jawwidth: 0.05, eyetilt: 0.2, upperlip: 0.35, lowerlip: 0.4, nosewidth: -0.2, nosebridge: -0.2, chinprominent: 0.2, 'head-diamond': 0.35, forehead: 0.1 },
+    exotic: { eyetilt: 0.45, epicanthus: 0.25, eyesize: 0.12, cheekbones: 0.45, upperlip: 0.45, lowerlip: 0.5, nosewidth: -0.1, 'head-invertedtriangular': 0.35 },
+    soft: { cheekvolume: 0.4, headfat: 0.25, eyesize: 0.2, upperlip: 0.25, lowerlip: 0.3, jawline: -0.25, chinheight: -0.1, 'head-round': 0.4 },
+    pretty: { eyesize: 0.25, cheekbones: 0.3, upperlip: 0.25, lowerlip: 0.25, nosewidth: -0.2, nosetip: 0.15, jawwidth: -0.15, 'head-oval': 0.4, eyetilt: 0.15 },
+    rugged: { jawwidth: 0.45, jawline: 0.45, browridge: 0.4, chinprominent: 0.3, cheekbones: 0.25, nosewidth: 0.15, nosebridge: 0.2, 'head-square': 0.45, mouthwidth: 0.1 },
+    prettyboy: { jawline: 0.2, cheekbones: 0.35, eyesize: 0.2, upperlip: 0.2, lowerlip: 0.2, nosewidth: -0.15, chinheight: -0.05, 'head-oval': 0.4 },
+  };
+
   BS.defaultParams = function () {
     return {
       name: 'New person', identity: 'nonbinary', pronouns: 'they/them', heightCm: null, heightScale: 1,
@@ -253,6 +268,16 @@
     'Elder': P({ name: 'Ruth', identity: 'woman', pronouns: 'she/her', heightCm: 158, gender: 0.03, age: 78, weight: 0.55, muscle: 0.25, breastFirmness: 0.15, hairStyle: 'bun', hairColor: 'White', skinTone: 0.2, eyeColor: 'Light blue', asian: 0.1, caucasian: 0.8, african: 0.1, outfit: 'casual', outfitColor: '#6d5a6e' }),
     'Trans woman': P({ name: 'Lyra', identity: 'transwoman', pronouns: 'she/her', heightCm: 172, gender: 0.18, breastSize: 0.55, hairStyle: 'long', hairColor: 'Auburn', eyeColor: 'Green', skinTone: 0.15, lashLength: 0.7, makeupStyle: 'everyday', makeup: 0.6, outfit: 'dress', outfitColor: '#5e3a5a' }),
     'Trans man': P({ name: 'Elliot', identity: 'transman', pronouns: 'he/him', heightCm: 168, gender: 0.8, muscle: 0.62, hairStyle: 'crew', hairColor: 'Brown', eyeColor: 'Hazel', skinTone: 0.42, beard: 'stubble', outfit: 'casual', outfitColor: '#2f5a4a' }),
+    'Cute': P({ name: 'Lily', identity: 'woman', pronouns: 'she/her', heightCm: 158, gender: 0.02, age: 23, weight: 0.45, muscle: 0.4, breastSize: 0.6, breastFirmness: 0.75, skinTone: 0.12, undertone: 0.55, freckles: 0.25, hairStyle: 'ponytail', hairColor: 'Golden blonde', eyeColor: 'Blue', lashLength: 0.8, makeupStyle: 'natural', makeup: 0.55, blush: 0.45, outfit: 'casual', outfitColor: '#e7a5b8', outfitColor2: '#3b5c8a', details: Object.assign({}, BS.LOOKS.cute, { waist: -0.25, hips: 0.15, glutes: 0.2 }) }),
+    'Glam': P({ name: 'Valentina', identity: 'woman', pronouns: 'she/her', heightCm: 170, gender: 0.0, age: 27, weight: 0.5, muscle: 0.45, breastSize: 0.72, breastFirmness: 0.8, skinTone: 0.38, undertone: 0.6, hairStyle: 'wavy', hairColor: 'Dark brown', eyeColor: 'Hazel', lashLength: 0.9, makeupStyle: 'glam', makeup: 0.8, outfit: 'dress', outfitColor: '#7a1f2b', details: Object.assign({}, BS.LOOKS.glam, { 'shape-hourglass': 0.6, waist: -0.4, hips: 0.35, glutes: 0.45 }) }),
+    'Girl next door': P({ name: 'Emma', identity: 'woman', pronouns: 'she/her', heightCm: 164, gender: 0.03, age: 25, weight: 0.5, breastSize: 0.55, skinTone: 0.15, freckles: 0.35, hairStyle: 'long', hairColor: 'Light brown', eyeColor: 'Green', lashLength: 0.7, makeupStyle: 'natural', makeup: 0.4, outfit: 'casual', outfitColor: '#d9c6a5', details: Object.assign({}, BS.LOOKS.girlnextdoor, { waist: -0.15 }) }),
+    'Sporty': P({ name: 'Kayla', identity: 'woman', pronouns: 'she/her', heightCm: 168, gender: 0.03, age: 26, weight: 0.42, muscle: 0.78, breastSize: 0.5, breastFirmness: 0.85, skinTone: 0.55, hairStyle: 'ponytail', hairColor: 'Soft black', eyeColor: 'Brown', makeupStyle: 'none', outfit: 'sport', outfitColor: '#1f2a44', outfitColor2: '#2b2d33', african: 0.6, caucasian: 0.3, asian: 0.1, details: Object.assign({}, BS.LOOKS.pretty, { glutes: 0.55, thighs: 0.25, waist: -0.35, belly: -0.3, calfmuscle: 0.3 }) }),
+    'Thick': P({ name: 'Jasmine', identity: 'woman', pronouns: 'she/her', heightCm: 162, gender: 0.02, age: 29, weight: 0.72, muscle: 0.42, breastSize: 0.85, breastFirmness: 0.6, skinTone: 0.68, undertone: 0.6, hairStyle: 'curly', hairColor: 'Soft black', curl: 0.8, eyeColor: 'Dark brown', lashLength: 0.85, makeupStyle: 'soft glam', makeup: 0.7, outfit: 'dress', outfitColor: '#2f5a4a', african: 0.8, caucasian: 0.15, asian: 0.05, details: Object.assign({}, BS.LOOKS.soft, { 'shape-hourglass': 0.75, hips: 0.6, glutes: 0.8, thighs: 0.45, waist: -0.2, belly: 0.1 }) }),
+    'Petite': P({ name: 'Yuna', identity: 'woman', pronouns: 'she/her', heightCm: 151, gender: 0.02, age: 24, weight: 0.38, muscle: 0.38, breastSize: 0.38, skinTone: 0.2, undertone: 0.6, hairStyle: 'bob', hairColor: 'Jet black', eyeColor: 'Dark brown', makeupStyle: 'everyday', makeup: 0.55, outfit: 'casual', outfitColor: '#f2d0d8', asian: 0.9, caucasian: 0.1, african: 0, details: Object.assign({}, BS.LOOKS.doll, { waist: -0.2 }) }),
+    'Model': P({ name: 'Nadia', identity: 'woman', pronouns: 'she/her', heightCm: 180, gender: 0.02, age: 24, weight: 0.36, muscle: 0.45, proportions: 0.9, breastSize: 0.48, skinTone: 0.3, hairStyle: 'long', hairColor: 'Platinum', eyeColor: 'Grey-green', lashLength: 0.85, makeupStyle: 'editorial', makeup: 0.7, outfit: 'formal', outfitColor: '#e8e2d6', outfitColor2: '#1e1e22', details: Object.assign({}, BS.LOOKS.model, { upperleglen: 0.3, lowerleglen: 0.2, waist: -0.35, belly: -0.3 }) }),
+    'Bombshell': P({ name: 'Sofia', identity: 'woman', pronouns: 'she/her', heightCm: 166, gender: 0.0, age: 28, weight: 0.58, muscle: 0.5, breastSize: 0.9, breastFirmness: 0.8, skinTone: 0.28, undertone: 0.65, hairStyle: 'wavy', hairColor: 'Auburn', eyeColor: 'Amber', lashLength: 0.95, makeupStyle: 'bold lip', makeup: 0.8, outfit: 'swim', outfitColor: '#a33b2a', details: Object.assign({}, BS.LOOKS.exotic, { 'shape-hourglass': 0.85, waist: -0.5, hips: 0.5, glutes: 0.7 }) }),
+    'Pretty boy': P({ name: 'Theo', identity: 'man', pronouns: 'he/him', heightCm: 178, gender: 0.9, age: 24, weight: 0.42, muscle: 0.6, hairStyle: 'medium', hairColor: 'Light brown', eyeColor: 'Blue', skinTone: 0.12, outfit: 'casual', outfitColor: '#e8e2d6', details: Object.assign({}, BS.LOOKS.prettyboy, { vshape: 0.3, belly: -0.3 }) }),
+    'Rugged': P({ name: 'Marcus', identity: 'man', pronouns: 'he/him', heightCm: 185, gender: 1, age: 34, weight: 0.58, muscle: 0.82, hairStyle: 'crew', hairColor: 'Dark brown', eyeColor: 'Brown', skinTone: 0.45, beard: 'short', bodyHair: 0.5, outfit: 'formal', outfitColor: '#3b5c8a', details: Object.assign({}, BS.LOOKS.rugged, { shoulders: 0.4, vshape: 0.45, pecs: 0.4, glutes: 0.3 }) }),
     'East Asian': P({ name: 'Mei', identity: 'woman', pronouns: 'she/her', heightCm: 158, gender: 0.03, asian: 0.95, caucasian: 0.03, african: 0.02, skinTone: 0.22, undertone: 0.6, hairStyle: 'long', hairColor: 'Jet black', eyeColor: 'Dark brown', height: 0.4, details: { epicanthus: 0.4, eyefold: -0.3 } }),
   };
 })();

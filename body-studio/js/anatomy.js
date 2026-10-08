@@ -68,14 +68,14 @@
   }
 
   // Surface nets over a distance function f(x, y, z) inside [lo, hi] with
-  // cell size h. A coarse pass skips space far from the surface. Normals come
-  // from the field's gradient and a cheap ambient-occlusion term darkens folds.
+  // cell size h. A coarse pass skips space far from the surface; vertices
+  // are then pulled onto the surface with one Newton step.
   function polygonize(f, lo, hi, h) {
     const nx = Math.ceil((hi[0] - lo[0]) / h) + 1, ny = Math.ceil((hi[1] - lo[1]) / h) + 1, nz = Math.ceil((hi[2] - lo[2]) / h) + 1;
     const C = 4, cx = Math.ceil((nx - 1) / C) + 1, cy = Math.ceil((ny - 1) / C) + 1, cz = Math.ceil((nz - 1) / C) + 1;
     const G = new Float32Array(cx * cy * cz);
     for (let k = 0; k < cz; k++) for (let j = 0; j < cy; j++) for (let i = 0; i < cx; i++) G[i + cx * (j + cy * k)] = f(lo[0] + i * C * h, lo[1] + j * C * h, lo[2] + k * C * h);
-    const band = C * h * 2;
+    const band = C * h * 1.6;
     const F = new Float32Array(nx * ny * nz);
     for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
       const g = G[Math.round(i / C) + cx * (Math.round(j / C) + cy * Math.round(k / C))];
@@ -92,7 +92,7 @@
       let sx = 0, sy = 0, sz = 0, m = 0;
       for (let c = 0; c < 8; c++) for (const d of [1, 2, 4]) {
         if (c & d) continue;
-        const c2 = c | d, a = val[c], b = val[c2];
+        const a = val[c], b = val[c | d];
         if ((a < 0) === (b < 0)) continue;
         const t = a / (a - b);
         sx += (c & 1) + (d === 1 ? t : 0); sy += ((c >> 1) & 1) + (d === 2 ? t : 0); sz += (c >> 2) + (d === 4 ? t : 0);
@@ -115,22 +115,161 @@
       const a = F[id(i, j, k)], b = F[id(i, j, k + 1)];
       if ((a < 0) !== (b < 0)) quad(cell[id(i - 1, j - 1, k)], cell[id(i, j - 1, k)], cell[id(i, j, k)], cell[id(i - 1, j, k)], a >= 0);
     }
-    const n = P.length / 3, pos = new Float32Array(P), nrm = new Float32Array(n * 3), ao = new Float32Array(n);
-    const e = h * 0.5, sd = h * 1.5;
+    const pos = new Float64Array(P);
+    project(f, pos, h);
+    return { pos, idx: new Int32Array(I) };
+  }
+  function project(f, pos, h) {
+    const e = h * 0.5;
+    for (let v = 0; v < pos.length; v += 3) {
+      const x = pos[v], y = pos[v + 1], z = pos[v + 2];
+      const gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
+      const l = sqrt(gx * gx + gy * gy + gz * gz) || 1, d = f(x, y, z);
+      pos[v] -= (gx / l) * d; pos[v + 1] -= (gy / l) * d; pos[v + 2] -= (gz / l) * d;
+    }
+  }
+  // normals from the field gradient and a cheap ambient-occlusion term
+  function finish(f, m, h) {
+    const n = m.pos.length / 3, nrm = new Float32Array(n * 3), ao = new Float32Array(n), e = h * 0.5, sd = h * 1.5;
     for (let v = 0; v < n; v++) {
-      let x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+      const x = m.pos[v * 3], y = m.pos[v * 3 + 1], z = m.pos[v * 3 + 2];
       let gx = f(x + e, y, z) - f(x - e, y, z), gy = f(x, y + e, z) - f(x, y - e, z), gz = f(x, y, z + e) - f(x, y, z - e);
       const l = sqrt(gx * gx + gy * gy + gz * gz) || 1;
       gx /= l; gy /= l; gz /= l;
-      const d0 = f(x, y, z); // one Newton step onto the surface
-      x -= gx * d0; y -= gy * d0; z -= gz * d0;
-      pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
       nrm[v * 3] = gx; nrm[v * 3 + 1] = gy; nrm[v * 3 + 2] = gz;
       let occ = 0;
       for (let s = 1; s <= 3; s++) occ += (s * sd - f(x + gx * s * sd, y + gy * s * sd, z + gz * s * sd)) / (s * sd) / (1 << s);
       ao[v] = clamp(1 - occ * 1.6, 0.35, 1);
     }
-    return { pos, nrm, ao, idx: I };
+    return { pos: new Float32Array(m.pos), nrm, ao, idx: Array.from(m.idx) };
+  }
+
+  // Quadric edge-collapse simplification (Garland & Heckbert) down to
+  // `target` triangles, refusing collapses that fold triangles over or
+  // break the surface's topology.
+  function simplify(m, target) {
+    const P = m.pos, I = m.idx, nV = P.length / 3, nT = I.length / 3;
+    if (nT <= target) return m;
+    const Q = new Float64Array(nV * 10);
+    for (let t = 0; t < nT; t++) {
+      const a = I[t * 3] * 3, b = I[t * 3 + 1] * 3, c = I[t * 3 + 2] * 3;
+      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], vx = P[c] - P[a], vy = P[c + 1] - P[a + 1], vz = P[c + 2] - P[a + 2];
+      let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+      const l = sqrt(nx * nx + ny * ny + nz * nz);
+      if (l < 1e-20) continue;
+      nx /= l; ny /= l; nz /= l;
+      const d = -(nx * P[a] + ny * P[a + 1] + nz * P[a + 2]), w = l * 0.5;
+      const q = [nx * nx, nx * ny, nx * nz, nx * d, ny * ny, ny * nz, ny * d, nz * nz, nz * d, d * d];
+      for (let k = 0; k < 3; k++) { const v = I[t * 3 + k] * 10; for (let j = 0; j < 10; j++) Q[v + j] += q[j] * w; }
+    }
+    const vt = Array.from({ length: nV }, () => []);
+    for (let t = 0; t < nT; t++) for (let k = 0; k < 3; k++) vt[I[t * 3 + k]].push(t);
+    const deadT = new Uint8Array(nT), deadV = new Uint8Array(nV), ver = new Int32Array(nV), mark = new Int32Array(nV);
+    let stamp = 0, live = nT;
+    // heap of candidate collapses (lazy deletion through vertex versions)
+    const hc = [], ha = [], hb = [], hva = [], hvb = [], hx = [], hy = [], hz = [], heap = [];
+    const less = (i, j) => hc[heap[i]] < hc[heap[j]];
+    const swap = (i, j) => { const t = heap[i]; heap[i] = heap[j]; heap[j] = t; };
+    const push = (e) => { heap.push(e); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (!less(i, p)) break; swap(i, p); i = p; } };
+    const pop = () => {
+      const top = heap[0], last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        let i = 0;
+        for (;;) { const l = i * 2 + 1, r = l + 1; let m2 = i; if (l < heap.length && less(l, m2)) m2 = l; if (r < heap.length && less(r, m2)) m2 = r; if (m2 === i) break; swap(i, m2); i = m2; }
+      }
+      return top;
+    };
+    const qs = new Float64Array(10);
+    const err = (x, y, z) => qs[0] * x * x + 2 * qs[1] * x * y + 2 * qs[2] * x * z + 2 * qs[3] * x + qs[4] * y * y + 2 * qs[5] * y * z + 2 * qs[6] * y + qs[7] * z * z + 2 * qs[8] * z + qs[9];
+    const consider = (a, b) => {
+      for (let j = 0; j < 10; j++) qs[j] = Q[a * 10 + j] + Q[b * 10 + j];
+      const A = qs[0], B2 = qs[1], C2 = qs[2], D2 = qs[4], E2 = qs[5], F2 = qs[7];
+      const det = A * (D2 * F2 - E2 * E2) - B2 * (B2 * F2 - E2 * C2) + C2 * (B2 * E2 - D2 * C2);
+      const ax = P[a * 3], ay = P[a * 3 + 1], az = P[a * 3 + 2], bx = P[b * 3], by = P[b * 3 + 1], bz = P[b * 3 + 2];
+      const mx = (ax + bx) / 2, my = (ay + by) / 2, mz = (az + bz) / 2, len2 = (ax - bx) ** 2 + (ay - by) ** 2 + (az - bz) ** 2;
+      let x = mx, y = my, z = mz, c = err(mx, my, mz);
+      if (abs(det) > 1e-30) {
+        const r0 = -qs[3], r1 = -qs[6], r2 = -qs[8];
+        const sx = (r0 * (D2 * F2 - E2 * E2) - B2 * (r1 * F2 - E2 * r2) + C2 * (r1 * E2 - D2 * r2)) / det;
+        const sy = (A * (r1 * F2 - E2 * r2) - r0 * (B2 * F2 - E2 * C2) + C2 * (B2 * r2 - r1 * C2)) / det;
+        const sz = (A * (D2 * r2 - r1 * E2) - B2 * (B2 * r2 - r1 * C2) + r0 * (B2 * E2 - D2 * C2)) / det;
+        if ((sx - mx) ** 2 + (sy - my) ** 2 + (sz - mz) ** 2 < len2) { const ce = err(sx, sy, sz); if (ce < c) { x = sx; y = sy; z = sz; c = ce; } }
+      }
+      const ca = err(ax, ay, az), cb = err(bx, by, bz);
+      if (ca < c) { x = ax; y = ay; z = az; c = ca; }
+      if (cb < c) { x = bx; y = by; z = bz; c = cb; }
+      const e = hc.length;
+      hc.push(max(0, c) + len2 * 1e-6); ha.push(a); hb.push(b); hva.push(ver[a]); hvb.push(ver[b]); hx.push(x); hy.push(y); hz.push(z);
+      push(e);
+    };
+    for (let t = 0; t < nT; t++) for (let k = 0; k < 3; k++) {
+      const a = I[t * 3 + k], b = I[t * 3 + ((k + 1) % 3)];
+      if (a < b) consider(a, b);
+    }
+    // would moving v to (x,y,z) fold any of its triangles (other than those shared with o)?
+    const folds = (v, o, x, y, z) => {
+      for (const t of vt[v]) {
+        if (deadT[t]) continue;
+        const i0 = I[t * 3], i1 = I[t * 3 + 1], i2 = I[t * 3 + 2];
+        if (i0 === o || i1 === o || i2 === o) continue;
+        const p = [i0, i1, i2].map((i) => (i === v ? [x, y, z] : [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]]));
+        const q = [i0, i1, i2].map((i) => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]]);
+        const nrm = (r) => { const ux = r[1][0] - r[0][0], uy = r[1][1] - r[0][1], uz = r[1][2] - r[0][2], wx = r[2][0] - r[0][0], wy = r[2][1] - r[0][1], wz = r[2][2] - r[0][2]; return [uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx]; };
+        const n0 = nrm(q), n1 = nrm(p);
+        const d = n0[0] * n1[0] + n0[1] * n1[1] + n0[2] * n1[2], l0 = Math.hypot(...n0), l1 = Math.hypot(...n1);
+        if (l1 < 1e-14 || d < 0.3 * l0 * l1) return true;
+      }
+      return false;
+    };
+    while (live > target && heap.length) {
+      const e = pop(), a = ha[e], b = hb[e];
+      if (deadV[a] || deadV[b] || hva[e] !== ver[a] || hvb[e] !== ver[b]) continue;
+      // link condition: only the two triangles on the edge may share both ends
+      stamp++;
+      for (const t of vt[a]) if (!deadT[t]) for (let k = 0; k < 3; k++) mark[I[t * 3 + k]] = stamp;
+      let common = 0;
+      const seen = [];
+      for (const t of vt[b]) if (!deadT[t]) for (let k = 0; k < 3; k++) { const v = I[t * 3 + k]; if (v !== a && v !== b && mark[v] === stamp && !seen.includes(v)) { seen.push(v); common++; } }
+      if (common !== 2) continue;
+      const x = hx[e], y = hy[e], z = hz[e];
+      if (folds(a, b, x, y, z) || folds(b, a, x, y, z)) continue;
+      P[a * 3] = x; P[a * 3 + 1] = y; P[a * 3 + 2] = z;
+      for (let j = 0; j < 10; j++) Q[a * 10 + j] += Q[b * 10 + j];
+      deadV[b] = 1;
+      for (const t of vt[b]) {
+        if (deadT[t]) continue;
+        let hasA = false;
+        for (let k = 0; k < 3; k++) if (I[t * 3 + k] === a) hasA = true;
+        if (hasA) { deadT[t] = 1; live--; continue; }
+        for (let k = 0; k < 3; k++) if (I[t * 3 + k] === b) I[t * 3 + k] = a;
+        vt[a].push(t);
+      }
+      vt[a] = vt[a].filter((t) => !deadT[t]);
+      vt[b] = [];
+      ver[a]++;
+      stamp++;
+      for (const t of vt[a]) for (let k = 0; k < 3; k++) { const v = I[t * 3 + k]; if (v !== a && mark[v] !== stamp) { mark[v] = stamp; ver[v]++; } }
+      stamp++;
+      for (const t of vt[a]) for (let k = 0; k < 3; k++) {
+        const v = I[t * 3 + k];
+        if (v === a || mark[v] === stamp) continue;
+        mark[v] = stamp;
+        // the neighbour's other edges are still valid: re-queue them too
+        for (const t2 of vt[v]) for (let k2 = 0; k2 < 3; k2++) { const w = I[t2 * 3 + k2]; if (w !== v && w !== a) consider(min(v, w), max(v, w)); }
+        consider(min(a, v), max(a, v));
+      }
+    }
+    const remap = new Int32Array(nV).fill(-1), pos = [], idx = [];
+    for (let t = 0; t < nT; t++) {
+      if (deadT[t]) continue;
+      for (let k = 0; k < 3; k++) {
+        const v = I[t * 3 + k];
+        if (remap[v] < 0) { remap[v] = pos.length / 3; pos.push(P[v * 3], P[v * 3 + 1], P[v * 3 + 2]); }
+        idx.push(remap[v]);
+      }
+    }
+    return { pos: new Float64Array(pos), idx: new Int32Array(idx) };
   }
 
   // ------------------------------------------------------- mesh builders
@@ -505,9 +644,25 @@ gl_FragColor.a *= uFade;`);
   // Prefabs are modelled once as distance fields in their own frame (meters,
   // x lateral for the left side, y up, z forward) and placed per body.
   const PREFABS = {};
-  function prefab(key, res, build) {
-    const k = key + '@' + res;
-    if (!PREFABS[k]) { const t0 = performance.now(); const [f, lo, hi] = build(); PREFABS[k] = polygonize(f, lo, hi, res); PREFABS[k].ms = performance.now() - t0; }
+  // cell size (m) and triangle budget per prefab at 'high' quality
+  const PF = {
+    vertA: [0.0012, 900], vertC: [0.0012, 900], vertT: [0.0014, 1100], vertL: [0.0016, 1300], sacrum: [0.0018, 3000],
+    scapula: [0.0019, 2600], skull: [0.002, 16000], mandible: [0.0017, 3000], hipbone: [0.0021, 6000],
+    femur: [0.0021, 4000], tibia: [0.002, 3000], fibula: [0.0018, 1100], humerus: [0.0019, 3000], ulna: [0.0017, 1500], radius: [0.0017, 1500],
+  };
+  const QK = { high: [1, 1], medium: [1.2, 0.6], low: [1.5, 0.3] };
+  const pf = (name, quality, build) => { const q = QK[quality] || QK.high, c = PF[name]; return prefab(name, c[0] * q[0], Math.round(c[1] * q[1]), build); };
+  function prefab(key, h, tris, build) {
+    const k = key + '@' + h + '/' + tris;
+    if (!PREFABS[k]) {
+      const t0 = performance.now();
+      const [f, lo, hi] = build();
+      const raw = polygonize(f, lo, hi, h), n0 = raw.idx.length / 3, low = simplify(raw, tris);
+      project(f, low.pos, h);
+      PREFABS[k] = finish(f, low, h);
+      PREFABS[k].ms = performance.now() - t0;
+      PREFABS[k].raw = n0;
+    }
     return PREFABS[k];
   }
 
@@ -571,7 +726,6 @@ gl_FragColor.a *= uFade;`);
     const geo = new Geo(), s = B.s, q = A.quality, proxies = [];
     const ID = (name) => A.partId(name, 'skeleton');
     const prox = (name, bone, a, b, r) => proxies.push({ name, bone, a: a.clone(), b: b.clone(), r });
-    const res = q === 'high' ? 1 : q === 'medium' ? 1.35 : 1.8; // prefab cell scale
     const seg = q === 'low' ? 6 : 8;
     const tf = s * (0.94 + 0.1 * B.g); // bone thickness factor
 
@@ -609,8 +763,8 @@ gl_FragColor.a *= uFade;`);
     region('T', yT1, yL1, [1.9, 2.0, 2.05, 2.1, 2.15, 2.2, 2.25, 2.35, 2.45, 2.55, 2.65, 2.75], 'T', 0.2);
     region('L', yL1, yS1, [3.4, 3.55, 3.6, 3.6, 3.5], 'L', 0.26);
     const PRE = {
-      C: prefab('vertC', 0.0011 * res, () => vertebraSDF('C')), A: prefab('vertA', 0.0011 * res, () => vertebraSDF('A')),
-      T: prefab('vertT', 0.0013 * res, () => vertebraSDF('T')), L: prefab('vertL', 0.0015 * res, () => vertebraSDF('L')),
+      C: pf('vertC', q, () => vertebraSDF('C')), A: pf('vertA', q, () => vertebraSDF('A')),
+      T: pf('vertT', q, () => vertebraSDF('T')), L: pf('vertL', q, () => vertebraSDF('L')),
     };
     const NH = { C: 0.0124, A: 0.0124, T: 0.019, L: 0.025 };
     const tan = new V3(), zAx = new V3(), xAx = new V3(1, 0, 0);
@@ -644,7 +798,7 @@ gl_FragColor.a *= uFade;`);
     // ---- sacrum and coccyx
     const L5 = lv('L5');
     const s1 = new V3(0, yS1 - L5.gap * 0.5, L5.z - 0.004 * s);
-    const sacrum = prefab('sacrum', 0.0016 * res, () => [(x, y, z) => {
+    const sacrum = pf('sacrum', q, () => [(x, y, z) => {
       let d = disc(x, y, z, [0, -0.011, 0], 0.024, 0.016, 0.011, 0.003);
       for (const sx of [1, -1]) d = smin(d, ell(x, y, z, [sx * 0.03, -0.018, -0.012], [0.024, 0.017, 0.017]), 0.008);
       const spine = [[0, -0.02, -0.006, 0], [0, -0.05, -0.02, 0], [0, -0.078, -0.03, 0], [0, -0.1, -0.03, 0]];
@@ -761,7 +915,7 @@ gl_FragColor.a *= uFade;`);
       const sa = new V3(sd * 0.072 * s, lv('T2').y, 0), ia = new V3(sd * 0.085 * s, lv('T7').y, 0), rt = new V3(sd * 0.078 * s, lv('T3').y - 0.01 * s, 0);
       for (const p of [sa, ia, rt]) p.z = B.back(p.x, p.y) + B.fat * 0.8 + 0.016 * s;
       const glen = sh.clone().add(new V3(-sd * 0.022 * s, 0, -0.006 * s));
-      const scap = prefab('scapula', 0.0018 * res, scapulaSDF);
+      const scap = pf('scapula', q, scapulaSDF);
       const mS = fitAffine([new V3(-0.022, 0, -0.004), new V3(-0.088, 0.055, -0.057), new V3(-0.078, -0.12, -0.062), new V3(-0.083, 0.02, -0.06)].map((p) => p.clone().setX(p.x * sd)),
         [glen.clone().add(new V3(sd * 0.0, 0, 0)), sa, ia, rt]);
       // scapula prefab is the left one; mirror for the right by flipping x in canonical space
@@ -777,10 +931,10 @@ gl_FragColor.a *= uFade;`);
       const src = [new V3(0.03, 0, 0), new V3(-0.03, 0, 0), new V3(0, 0.104, -0.06), new V3(0, 0.02, -0.174), new V3(0.068, 0.03, -0.075), new V3(-0.068, 0.03, -0.075), new V3(0, -0.053, 0.019), new V3(0, -0.126, -0.004)];
       const dst = [eL, eR, H.vertex, H.occiput, H.euryL, H.euryR, H.incisor, H.menton];
       const m = fitAffine(src, dst);
-      const skull = prefab('skull', 0.0018 * res, skullSDF);
+      const skull = pf('skull', q, skullSDF);
       const hb = B.bone('head');
       geo.add(skull, m, COL.bone, ID('Skull'), hb);
-      const mand = prefab('mandible', 0.0016 * res, mandibleSDF);
+      const mand = pf('mandible', q, mandibleSDF);
       const jb = B.bone('jaw');
       geo.add(mand, m, COL.bone, ID('Mandible'), jb);
       const c = new V3(0, 0.035, -0.075).applyMatrix4(m);
@@ -803,7 +957,7 @@ gl_FragColor.a *= uFade;`);
       const isch = new V3(sd * 0.055 * s * bwPel, hip.y - 0.078 * s, hip.z - 0.035 * s);
       const src = [new V3(0, 0, 0), new V3(0.03, 0.075, 0.045), new V3(0.055, 0.115, -0.01), new V3(-0.04, 0.078, -0.085), new V3(-0.079, -0.028, 0.045), new V3(-0.03, -0.078, -0.035)];
       const m = fitAffine(src.map((p) => p.clone().setX(p.x * sd)), [hip, asis, crest, psis, sym, isch]);
-      const hipBone = prefab('hipbone', 0.0019 * res, hipSDF);
+      const hipBone = pf('hipbone', q, hipSDF);
       geo.add(hipBone, m.clone().multiply(new THREE.Matrix4().makeScale(sd, 1, 1)), COL.bone, ID('Pelvis'), pelvisBone);
       prox('Pelvis', pelvisBone, hip.clone().lerp(crest, 0.6), hip.clone().lerp(sym, 0.6), 0.045 * s);
 
@@ -815,7 +969,7 @@ gl_FragColor.a *= uFade;`);
         const x = new V3().crossVectors(y, z).multiplyScalar(sd);
         const k = len / refLen, t = tf * (thick || 1);
         const mm = frame(a, x.multiplyScalar(t), y.multiplyScalar(k), z.multiplyScalar(t));
-        geo.add(prefab(key, 0.0017 * res, sdf), mm, COL.bone, ID(name), bone);
+        geo.add(pf(key, q, sdf), mm, COL.bone, ID(name), bone);
         prox(name, bone, a, b, 0.022 * t / s * s);
         return mm;
       };
@@ -842,7 +996,7 @@ gl_FragColor.a *= uFade;`);
         const z = av.clone().addScaledVector(y, -av.dot(y)).normalize();
         const x = new V3().crossVectors(y, z).multiplyScalar(sd);
         const mm = frame(a, x.multiplyScalar(tf), y.multiplyScalar(len / refLen), z.multiplyScalar(tf));
-        geo.add(prefab(key, 0.0015 * res, sdf), mm, COL.bone, ID(name), bone);
+        geo.add(pf(key, q, sdf), mm, COL.bone, ID(name), bone);
         prox(name, bone, a, b, 0.016 * tf);
       };
       place('humerus', humerusSDF, sh, el, 0.3, 'Humerus', B.bone('upperarm02' + S));

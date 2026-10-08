@@ -446,7 +446,7 @@ void main() {
   float w = uWidth * aU.w * 2.0 * (1.0 - 0.8 * smoothstep(0.6, 1.0, u));
   float px = 2.0 * -mv.z / (projectionMatrix[1][1] * uRes.y);
   float wd = max(w, px * uMinPx);
-  vA = clamp(w / wd, 0.0, 1.0);
+  vA = clamp(sqrt(w / wd) * 1.4, 0.0, 1.0);
   mv.xyz += side * (aTan.w * 0.5 * wd);
   gl_Position = projectionMatrix * mv;
   vT = T;
@@ -516,10 +516,10 @@ void main() {
 
   function strandMaterial(defines) {
     const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.lights, {
-      uHead: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(1200, 900) }, uWidth: { value: 0.00008 }, uMinPx: { value: 0.75 },
+      uHead: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(1200, 900) }, uWidth: { value: 0.00008 }, uMinPx: { value: 1.0 },
       uColor: { value: new THREE.Color(0.1, 0.06, 0.04) }, uTip: { value: new THREE.Color(0.14, 0.09, 0.06) }, uGreyCol: { value: new THREE.Color(0.6, 0.6, 0.58) },
-      uGrey: { value: 0 }, uRootDark: { value: 0.75 }, uJitter: { value: 0.35 }, uSpec: { value: new THREE.Vector2(0.22, 0.35) },
-      uShift: { value: new THREE.Vector2(-0.12, 0.1) }, uExp: { value: new THREE.Vector2(90, 22) }, uAmbient: { value: 0.12 }, uAlpha: { value: 1 },
+      uGrey: { value: 0 }, uRootDark: { value: 0.75 }, uJitter: { value: 0.35 }, uSpec: { value: new THREE.Vector2(0.14, 0.3) },
+      uShift: { value: new THREE.Vector2(-0.12, 0.1) }, uExp: { value: new THREE.Vector2(120, 28) }, uAmbient: { value: 0.12 }, uAlpha: { value: 1 },
       uDevSize: { value: new THREE.Vector2(1, 1) },
     }]);
     uniforms.uDev = { value: null };
@@ -578,7 +578,7 @@ void main() {
     const vol = 0.5 + clamp(p.hairVolume ?? 0.5, 0, 1);
     const curl = clamp(p.curl ?? 0.15, 0, 1);
     const S = F.R.y / 0.088; // head size
-    const base = { n: 16000, segs: 12, lift: 0.3, grav: 0, shell: 0.006 * vol, rise: 0.25, clump: 0.35, clumpN: 26, frizz: 0.15, part: null, width: 1,
+    const base = { n: 16000, segs: 12, lift: 0.3, grav: 0, shell: 0.006 * vol, rise: 0.25, clump: 0.35, clumpN: 26, frizz: 0.15, part: null, width: 1, hug: 1, reach: 'head', cap: 0.85,
       wave: curl > 0.25 ? { amp: 0.004 * curl * vol, wl: 0.07 - 0.03 * curl, ell: 0.4 } : null, physics: 0, len: () => 0.1, cut: null, flow: 'part' };
     switch (style) {
       case 'buzz': return Object.assign(base, { n: 42000, segs: 2, lift: 0.55, shell: 0.0015, rise: 1, clump: 0, frizz: 0.3, width: 0.9, wave: null, flow: 'back',
@@ -587,17 +587,17 @@ void main() {
         len: (q) => mix(0.016, 0.06, smooth(-0.15, 0.55, q.y)) * Ls * S });
       case 'short': return Object.assign(base, { n: 30000, segs: 6, lift: 0.32, grav: 4, shell: 0.008 * vol, clump: 0.5, frizz: 0.35, flow: 'messy',
         len: (q) => mix(0.018, 0.065, smooth(-0.2, 0.55, q.y)) * Ls * S });
-      case 'medium': return Object.assign(base, { n: 20000, segs: 12, lift: 0.22, grav: 16, shell: 0.009 * vol, part: 0.22, clump: 0.55, frizz: 0.3, flow: 'fringe', physics: 0.6,
+      case 'medium': return Object.assign(base, { reach: 'body', n: 20000, segs: 12, lift: 0.22, grav: 16, shell: 0.009 * vol, part: 0.22, clump: 0.55, frizz: 0.3, flow: 'fringe', physics: 0.6,
         len: (q) => mix(0.11, 0.16, smooth(-0.5, 0.5, q.y)) * Ls * S, cut: 'fringe' });
-      case 'bob': return Object.assign(base, { n: 20000, segs: 14, lift: 0.18, grav: 22, shell: 0.008 * vol, part: 0.28, clump: 0.4, flow: 'part', physics: 0.5, bobCurl: true,
+      case 'bob': return Object.assign(base, { reach: 'body', n: 20000, segs: 14, lift: 0.18, grav: 22, shell: 0.008 * vol, part: 0.28, clump: 0.4, flow: 'part', physics: 0.5, bobCurl: true,
         drop: (clamp(p.hairLength ?? 0.5, 0, 1) - 0.5) * 0.09, len: () => 0.3 * S, cut: 'bob' });
-      case 'long': return Object.assign(base, { n: 17000, segs: 22, lift: 0.15, grav: 26, shell: 0.008 * vol, part: 0.04, clump: 0.5, flow: 'part', physics: 1,
+      case 'long': return Object.assign(base, { reach: 'body', n: 17000, segs: 22, lift: 0.15, grav: 26, shell: 0.008 * vol, part: 0.04, clump: 0.5, flow: 'part', physics: 1,
         len: (q) => (0.42 + 0.06 * (1 - Math.abs(q.x))) * Ls * S });
-      case 'wavy': return Object.assign(base, { n: 15000, segs: 30, lift: 0.2, grav: 22, shell: 0.011 * vol, part: 0.1, clump: 0.6, flow: 'part', physics: 1,
+      case 'wavy': return Object.assign(base, { reach: 'body', n: 15000, segs: 30, lift: 0.2, grav: 22, shell: 0.011 * vol, part: 0.1, clump: 0.6, flow: 'part', physics: 1,
         wave: { amp: (0.01 + 0.008 * curl) * vol, wl: 0.085 - 0.03 * curl, ell: 0.45 }, len: (q) => (0.4 + 0.05 * (1 - Math.abs(q.x))) * Ls * S });
-      case 'curly': return Object.assign(base, { n: 12000, segs: 34, lift: 0.4, grav: 10, shell: 0.02 * vol, part: 0.1, clump: 0.75, clumpN: 30, frizz: 0.5, flow: 'part', physics: 0.6,
+      case 'curly': return Object.assign(base, { reach: 'body', n: 12000, segs: 34, lift: 0.4, grav: 10, shell: 0.02 * vol, part: 0.1, clump: 0.75, clumpN: 30, frizz: 0.5, flow: 'part', physics: 0.6,
         wave: { amp: (0.006 + 0.004 * curl) * vol, wl: 0.032 - 0.012 * curl, ell: 1 }, len: (q) => mix(0.17, 0.22, smooth(-0.5, 0.6, q.y)) * Ls * S });
-      case 'afro': return Object.assign(base, { n: 22000, segs: 12, lift: 0.9, grav: 0.4, shell: 0.004, clump: 0.25, clumpN: 12, frizz: 1.6, flow: 'radial', wave: null, kink: 1,
+      case 'afro': return Object.assign(base, { n: 22000, segs: 12, lift: 0.9, grav: 0.4, shell: 0.004, clump: 0.25, clumpN: 12, frizz: 1.6, flow: 'radial', wave: null, kink: 0.9, hug: 0,
         afro: (0.05 + 0.05 * clamp(p.hairLength ?? 0.5, 0, 1)) * vol * S, len: () => 0.16 * vol * S, cut: 'afro' });
       default: return null;
     }
@@ -625,6 +625,46 @@ void main() {
     return out.multiplyScalar(1 - lift).addScaledVector(nrm, lift).normalize();
   }
 
+  // the hair "cap": a thin hair-coloured layer on the scalp so the skin
+  // doesn't shine through between strands, fading out at the hairline
+  const CAP_VERT = `
+uniform mat4 uHead;
+attribute float aMask;
+varying float vM;
+varying vec3 vN;
+void main() {
+  vec3 p = (uHead * vec4(position + normal * 0.0005, 1.0)).xyz;
+  vN = normalize(mat3(modelViewMatrix) * (mat3(uHead) * normal));
+  vM = aMask;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+}`;
+  const CAP_FRAG = `
+#include <common>
+#include <lights_pars_begin>
+uniform vec3 uColor;
+uniform float uOpacity;
+varying float vM;
+varying vec3 vN;
+void main() {
+  vec3 N = normalize(vN), irr = ambientLightColor;
+#if NUM_DIR_LIGHTS > 0
+  for (int i = 0; i < NUM_DIR_LIGHTS; i++) irr += directionalLights[i].color * max(dot(N, directionalLights[i].direction), 0.0) * 0.35;
+#endif
+#if NUM_HEMI_LIGHTS > 0
+  for (int i = 0; i < NUM_HEMI_LIGHTS; i++) irr += getHemisphereLightIrradiance(hemisphereLights[i], N) * 0.5;
+#endif
+  gl_FragColor = vec4(uColor * (irr + 0.1), uOpacity * smoothstep(0.0, 1.0, vM));
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+  function capMaterial() {
+    const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.lights, {
+      uHead: { value: new THREE.Matrix4() }, uColor: { value: new THREE.Color() }, uOpacity: { value: 0.85 },
+    }]);
+    return new THREE.ShaderMaterial({ uniforms, vertexShader: CAP_VERT, fragmentShader: CAP_FRAG, lights: true, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  }
+
   // ---------------------------------------------------- the module
   class Hair {
     constructor(app) {
@@ -639,43 +679,80 @@ void main() {
       this.quality = app.quality || 'high';
       this.q = QUALITY[this.quality] || 1;
       this.meshes = {};
-      this.mats = {
-        scalp: strandMaterial(),
-        face: strandMaterial(),
-        lash: strandMaterial(),
-      };
+      this.mats = { scalp: strandMaterial(), face: strandMaterial(), lash: strandMaterial(), cap: capMaterial() };
+      this.mats.cap.uniforms.uHead = this.mats.scalp.uniforms.uHead;
       this.headIdx = this.human.boneIndex('head');
       this.invGroup = new THREE.Matrix4();
       this.keys = {};
-      const dbg = app.query && app.query.get('hair');
-      if (dbg) this.forceStyle = dbg;
+      this.fields = {};
+      this.timers = {};
+      // screenshots and the game need the final groom at once; the studio
+      // regrooms a moment after a body slider stops moving
+      const q = app.query;
+      this.sync = !!app.game || !!(q && q.get('t') !== null);
+      this.forceStyle = (q && q.get('hair')) || null;
     }
+
+    styleOf(p) { return this.forceStyle || p.hairStyle || 'short'; }
 
     // ---- params
     onParams(p) {
+      this.p = p;
       const human = this.human;
-      const style = this.forceStyle || p.hairStyle || 'short';
-      this.F = headFrame(human);
-      const F = this.F;
-      const shapeKey = [F.C.x, F.C.y, F.C.z, F.R.x, F.R.y, F.R.z, F.shoulderY, F.chin.y, F.lip.z, human.smooth].map((v) => (typeof v === 'number' ? v.toFixed(4) : v)).join(',');
-      const scalpKey = [style, p.hairLength, p.hairVolume, p.curl, this.recede(p).toFixed(2), shapeKey].join('|');
-      if (scalpKey !== this.keys.scalp) { this.keys.scalp = scalpKey; this.buildScalp(style, p); }
-      const browKey = [p.browStyle, p.browThickness, shapeKey].join('|');
+      const F = (this.F = headFrame(human));
+      const style = this.styleOf(p);
+      // body changes smaller than ~2 mm around the head don't need a regroom
+      const shape = [F.C.x, F.C.y, F.C.z, F.R.x, F.R.y, F.R.z, F.shoulderY, F.shoulderX, F.chin.y, F.chin.z].map((v) => Math.round(v * 500)).join(',') + human.smooth;
+      const look = [style, p.hairLength, p.hairVolume, p.curl, this.recede(p).toFixed(2), human.bodyGeo.id].join('|');
+      if (look + shape !== this.keys.scalp) {
+        const fresh = look !== this.keys.look;
+        this.keys.scalp = look + shape;
+        this.keys.look = look;
+        if (fresh || this.sync) this.buildScalp(style, p);
+        else this.later('scalp', () => this.buildScalp(this.styleOf(this.p), this.p));
+      }
+      const browKey = [p.browStyle, p.browThickness, shape].join('|');
       if (browKey !== this.keys.brow) { this.keys.brow = browKey; this.buildBrows(p); }
-      const lashKey = [p.lashLength, p.makeupStyle, shapeKey].join('|');
+      const lashKey = [p.lashLength, p.makeupStyle, shape].join('|');
       if (lashKey !== this.keys.lash) { this.keys.lash = lashKey; this.buildLashes(p); }
       this.applyColors(p);
     }
 
+    later(name, fn) {
+      clearTimeout(this.timers[name]);
+      this.timers[name] = setTimeout(() => { this.F = headFrame(this.human); fn(); }, 220);
+    }
+
     recede(p) {
-      if (p.hairline !== undefined) return clamp(p.hairline, 0, 1);
-      return clamp((p.age - 32) / 45, 0, 1) * smooth(0.55, 0.95, p.gender ?? 0.5) * 0.7;
+      if (p.hairline !== undefined && p.hairline !== null) return clamp(p.hairline, 0, 1);
+      return clamp(((p.age ?? 30) - 32) / 45, 0, 1) * smooth(0.55, 0.95, p.gender ?? 0.5) * 0.7;
+    }
+
+    // voxel distance fields, cached per body shape: 'head' (fine) and
+    // 'body' (head, neck, shoulders and back for long hair)
+    field(kind) {
+      const human = this.human, F = this.F;
+      const head = () => {
+        const lo = [-(F.R.x + 0.1), F.E.y - 0.17, F.back - 0.08], hi = [F.R.x + 0.1, F.top + 0.05, F.front + 0.07];
+        return this.cachedSDF('head', lo, hi, 0.006);
+      };
+      if (kind === 'head') return new Field([head()]);
+      const body = this.cachedSDF('body', [-0.3, F.top - 0.95, -0.24], [0.3, F.top + 0.05, 0.3], 0.01);
+      return new Field([head(), body]);
+    }
+    cachedSDF(name, lo, hi, h) {
+      const key = lo.concat(hi).map((v) => v.toFixed(3)).join(',') + this.keys.scalp;
+      const c = this.fields[name];
+      if (c && c.key === key) return c.sdf;
+      const sdf = new BodySDF(this.human.restAttr.array, this.human.S.tris, lo, hi, h);
+      this.fields[name] = { key, sdf };
+      return sdf;
     }
 
     setMesh(name, geo, mat, skinned) {
       const old = this.meshes[name];
       if (old) { this.group.remove(old); old.geometry.dispose(); }
-      if (!geo) { delete this.meshes[name]; return; }
+      if (!geo) { delete this.meshes[name]; return null; }
       let mesh;
       if (skinned) {
         mesh = new THREE.SkinnedMesh(geo, mat);
@@ -684,16 +761,17 @@ void main() {
       mesh.name = 'hair-' + name;
       mesh.frustumCulled = false;
       const u = mat.uniforms;
-      mesh.onBeforeRender = (renderer) => { renderer.getDrawingBufferSize(u.uRes.value); };
+      if (u.uRes) mesh.onBeforeRender = (renderer) => { renderer.getDrawingBufferSize(u.uRes.value); };
       this.group.add(mesh);
       this.meshes[name] = mesh;
+      return mesh;
     }
 
     // ---- scalp hair
     buildScalp(style, p) {
       const human = this.human, F = this.F;
       const R = recipe(style, p, F);
-      if (!R) { this.setMesh('scalp', null); return; }
+      if (!R) { this.setMesh('scalp', null); this.setMesh('cap', null); this.stats = null; return; }
       const rand = rng(1234 + STYLES.findIndex((s) => s.id === style) * 101);
       const n = human.S.nOut, a = human.restAttr.array, M = human.masks;
       const recede = this.recede(p);
@@ -703,14 +781,9 @@ void main() {
         if (y < F.E.y - 0.16) continue;
         mask[i] = scalpMask(F, a[i * 3], y, a[i * 3 + 2], M[i * 8 + 3], recede);
       }
-      // distance field around the head (and shoulders/back for longer hair)
-      const reach = style === 'long' || style === 'wavy' ? 0.85 : style === 'bob' || style === 'medium' || style === 'curly' ? 0.4 : 0.16;
-      const h = reach > 0.5 ? 0.009 : 0.006;
-      const wx = reach > 0.3 ? 0.3 : F.R.x + 0.09 + (R.afro || 0);
-      const lo = [-wx, F.top - reach - 0.05, reach > 0.3 ? -0.22 : F.back - 0.06 - (R.afro || 0)];
-      const hi = [wx, F.top + 0.04 + (R.afro || 0), reach > 0.3 ? 0.3 : F.front + 0.05];
+      this.buildCap(mask, R);
       const t0 = performance.now();
-      const sdf = (this.sdf = new BodySDF(a, human.S.tris, lo, hi, h));
+      const field = (this.fieldNow = this.field(R.reach || 'head'));
       const t1 = performance.now();
 
       const ns = Math.max(200, Math.round(R.n * this.q)), segs = Math.max(2, Math.round(R.segs * (this.q < 0.3 ? 0.55 : this.q < 0.6 ? 0.8 : 1)));
@@ -719,18 +792,24 @@ void main() {
       const CR = sampleSurface(human, mask, K, rand);
       const SR = sampleSurface(human, mask, ns, rand);
       if (!CR || !SR) { this.setMesh('scalp', null); return; }
-      // clump centre paths
-      const CP = new Float32Array(K * np * 3), CL = new Float32Array(K), side = new Int8Array(K);
+      // clump centre paths, with each point's distance to the skin and
+      // outward direction
+      const CP = new Float32Array(K * np * 3), CD = new Float32Array(K * np), CN = new Float32Array(K * np * 3), CL = new Float32Array(K), side = new Int8Array(K);
       const q = V(), nrm = V(), root = V();
       for (let c = 0; c < K; c++) {
         root.fromArray(CR.pos, c * 3); nrm.fromArray(CR.nrm, c * 3);
         qOf(F, root.x, root.y, root.z, q);
         side[c] = R.part === null ? 0 : q.x >= R.part ? 1 : -1;
-        const crand = rng(c * 7919 + 17);
-        CL[c] = this.growPath(R, sdf, root, nrm, q, crand, CP, c * np, segs);
+        CL[c] = this.growPath(R, field, root, nrm, q, rng(c * 7919 + 17), CP, c * np, segs);
+        for (let k = 0; k < np; k++) {
+          const o = (c * np + k) * 3;
+          CD[c * np + k] = field.dist(CP[o], CP[o + 1], CP[o + 2], _g);
+          if (_g.lengthSq() < 0.5) _g.set(CP[o] - F.C.x, CP[o + 1] - F.C.y, CP[o + 2] - F.C.z).normalize();
+          CN[o] = _g.x; CN[o + 1] = _g.y; CN[o + 2] = _g.z;
+        }
       }
       const t2 = performance.now();
-      const hash = new Hash(CR.pos, K, 0.02);
+      const hash = new Hash(CR.pos, K, clamp(0.25 / Math.sqrt(K), 0.004, 0.03));
       const B = new Batch(ns, np, {});
       const P = B.P, Q = V(), p0 = V(), d = V(), fz = V();
       const shellMax = R.shell + 0.004;
@@ -741,67 +820,106 @@ void main() {
         let c = hash.nearest(root.x, root.y, root.z, (i) => side[i] === sd);
         if (c < 0) c = hash.nearest(root.x, root.y, root.z);
         d.set(root.x - CR.pos[c * 3], root.y - CR.pos[c * 3 + 1], root.z - CR.pos[c * 3 + 2]);
-        const lf = 0.8 + 0.2 * rand() ** 0.5;
-        const fly = rand() < 0.025 ? 4 : 1;
+        const dl = d.length();
+        const lf = 0.8 + 0.2 * Math.sqrt(rand());
+        const fzAmt = R.frizz * (rand() < 0.025 ? 4 : 1) * CL[c] * 6;
         fz.set(0, 0, 0);
         const r = rand();
         B.R[s * 2] = r;
         B.R[s * 2 + 1] = 0.7 + 0.6 * rand();
         for (let k = 0; k < np; k++) {
           const t = (k / segs) * lf, x = t * segs, k0 = Math.min(segs - 1, Math.floor(x)), f = x - k0;
-          const o0 = (c * np + k0) * 3, o1 = o0 + 3;
+          const j0 = c * np + k0, o0 = j0 * 3, o1 = o0 + 3;
           Q.set(mix(CP[o0], CP[o1], f), mix(CP[o0 + 1], CP[o1 + 1], f), mix(CP[o0 + 2], CP[o1 + 2], f));
           const cl = R.clump * smooth(0.05, 1, t);
           if (k > 0) fz.set(fz.x + (rand() - 0.5) * 0.004, fz.y + (rand() - 0.5) * 0.004, fz.z + (rand() - 0.5) * 0.004);
-          p0.copy(Q).addScaledVector(d, 1 - cl).addScaledVector(fz, R.frizz * fly * t * CL[c] * 6);
-          const dist = k > 0 ? sdf.push(p0, Math.min(0.0006 + k * 0.0012, 0.0012)) : 0;
+          const fa = fzAmt * t;
+          p0.copy(Q).addScaledVector(d, 1 - cl).addScaledVector(fz, fa);
+          // only strand points near the skin need the field
+          let dist = mix(CD[j0], CD[j0 + 1], f);
           const i = s * np + k;
+          if (k > 0 && dist < dl * (1 - cl) + fz.length() * fa + 0.003) {
+            dist = field.push(p0, Math.min(0.0006 + k * 0.0012, 0.0012));
+            if (_g.lengthSq() < 0.5) _g.fromArray(CN, o0);
+            B.N[i * 3] = _g.x; B.N[i * 3 + 1] = _g.y; B.N[i * 3 + 2] = _g.z;
+          } else {
+            B.N[i * 3] = CN[o0]; B.N[i * 3 + 1] = CN[o0 + 1]; B.N[i * 3 + 2] = CN[o0 + 2];
+          }
           P[i * 3] = p0.x; P[i * 3 + 1] = p0.y; P[i * 3 + 2] = p0.z;
           B.U[i] = t;
-          B.O[i] = clamp(0.2 + (dist / shellMax) * 0.8, 0, 1) * (0.75 + 0.25 * r);
-          sdf.dist(p0.x, p0.y, p0.z, _g);
-          if (_g.lengthSq() < 0.5) _g.set(p0.x - F.C.x, p0.y - F.C.y, p0.z - F.C.z).normalize();
-          B.N[i * 3] = _g.x; B.N[i * 3 + 1] = _g.y; B.N[i * 3 + 2] = _g.z;
+          B.O[i] = clamp(0.2 + (Math.max(0, dist) / shellMax) * 0.8, 0, 1) * (0.75 + 0.25 * r);
         }
         B.n++;
       }
       const t3 = performance.now();
       const geo = B.geometry();
       this.setMesh('scalp', geo, this.mats.scalp, false);
-      this.stats = { sdf: t1 - t0, clumps: t2 - t1, strands: t3 - t2, geometry: performance.now() - t3, voxels: sdf.d.length, strandCount: ns, vertices: ns * np * 2 };
-      this.mats.scalp.uniforms.uWidth.value = 0.00007 * R.width / Math.sqrt(this.q);
+      this.mats.scalp.uniforms.uWidth.value = (0.00007 * R.width) / Math.sqrt(this.q);
+      this.stats = { field: t1 - t0, clumps: t2 - t1, strands: t3 - t2, geometry: performance.now() - t3, strands_n: ns, vertices: ns * np * 2 };
+    }
+
+    buildCap(mask, R) {
+      const human = this.human, tris = human.S.tris, a = human.restAttr.array, nr = human.bodyNrm.array;
+      const map = new Map(), idx = [];
+      for (let t = 0; t < tris.length; t += 3) {
+        const i0 = tris[t], i1 = tris[t + 1], i2 = tris[t + 2];
+        if (mask[i0] + mask[i1] + mask[i2] < 0.01) continue;
+        for (const v of [i0, i1, i2]) {
+          if (!map.has(v)) map.set(v, map.size);
+          idx.push(map.get(v));
+        }
+      }
+      const nv = map.size, pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), m = new Float32Array(nv);
+      for (const [v, i] of map) {
+        for (let c = 0; c < 3; c++) { pos[i * 3 + c] = a[v * 3 + c]; nrm[i * 3 + c] = nr[v * 3 + c]; }
+        m[i] = mask[v];
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+      geo.setAttribute('aMask', new THREE.BufferAttribute(m, 1));
+      geo.setIndex(idx);
+      const mesh = this.setMesh('cap', geo, this.mats.cap, false);
+      mesh.renderOrder = 1;
+      this.mats.cap.uniforms.uOpacity.value = R.cap ?? 0.85;
     }
 
     // one clump centre: grows from the root, bends under gravity, slides
     // over the head and shoulders, then gets cut and curled. Returns length.
-    growPath(R, sdf, root, nrm, q, rnd, out, o, segs) {
+    growPath(R, field, root, nrm, q, rnd, out, o, segs) {
       const F = this.F;
       const L = R.len(q) * (0.9 + 0.2 * rnd());
       const seg = L / segs;
       const dir = flowDir(R, F, q, nrm, rnd, V());
-      const p = root.clone().addScaledVector(nrm, 0.0004), prev = V();
+      const p = root.clone().addScaledVector(nrm, 0.0004), prev = V(), g = V();
       const shell = R.shell * (0.35 + 0.65 * rnd()) * (0.7 + 0.6 * smooth(-0.6, 0.9, q.y));
       const front = q.z > 0.3;
       out[o * 3] = p.x; out[o * 3 + 1] = p.y; out[o * 3 + 2] = p.z;
       for (let k = 1; k <= segs; k++) {
         const l = k * seg;
         prev.copy(p);
-        // gravity takes over away from the root; long hair goes in front of
-        // or behind the shoulders depending on where it grows
-        const g = R.grav * seg * smooth(0, 0.06, l);
-        dir.y -= g;
+        // hair lies against the head while gravity presses it there, and
+        // falls free from the widest part of the skull
+        if (R.hug) {
+          const dist = field.dist(p.x, p.y, p.z, g);
+          const o2 = dir.dot(g);
+          if (dist < shell + 0.004 && o2 > 0) dir.addScaledVector(g, -o2 * R.hug * (R.grav > 8 ? smooth(-0.15, 0.2, g.y) : 1));
+        }
+        // long hair goes in front of or behind the shoulders depending on
+        // where it grows
+        dir.y -= R.grav * seg * smooth(0, 0.025, l);
         if (R.grav > 15 && p.y < F.chin.y + 0.02) dir.z += (front ? 0.6 : -0.6) * seg * 4;
-        if (R.kink) { dir.x += (rnd() - 0.5) * 0.9; dir.y += (rnd() - 0.5) * 0.9; dir.z += (rnd() - 0.5) * 0.9; }
+        if (R.kink) { dir.x += (rnd() - 0.5) * R.kink; dir.y += (rnd() - 0.5) * R.kink; dir.z += (rnd() - 0.5) * R.kink; }
         dir.normalize();
         p.addScaledVector(dir, seg);
-        sdf.push(p, Math.min(shell, 0.0004 + l * R.rise));
+        field.push(p, Math.min(shell, 0.0004 + l * R.rise));
         dir.subVectors(p, prev);
         if (dir.lengthSq() > 1e-12) dir.normalize();
         out[(o + k) * 3] = p.x; out[(o + k) * 3 + 1] = p.y; out[(o + k) * 3 + 2] = p.z;
       }
       let len = L;
       if (R.cut) len = this.cutPath(R, out, o, segs, seg, rnd);
-      if (R.wave) this.curlPath(R, sdf, out, o, segs, len, rnd);
+      if (R.wave) this.curlPath(R, field, out, o, segs, len, rnd);
       return len;
     }
 
@@ -834,7 +952,7 @@ void main() {
 
     // waves and curls: an (elliptical) helix around the path in a
     // parallel-transported frame, growing in from the root
-    curlPath(R, sdf, out, o, segs, len, rnd) {
+    curlPath(R, field, out, o, segs, len, rnd) {
       const W = R.wave, seg = len / segs, phase = rnd() * Math.PI * 2;
       const wl = W.wl * (0.85 + 0.3 * rnd()), amp = W.amp * (0.7 + 0.6 * rnd());
       const T = V(), N = V(), B = V(), tmp = V(), off = new Float32Array((segs + 1) * 3);
@@ -857,7 +975,7 @@ void main() {
       }
       for (let k = 1; k <= segs; k++) {
         tmp.set(out[(o + k) * 3] + off[k * 3], out[(o + k) * 3 + 1] + off[k * 3 + 1], out[(o + k) * 3 + 2] + off[k * 3 + 2]);
-        sdf.push(tmp, 0.0012);
+        field.push(tmp, 0.0012);
         out[(o + k) * 3] = tmp.x; out[(o + k) * 3 + 1] = tmp.y; out[(o + k) * 3 + 2] = tmp.z;
       }
     }
@@ -997,6 +1115,7 @@ void main() {
       set(this.mats.scalp, C.base, C.tip, greyHair);
       set(this.mats.face, C.brow, C.brow.clone().multiplyScalar(1.15), greyAt(age, 55) * 0.5);
       set(this.mats.lash, C.lash, C.lash, 0);
+      this.mats.cap.uniforms.uColor.value.copy(C.base).multiplyScalar(0.6);
       const ml = this.mats.lash.uniforms;
       ml.uWidth.value = 0.00006;
       ml.uRootDark.value = 1;
@@ -1013,6 +1132,7 @@ void main() {
     }
 
     dispose() {
+      for (const k in this.timers) clearTimeout(this.timers[k]);
       for (const k in this.meshes) this.meshes[k].geometry.dispose();
       for (const k in this.mats) this.mats[k].dispose();
       if (this.group.parent) this.group.parent.remove(this.group);
