@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clothes Studio</title>
+<link rel="stylesheet" href="css/studio.css">
+<link rel="stylesheet" href="css/clothes.css">
+</head>
+<body>
+<div id="cs" class="bs-ui"></div>
+<script src="lib/three.min.js"></script>
+<script src="assets/body-data.js"></script>
+<script src="js/params.js"></script>
+<script src="js/core.js"></script>
+<script src="js/human.js"></script>
+<script src="js/app.js"></script>
+<script src="js/stage.js"></script>
+<script src="js/skin.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/hair.js"></script>
+<script src="js/fabric.js"></script>
+<script src="js/clothing.js"></script>
+<script src="js/textiles.js"></script>
+<script src="js/clothes.js"></script>
+<script>
+  if (new URLSearchParams(location.search).get('ui') === '0') document.body.classList.add('no-ui');
+  BS.Textiles.boot(document.getElementById('cs'));
+</script>
+</body>
+</html>

@@ -249,6 +249,7 @@
       const step = () => {
         this._raf = requestAnimationFrame(step);
         const dt = Math.min(0.05, this.clock.getDelta());
+        if (this.hidden) return; // another view owns the screen (Clothes Studio)
         if (!this.paused) this.tick(dt);
         this.orbit.update(dt);
         this.render();

@@ -8,9 +8,9 @@
 //   Cloth                       position-based cloth solver (structural/shear/bend, substeps,
 //                               drag + wind, sphere/capsule/box/plane colliders, friction,
 //                               optional self-collision, volume for pillows, grab/drop)
-//   ITEMS, SCENES               catalogue of textiles and room vignettes
-//   Studio                      the 3D textile studio (renderer, orbit, drag, swatches)
-//   boot()                      builds clothes.html
+//   GridSkin, Fringe, Piping, RollMat   renderers for cloth, tassels, piping and foam mats
+//   boot()                      builds clothes.html (defined in clothes.js, with the
+//                               wardrobe, the Home & Spa rooms and the catalogue)
 (function () {
   'use strict';
   const BS = (window.BS = window.BS || {});

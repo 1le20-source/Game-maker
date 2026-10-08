@@ -44,6 +44,9 @@
     return t;
   }
 
+  BS.studioEnvironment = studioEnvironment;
+  BS.radialTexture = radialTexture;
+
   BS.buildStage = function (app) {
     const { scene, renderer, human } = app;
     scene.environment = studioEnvironment(renderer);

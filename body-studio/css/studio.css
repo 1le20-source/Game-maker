@@ -162,6 +162,8 @@ body.no-ui #ui { display: none; }
 
 /* ------------------------------------------------------------ cards, chips, swatches */
 .bs-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); gap: 6px; margin: 4px 0 8px; }
+.bs-cards.looks { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.bs-cards.looks .bs-card { min-height: 36px; }
 .bs-card { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 3px; min-width: 0; padding: 7px 3px 6px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.03); color: var(--ink-2); cursor: pointer; font-size: 11px !important; line-height: 1.2; text-align: center; transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s; }
 .bs-card:hover { background: rgba(255, 255, 255, 0.07); color: var(--ink); }
 .bs-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); box-shadow: inset 0 0 0 1px var(--accent); }

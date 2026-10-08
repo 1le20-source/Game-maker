@@ -1,0 +1,56 @@
+/* Clothes Studio (clothes.html): page shell on top of studio.css. */
+#cs { position: fixed; inset: 0; }
+.cs-stage { position: fixed; inset: 0; background: radial-gradient(120% 90% at 50% 38%, #4a4b50 0%, #2b2d33 45%, #16171b 100%); }
+.cs-stage[hidden] { display: none; }
+.cs-top { position: fixed; top: var(--gutter); left: var(--gutter); right: calc(var(--panel-w) + var(--gutter) * 2); z-index: 6; display: flex; align-items: center; gap: 14px; height: 48px; padding: 0 8px 0 14px; border-radius: 14px; }
+.cs-brand { display: flex; flex-direction: column; line-height: 1.15; margin-right: auto; }
+.cs-brand b { font-size: 15px; letter-spacing: 0.01em; }
+.cs-brand span { font-size: 11.5px; color: var(--ink-3); }
+.cs-modes { display: flex; gap: 4px; padding: 3px; border-radius: 11px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
+.cs-modes button { height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); font-weight: 600; cursor: pointer; }
+.cs-modes button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.cs-panel { position: fixed; z-index: 6; top: var(--gutter); right: var(--gutter); bottom: var(--gutter); width: var(--panel-w); box-sizing: border-box; padding: 6px 16px 16px; border-radius: 16px; overflow-y: auto; overscroll-behavior: contain; }
+.cs-sec { padding: 12px 0 14px; border-bottom: 1px solid var(--line); }
+.cs-sec:last-of-type { border-bottom: 0; }
+.cs-sec h3 { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.cs-note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-3); }
+.cs-select { width: 100%; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.06); color: var(--ink); font: inherit; }
+.cs-select option { background: #24252b; }
+.cs-field { margin: 0 0 12px; }
+.cs-field[hidden] { display: none; }
+.cs-label { margin: 0 0 6px; font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+.cs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-chip { height: 30px; padding: 0 11px; border-radius: 15px; border: 1px solid var(--line-2); background: rgba(255, 255, 255, 0.04); color: var(--ink-2); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.cs-chip:hover { background: var(--hover); color: var(--ink); }
+.cs-chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent-2); }
+.cs-tabs { display: flex; gap: 4px; margin: 0 0 14px; padding: 3px; border-radius: 11px; background: rgba(255, 255, 255, 0.05); }
+.cs-tab { flex: 1; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-2); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.cs-tab[aria-selected="true"] { background: rgba(255, 255, 255, 0.12); color: var(--ink); }
+.cs-swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cs-sw { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.22); cursor: pointer; padding: 0; }
+.cs-sw[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.cs-pick { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; cursor: pointer; }
+.cs-field input[type="range"] { width: 100%; accent-color: var(--accent); }
+.cs-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-row .bs-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-2); }
+.cs-actions { display: grid; gap: 8px; padding-top: 14px; }
+.cs-items { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.cs-item { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.04); color: var(--ink-2); font: 600 12.5px/1.2 var(--font); text-align: left; cursor: pointer; }
+.cs-item[aria-pressed="true"] { border-color: var(--accent-line); background: var(--accent-soft); color: var(--ink); }
+.cs-item .dot { flex: none; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.3); }
+.cs-toast { position: fixed; z-index: 9; left: 50%; bottom: 24px; transform: translate(-50%, 20px); max-width: min(520px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 12px; background: var(--glass-2); border: 1px solid var(--line-2); opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s var(--ease); }
+.cs-toast.on { opacity: 1; transform: translate(-50%, 0); }
+.cs-busy { position: fixed; inset: 0; z-index: 4; display: grid; place-content: center; gap: 12px; text-align: center; color: var(--ink-2); }
+.cs-busy[hidden] { display: none; }
+body.no-ui .cs-top, body.no-ui .cs-panel { display: none; }
+
+/* phones: the controls become a bottom sheet under a shorter stage */
+@media (max-width: 760px) {
+  :root { --gutter: 8px; }
+  .cs-top { right: var(--gutter); height: 46px; gap: 8px; }
+  .cs-brand span { display: none; }
+  .cs-modes button { padding: 0 10px; }
+  .cs-panel { top: auto; left: var(--gutter); width: auto; max-height: 46vh; padding: 4px 14px 14px; }
+  .cs-stage { bottom: 46vh; }
+  .cs-items { grid-template-columns: 1fr 1fr; }
+}

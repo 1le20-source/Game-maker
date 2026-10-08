@@ -44,7 +44,9 @@
   // when the chest calls for it)
   function needsTop(p) {
     const fem = ['woman', 'transwoman'].includes(p.identity);
-    return fem || p.gender < 0.5 || p.breastSize > 0.58;
+    // MakeHuman's breast shapes fade out only near the male end of the
+    // gender slider, so anyone short of it wears a top
+    return fem || p.gender < 0.72 || (p.breastSize > 0.55 && p.gender < 0.9);
   }
 
   // ------------------------------------------------------------ garments
@@ -81,29 +83,36 @@
     const bra = (kind, fabric) => ({
       slot: 'underwear', thick: kind === 'sports' ? 0.0035 : 0.0026, fabric, tent: kind === 'sports' ? 6 : 4, slope: 0.35,
       cov(i) {
-        const k = part[i].k;
-        if (!(trunk(k) || k === 'shoulder' || k === 'neck')) return -0.05;
+        const k = part[i].k, body = trunk(k);
+        // band and cups on the torso only (the 'shoulder' part reaches down
+        // the inner arm); straps may run over the shoulder and clavicle
+        if (!(body || k === 'shoulder' || k === 'neck')) return -0.02;
         const yy = y(i), xx = Math.abs(x(i)), front = z(i) > L.chestZ0;
         const sports = kind === 'sports';
         const bandH = sports ? 0.05 : 0.016;
-        // band all the way round, just under the bust
-        let s = bandH / 2 - Math.abs(yy - (L.bandY + bandH / 2));
-        if (front) {
-          // cups: round over the top of the breast, full width below the
-          // nipple down to the band, joined by a centre gore
-          const r = L.cupR, cy = L.nippleY - r * 0.12, dx = xx - L.nippleX * 0.97, dy = yy - cy;
-          const cup = dy > 0 ? r - Math.hypot(dx * 1.05, dy) : Math.min(r * 1.02 - Math.abs(dx), yy - L.bandY + 0.006);
-          const topLine = (sports ? L.nippleY + r * 1.1 : L.nippleY + r * (kind === 'swim' ? 0.75 : 0.62)) - yy;
-          s = Math.max(s, Math.min(cup, topLine), Math.min(L.bandY + r * 0.5 - yy, yy - L.bandY + 0.006, L.nippleX - xx));
-          if (sports) s = Math.max(s, Math.min(topLine - xx * 0.15, yy - L.bandY + 0.01, L.nippleX + r - xx));
-        } else if (sports) {
-          // racerback
-          s = Math.max(s, Math.min(L.bandY + bandH + 0.02 - yy, 0.07 - xx), Math.min(0.03 - Math.abs(xx - 0.035 + (yy - L.bandY) * 0.12), L.shoulderY + 0.02 - yy));
+        let s = -0.02;
+        if (body) {
+          // band all the way round, just under the bust
+          s = bandH / 2 - Math.abs(yy - (L.bandY + bandH / 2));
+          if (front) {
+            // cups: round over the top of the breast; below the nipple the
+            // inner edge slopes in to a centre gore, the outer edge drops to the band
+            const r = L.cupR, cy = L.nippleY - r * 0.12, dx = xx - L.nippleX * 0.97, dy = yy - cy;
+            const cup = dy > 0 ? r - Math.hypot(dx * 1.05, dy) : Math.min(r * 1.02 - dx, r * 1.02 + dx - dy * 0.9, yy - L.bandY + 0.006);
+            const topLine = (sports ? L.nippleY + r * 1.1 : L.nippleY + r * (kind === 'swim' ? 0.75 : 0.62)) - yy;
+            const gore = Math.min(L.bandY + r * 0.55 - yy - xx * 0.6, yy - L.bandY + 0.006);
+            s = Math.max(s, Math.min(cup, topLine), gore);
+            if (sports) s = Math.max(s, Math.min(topLine - xx * 0.15, yy - L.bandY + 0.01, L.nippleX + r - xx));
+          } else if (sports) {
+            // racerback
+            s = Math.max(s, Math.min(L.bandY + bandH + 0.02 - yy, 0.07 - xx), Math.min(0.03 - Math.abs(xx - 0.035 + (yy - L.bandY) * 0.12), L.shoulderY + 0.02 - yy));
+          }
         }
-        // straps from the top of each cup over the shoulder to the back
-        if (yy > L.nippleY - 0.02) {
-          const tt = clamp((yy - L.nippleY) / (L.shoulderY - L.nippleY), 0, 1);
-          const sx = L.nippleX * 0.9 + (L.strapTopX - L.nippleX * 0.9) * tt;
+        // straps: from the top of each cup over the shoulder and down the back to the band
+        const y0 = front ? L.nippleY : L.bandY;
+        if (yy > y0 - 0.02 && !(sports && !front)) {
+          const tt = clamp((yy - y0) / (L.shoulderY - y0), 0, 1), x0 = L.nippleX * (front ? 0.9 : 0.8);
+          const sx = x0 + (L.strapTopX - x0) * tt;
           s = Math.max(s, (sports ? 0.018 : 0.0065) - Math.abs(xx - sx));
         }
         return s;

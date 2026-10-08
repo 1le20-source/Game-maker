@@ -745,6 +745,24 @@
     }
 
     paneFace(el) {
+      // a whole-face starting point; every slider below still works on top
+      if (BS.LOOKS) {
+        const NAMES = { cute: 'Cute', doll: 'Doll-like', glam: 'Glam', girlnextdoor: 'Girl next door', model: 'Model', exotic: 'Striking', soft: 'Soft', pretty: 'Pretty', rugged: 'Rugged', prettyboy: 'Pretty boy' };
+        const s = this.section(el, 'Looks');
+        s.append(this.cards({
+          label: 'Looks', cls: 'looks', get: () => this.p.look || 'none',
+          items: [{ id: 'none', label: 'Your own' }].concat(Object.keys(BS.LOOKS).map((k) => ({ id: k, label: NAMES[k] || cap(k) }))),
+          pick: (id) => {
+            const d = (this.p.details = Object.assign({}, this.p.details)), prev = BS.LOOKS[this.p.look];
+            if (prev) for (const k in prev) if (d[k] === prev[k]) delete d[k];
+            if (BS.LOOKS[id]) Object.assign(d, BS.LOOKS[id]);
+            if (BS.LOOKS[id]) this.p.look = id; else delete this.p.look;
+            this.queue(2);
+            this.syncAll();
+          },
+        }));
+        this.note(s, 'A starting point for the whole face. Fine-tune it with the sliders below.');
+      }
       const heads = BS.DETAILS.filter((d) => d.group === 'Head shape' && d.key.startsWith('head-')).map((d) => ({ id: d.key.slice(5), label: d.label }));
       this.familyCards(this.section(el, 'Face shape'), 'head-', heads, headArt, 'Face shape');
       BS.FACE_GROUPS.forEach((g, i) => this.detailGroup(el, g, { open: i === 0, title: g === 'Head shape' ? 'Head' : g, skip: (d) => d.key.startsWith('head-') }));

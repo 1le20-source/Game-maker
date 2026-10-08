@@ -583,9 +583,9 @@ void main() {
     switch (style) {
       case 'buzz': return Object.assign(base, { n: 42000, segs: 2, lift: 0.55, shell: 0.0015, rise: 1, clump: 0, frizz: 0.3, width: 0.9, wave: null, flow: 'back',
         len: () => (0.0045 + 0.004 * clamp(p.hairLength ?? 0.5, 0, 1)) * S });
-      case 'crew': return Object.assign(base, { n: 30000, segs: 6, lift: 0.22, grav: 3, shell: 0.006 * vol, part: 0.42, clump: 0.3, flow: 'part',
+      case 'crew': return Object.assign(base, { n: 36000, segs: 6, lift: 0.22, grav: 3, shell: 0.006 * vol, part: 0.42, clump: 0.25, cap: 0.95, flow: 'part',
         len: (q) => mix(0.016, 0.06, smooth(-0.15, 0.55, q.y)) * Ls * S });
-      case 'short': return Object.assign(base, { n: 30000, segs: 6, lift: 0.32, grav: 4, shell: 0.008 * vol, clump: 0.5, frizz: 0.35, flow: 'messy',
+      case 'short': return Object.assign(base, { n: 40000, segs: 6, lift: 0.3, grav: 4, shell: 0.008 * vol, clump: 0.3, frizz: 0.2, cap: 0.95, flow: 'messy',
         len: (q) => mix(0.018, 0.065, smooth(-0.2, 0.55, q.y)) * Ls * S });
       case 'medium': return Object.assign(base, { reach: 'body', n: 20000, segs: 12, lift: 0.22, grav: 16, shell: 0.009 * vol, part: 0.22, clump: 0.55, frizz: 0.3, flow: 'fringe', physics: 0.6,
         len: (q) => mix(0.11, 0.16, smooth(-0.5, 0.5, q.y)) * Ls * S, cut: 'fringe' });
