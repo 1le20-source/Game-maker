@@ -249,6 +249,7 @@ window.addEventListener('error', function (e) {
 <script src="body-studio/js/app.js"></script>
 <script src="body-studio/js/skin.js"></script>
 <script src="body-studio/js/hair.js"></script>
+<script src="body-studio/js/fabric.js"></script>
 <script src="body-studio/js/clothing.js"></script>
 <script src="body-studio/js/game-bridge.js"></script>
 <script>
@@ -3727,7 +3728,7 @@ function buildHome3D() {
   const cnv = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.46), lam('#ffffff', { map: paintT })); cnv.position.set((es.x + 10) * U, 1.3, (es.y + 30) * U); cnv.rotation.y = -Math.PI / 2 + 0.2; add(cnv); cnv.userData.dyn = true; R3.homePaint = { c: paintC, g: pg, t: paintT, n: 0 };
   box(1250, 1030, 70, 60, 0, 0.42, lam('#6b3e2e')); box(1250, 1030, 16, 60, 0, 0.95, lam('#5a3426'));
   // bedroom: bed, nightstands, wardrobe, lamps
-  const bd = F2.bed; box(bd.x, bd.y, bd.w, 16, 0, 1.3, lam('#5a3a28')); box(bd.x, bd.y + 10, bd.w, bd.h - 10, 0, 0.45, lam('#e9e4dc')); box(bd.x + 6, bd.y + 70, bd.w - 12, bd.h - 75, 0.45, 0.08, lam('#3a4f7a'));
+  const bd = F2.bed; box(bd.x, bd.y, bd.w, 16, 0, 1.3, lam('#5a3a28')); box(bd.x, bd.y + 10, bd.w, bd.h - 10, 0, 0.45, lam('#e9e4dc')); box(bd.x + 6, bd.y + 70, bd.w - 12, bd.h - 75, 0.45, 0.08, textileMat('blanket', lam('#3a4f7a'), [2, 2]));
   for (const dx of [40, bd.w - 90]) box(bd.x + dx, bd.y + 22, 50, 32, 0.45, 0.14, lam('#ffffff'));
   for (const dx of [-60, bd.w + 10]) { box(bd.x + dx, bd.y + 10, 50, 45, 0, 0.55, lam('#5a3a28')); cyl(bd.x + dx + 25, bd.y + 32, 8, 12, 0.55, 0.32, glowWarm, 12); }
   const wd = F2.wardrobe; box(wd.x, wd.y, wd.w, wd.h, 0, 2.3, lam('#6b4a32'));
@@ -4306,6 +4307,13 @@ const U = 0.01, EYE = 1.62;
 const fp = { third: false, yaw: -Math.PI / 2, pitch: -0.04, joy: { x: 0, y: 0, id: null, ox: 0, oy: 0 }, look: null, drag: null, tapStart: 0 };
 let R3 = null;
 const lam = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
+// textiles designed in Body Studio's Clothes Studio dress the spa and the mansion (falls back to the plain material)
+function studioTextiles() { try { return JSON.parse(localStorage.getItem('bodystudio.textiles') || 'null') || {}; } catch (e) { return {}; } }
+function textileMat(key, fallback, repeat) {
+  const t = studioTextiles()[key];
+  if (!t || !window.BS || !BS.Fabric || !BS.Fabric.material) return fallback;
+  try { const m = BS.Fabric.material(t.spec || t, { space: 'uv', repeat: repeat || [1, 1] }); return m || fallback; } catch (e) { console.warn('textile', key, e); return fallback; }
+}
 function srgbTex(t) { if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; } // canvas pixels are sRGB
 function canvasTex(w, h, paint) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); paint(c.getContext('2d'), c.width, c.height); const t = srgbTex(new THREE.CanvasTexture(c)); t.anisotropy = 4; return t; }
 // the spa's lights were tuned for three.js r128's light units; Body Studio's people are synced before every render
@@ -4406,7 +4414,7 @@ function build3D() {
   const pot = lam('#b0704a'), leaf = lam('#4c9a58'), leafD = lam('#3a7d46');
   const plant3 = (x, y, s) => { cyl(x, y, 16 * s, 12 * s, 0, 0.42 * s, pot); for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const m = sph(x + Math.cos(a) * 12 * s, y + Math.sin(a) * 12 * s, 16 * s, (0.55 + (i % 3) * 0.18) * s, i % 2 ? leaf : leafD, 0.7, 1.9, 0.7); m.rotation.z = Math.cos(a) * 0.5; m.rotation.x = Math.sin(a) * 0.5; } };
   for (const k of ['plantL1', 'plantL2', 'plantA', 'plantB', 'plantC']) { const b = F[k]; plant3(b.x + b.w / 2, b.y + b.h / 2, 1.3); }
-  const leather = lam(S.owned.table ? '#3d5c58' : '#4c3c35'), sheet = lam('#f6f3ee');
+  const leather = lam(S.owned.table ? '#3d5c58' : '#4c3c35'), sheet = textileMat('tableSheet', lam('#f6f3ee'), [2, 1]);
   const mtable = b => { for (const [dx, dy] of [[20, 14], [b.w - 26, 14], [20, b.h - 20], [b.w - 26, b.h - 20]]) box(b.x + dx, b.y + dy, 6, 6, 0, 0.62, woodD); box(b.x, b.y, b.w, b.h, 0.62, 0.12, leather); box(b.x + 40, b.y + 6, b.w - 46, b.h - 12, 0.74, 0.02, sheet);
     const tor = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.045, 10, 24), lam('#d9d2c8')); tor.rotation.x = -Math.PI / 2; tor.position.set((b.x + 20) * U, 0.77, (b.y + b.h / 2) * U); add(tor);
     box(b.x + 140, b.y + 14, 50, b.h - 28, 0.76, 0.06, lam('#e8e2d6')); };
@@ -4857,7 +4865,7 @@ function placeOnTable(h, tb, supine, rollT) {
 function tableSheet(h, tb, supine) {
   if (!h.sheet) {
     const g = new THREE.CylinderGeometry(1, 1, 1, 26, 1, true, -Math.PI / 2, Math.PI);
-    h.sheet = new THREE.Mesh(g, toonMat('#f6f2ea', { side: THREE.DoubleSide })); h.sheet.userData = { sheet: true, human: h };
+    h.sheet = new THREE.Mesh(g, textileMat('towel', toonMat('#f6f2ea', { side: THREE.DoubleSide }), [1, 2])); h.sheet.material.side = THREE.DoubleSide; h.sheet.userData = { sheet: true, human: h };
     for (const y of [-0.5, 0.5]) { const cap = new THREE.Mesh(new THREE.CircleGeometry(1, 20, 0, Math.PI), h.sheet.material); cap.rotation.x = Math.PI / 2; cap.position.y = y; cap.userData = { sheet: true, human: h }; h.sheet.add(cap); }
     R3.scene.add(h.sheet);
   }
@@ -4897,8 +4905,10 @@ function studioVisitor() {
   const list = studioRoster().filter(r => !taken.has(r.id));
   if (!list.length || Math.random() > 0.5) return null;
   const r = pick(list), p = r.params, c = makeClient(), g = p.gender ?? 0.5;
-  const idKey = g < 0.35 ? 'woman' : g > 0.65 ? 'man' : 'nonbinary', id = IDS[idKey];
-  Object.assign(c, { name: (r.name || p.name || c.name).slice(0, 24), idKey, idLabel: id.label, pron: id.pron[0], subj: id.subj, studioId: r.id });
+  const known = { woman: 'woman', man: 'man', transwoman: 'transwoman', transman: 'transman', nonbinary: 'nonbinary', genderfluid: 'genderfluid', agender: 'nonbinary', intersex: 'nonbinary', twospirit: 'nonbinary' };
+  const idKey = known[p.identity] || (g < 0.35 ? 'woman' : g > 0.65 ? 'man' : 'nonbinary'), id = IDS[idKey];
+  const label = window.BS && BS.IDENTITIES[p.identity] ? BS.IDENTITIES[p.identity].label : id.label;
+  Object.assign(c, { name: (r.name || p.name || c.name).slice(0, 24), idKey, idLabel: label, pron: p.pronouns || id.pron[0], subj: id.subj, studioId: r.id });
   studioLookInto(c, p);
   c.look = lookFor(c); c.feel = genFeel(c);
   return c;

@@ -80,7 +80,10 @@
     p.age = clamp(b.age || 28 + Math.round(r() * 10), 18, 90);
     p.proportions = 0.35 + r() * 0.4;
     const fem = p.gender < 0.5;
-    p.height = clamp(0.5 + ((sp.H || (fem ? 1.65 : 1.78)) - (fem ? 1.63 : 1.76)) / 0.22 + bd[2] * 0.3, 0, 1);
+    // the game's own height for this person, solved exactly (realistic by sex)
+    p.heightCm = Math.round(((sp.H || BS.expectedHeight(p.gender) / 100) + bd[2] * 0.03) * 100);
+    p.identity = { woman: 'woman', man: 'man', transwoman: 'transwoman', transman: 'transman', femboy: 'man', nonbinary: 'nonbinary', genderfluid: 'genderfluid' }[id] || (fem ? 'woman' : 'man');
+    p.pronouns = (BS.IDENTITIES[p.identity] || {}).pronouns || 'they/them';
     p.breastSize = fem ? clamp(0.42 + r() * 0.3 + (p.weight - 0.5) * 0.3, 0.3, 0.9) : 0.5;
     p.breastFirmness = clamp(0.65 - (p.age - 30) / 80 + (r() - 0.5) * 0.2, 0.1, 0.9);
     const tone = toneOf((b.skin && b.skin.base) || sp.skin || '#d6a27a');
@@ -97,6 +100,11 @@
     p.eyeColorHex = b.eye || sp.eye || null;
     p.beard = b.stubble ? 'stubble' : !fem && id === 'man' && r() < 0.15 ? 'short' : 'none';
     p.lashLength = fem ? 0.65 : 0.4;
+    // about half of feminine clients wear some makeup, a few others too
+    const femStyle = fem || id === 'femboy';
+    p.makeupStyle = femStyle && r() < 0.55 ? ['natural', 'everyday', 'everyday', 'soft glam', 'bold lip', 'smoky eye'][Math.floor(r() * 6)] : r() < 0.05 ? 'natural' : 'none';
+    p.makeup = p.makeupStyle === 'none' ? 0 : 0.5 + r() * 0.3;
+    p.moles = r() * 0.5;
     p.bodyHair = fem ? 0 : 0.1 + r() * 0.3;
     p.details = {};
     for (const k of FACE_KEYS) if (r() < 0.6) p.details[k] = Math.round((r() - 0.5) * 0.7 * 100) / 100;
@@ -345,9 +353,8 @@
     const p = (h.baseParams = G.paramsFor(sp));
     h.params = p;
     bs.setParams(p);
-    // match the game's height exactly (Body Studio characters keep their own)
-    const natural = bs.joint('head', 'tail').y + 0.01;
-    h.scale = p === h.baseParams && sp.faceSrc && sp.faceSrc.body && sp.faceSrc.body.bsParams ? 1 : (sp.H || natural) / natural;
+    // heights are solved exactly in cm (BS.setHeightCm), so no stretching
+    h.scale = 1;
     bs.group.scale.setScalar(h.scale);
     measure(h);
     aims(h);

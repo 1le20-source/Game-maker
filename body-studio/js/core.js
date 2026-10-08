@@ -127,7 +127,57 @@
         P[o + 2] += d[q + 2] * w;
       }
     }
+    // extra uniform scale reaches heights the height targets alone can't
+    const k = p.heightScale || 1;
+    if (k !== 1) for (let i = 0; i < P.length; i++) P[i] *= k;
     return P;
+  };
+
+  // ---------------------------------------------------- height in cm
+  // Standing height (crown to sole) measured on a handful of extreme
+  // vertices, morphed sparsely, so solving for a height costs microseconds.
+  function heightProbe(D) {
+    if (D._hp) return D._hp;
+    const fv = D.groups.body.fv, seen = new Set(), ys = [];
+    for (let i = 0; i < fv.length; i++) if (!seen.has(fv[i])) { seen.add(fv[i]); ys.push([D.base[fv[i] * 3 + 1], fv[i]]); }
+    ys.sort((a, b) => a[0] - b[0]);
+    const verts = ys.slice(0, 40).concat(ys.slice(-12)).map((e) => e[1]);
+    const nTop = 12, slot = new Map(verts.map((v, i) => [v, i]));
+    // per target: the y-delta of each probe vertex it moves
+    const dy = {};
+    for (const name in D.targets) {
+      const { idx, d } = D.targets[name];
+      let rows = null;
+      for (let i = 0; i < idx.length; i++) {
+        const s = slot.get(idx[i]);
+        if (s !== undefined) (rows || (rows = [])).push(s, d[i * 3 + 1]);
+      }
+      if (rows) dy[name] = rows;
+    }
+    return (D._hp = { verts, nTop, dy });
+  }
+  BS.heightCm = function (D, p) {
+    const H = heightProbe(D), y = H.verts.map((v) => D.base[v * 3 + 1]);
+    for (const [name, w] of BS.targetWeights(p)) {
+      const rows = H.dy[name];
+      if (rows) for (let i = 0; i < rows.length; i += 2) y[rows[i]] += rows[i + 1] * w;
+    }
+    const bottom = Math.min(...y.slice(0, y.length - H.nTop)), top = Math.max(...y.slice(y.length - H.nTop));
+    return (top - bottom) * BS.SCALE * 100 * (p.heightScale || 1);
+  };
+  // set p.height (and p.heightScale beyond its range) so the body stands
+  // exactly `cm` tall; everything else about the body stays as it is
+  BS.setHeightCm = function (D, p, cm) {
+    const q = Object.assign({}, p, { heightScale: 1 });
+    const at = (h) => BS.heightCm(D, Object.assign(q, { height: h }));
+    const lo = at(0), hi = at(1);
+    if (cm <= lo) { p.height = 0; p.heightScale = cm / lo; return p; }
+    if (cm >= hi) { p.height = 1; p.heightScale = cm / hi; return p; }
+    let a = 0, b = 1;
+    for (let i = 0; i < 18; i++) { const m = (a + b) / 2; if (at(m) < cm) a = m; else b = m; }
+    p.height = (a + b) / 2;
+    p.heightScale = 1;
+    return p;
   };
 
   // ------------------------------------------- Catmull-Clark subdivision

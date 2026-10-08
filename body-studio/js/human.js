@@ -274,6 +274,8 @@ attribute vec4 skinWeight2;
 
     setParams(p) {
       this.params = p;
+      // a height chosen in cm stays exact whatever else changes
+      if (p.heightCm) BS.setHeightCm(this.D, p, p.heightCm);
       const D = this.D, P = BS.morph(D, p, this.P);
       // stand on y = 0
       let minY = Infinity;
