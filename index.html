@@ -5171,6 +5171,7 @@ function render3DMassage(dt) {
   for (const [k, oh] of R3.humans) if (k.startsWith('me:')) oh.root.visible = false;
   renderer.render(R3.scene, camera);
   m3Overlays();
+  if (time - (ses.pT || 0) > 1 / 10) { ses.pT = time; drawPortrait(ses.c, ses.curExpr || 'happy', time, !!bubble && bubble.t > 1.4); } // the client card's live portrait
 }
 function m3Overlays() {
   const tg = $('tag3d');
