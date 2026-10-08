@@ -320,12 +320,23 @@
     }
 
     _clear() {
+      // shells borrow the body's attribute buffers (position, restPos, skin
+      // weights): detach those before dispose, or three.js frees GL buffers the
+      // body (and, in the game, other people of the same detail level) still draws from
+      const body = this.human.bodyGeo && this.human.bodyGeo.attributes;
+      const free = (o) => {
+        if (o.geometry) {
+          const A = o.geometry.attributes;
+          for (const k of Object.keys(A)) if ((body && A[k] === body[k]) || (o.geometry.userData.shared || []).includes(k)) o.geometry.deleteAttribute(k);
+          o.geometry.dispose();
+        }
+        for (const mat of [].concat(o.material || [])) mat.dispose();
+        if (o.customDepthMaterial) o.customDepthMaterial.dispose();
+        if (o.customDistanceMaterial) o.customDistanceMaterial.dispose();
+      };
       for (const m of this.meshes) {
         this.group.remove(m);
-        m.geometry.dispose();
-        m.material.dispose();
-        if (m.customDepthMaterial) m.customDepthMaterial.dispose();
-        if (m.customDistanceMaterial) m.customDistanceMaterial.dispose();
+        m.traverse(free);
       }
       this.meshes = [];
     }
@@ -495,6 +506,7 @@
       if (!keep.length) return null;
       const geo = new THREE.BufferGeometry();
       for (const k of ['position', 'restPos', 'skinIndex', 'skinWeight', 'skinIndex2', 'skinWeight2']) geo.setAttribute(k, geo0.attributes[k]);
+      geo.userData.shared = ['position', 'restPos', 'skinIndex', 'skinWeight', 'skinIndex2', 'skinWeight2'];
       // fabric shades like cloth over a soft form, not like skin
       geo.setAttribute('normal', new THREE.Float32BufferAttribute(this._shellNormals(cov, g.thick, g.slot === 'shoes' ? 2 : g.slot === 'top' ? 6 : 4), 3));
       geo.setAttribute('aCov', new THREE.Float32BufferAttribute(cov, 2));
