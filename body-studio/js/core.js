@@ -219,6 +219,24 @@
     return { nOut, off, src, wt, tris, vlist, nBaseUsed: nV };
   };
 
+  // same structure as buildSubdivision but without smoothing: the base mesh
+  // as-is (quads split in two), for distant people
+  BS.identityStencil = function (D, fv) {
+    const used = new Int32Array(D.nV).fill(-1);
+    const vlist = [];
+    for (let i = 0; i < fv.length; i++) if (used[fv[i]] < 0) { used[fv[i]] = vlist.length; vlist.push(fv[i]); }
+    const nOut = vlist.length;
+    const off = new Int32Array(nOut + 1), src = new Uint16Array(nOut), wt = new Float32Array(nOut).fill(1);
+    for (let i = 0; i < nOut; i++) { off[i] = i; src[i] = vlist[i]; }
+    off[nOut] = nOut;
+    const nF = fv.length / 4, tris = new Uint32Array(nF * 6);
+    for (let f = 0; f < nF; f++) {
+      const a = used[fv[f * 4]], b = used[fv[f * 4 + 1]], c = used[fv[f * 4 + 2]], d = used[fv[f * 4 + 3]];
+      tris.set([a, b, c, a, c, d], f * 6);
+    }
+    return { nOut, off, src, wt, tris, vlist, nBaseUsed: nOut };
+  };
+
   // apply stencils to any per-vertex data with `dim` channels
   BS.applyStencil = function (S, data, dim, out) {
     const r = out || new Float32Array(S.nOut * dim);

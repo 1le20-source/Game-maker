@@ -72,38 +72,52 @@ attribute vec4 skinWeight2;
   }
   BS.setSkinAttributes = setSkinAttributes;
 
+  // Mesh data every human shares (topology, skin weights, region masks): built
+  // once per detail level and reused, so a crowd costs only positions.
+  // smooth = Catmull-Clark (54k vertices); otherwise the MakeHuman base
+  // mesh (13k vertices), for distant people in a game.
+  const SHARED = {};
+  function sharedBody(D, smooth) {
+    const key = smooth ? 'smooth' : 'base';
+    if (SHARED[key]) return SHARED[key];
+    const S = smooth ? BS.buildSubdivision(D, D.groups.body.fv) : BS.identityStencil(D, D.groups.body.fv);
+    const sw = BS.subdivideWeights(S, D);
+    const maskF = new Float32Array(D.nV * 8);
+    for (let i = 0; i < maskF.length; i++) maskF[i] = D.masks[i] / 255;
+    const M = BS.applyStencil(S, maskF, 8), n = S.nOut;
+    // regions: lips, eyelids, face, ears | nails (fingers+toes), areola, mouth inside
+    const reg1 = new Float32Array(n * 4), reg2 = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) {
+      reg1[i * 4] = M[i * 8]; reg1[i * 4 + 1] = M[i * 8 + 1]; reg1[i * 4 + 2] = M[i * 8 + 2]; reg1[i * 4 + 3] = M[i * 8 + 3];
+      reg2[i * 4] = Math.max(M[i * 8 + 4], M[i * 8 + 5]); reg2[i * 4 + 1] = M[i * 8 + 6]; reg2[i * 4 + 2] = M[i * 8 + 7];
+    }
+    const tmp = new THREE.BufferGeometry();
+    setSkinAttributes(tmp, sw.idx, sw.wts, n);
+    const attrs = {
+      skinIndex: tmp.attributes.skinIndex, skinWeight: tmp.attributes.skinWeight,
+      skinIndex2: tmp.attributes.skinIndex2, skinWeight2: tmp.attributes.skinWeight2,
+      region: new THREE.Float32BufferAttribute(reg1, 4), region2: new THREE.Float32BufferAttribute(reg2, 4),
+    };
+    return (SHARED[key] = { S, sw, masks: M, attrs, index: new THREE.BufferAttribute(S.tris, 1) });
+  }
+
+  // free one human's body buffers without touching the shared ones (other
+  // humans still draw with those)
+  function releaseBodyGeometry(geo) {
+    for (const k of ['skinIndex', 'skinWeight', 'skinIndex2', 'skinWeight2', 'region', 'region2']) geo.deleteAttribute(k);
+    geo.setIndex(null);
+    geo.dispose();
+  }
+
   class Human {
-    constructor(D) {
+    // opts.smooth (default true): see sharedBody
+    constructor(D, opts = {}) {
       this.D = D;
+      this.opts = opts;
       this.group = new THREE.Group();
       this.P = new Float32Array(D.base.length); // morphed base mesh (dm)
       this.ground = 0;
-
-      // smoothed body
-      const S = (this.S = BS.buildSubdivision(D, D.groups.body.fv));
-      const sw = BS.subdivideWeights(S, D);
-      this.subWeights = sw;
-      const maskF = new Float32Array(D.nV * 8);
-      for (let i = 0; i < maskF.length; i++) maskF[i] = D.masks[i] / 255;
-      this.masks = BS.applyStencil(S, maskF, 8);
-      const geo = (this.bodyGeo = new THREE.BufferGeometry());
-      this.bodyPos = new THREE.Float32BufferAttribute(new Float32Array(S.nOut * 3), 3);
-      this.bodyNrm = new THREE.Float32BufferAttribute(new Float32Array(S.nOut * 3), 3);
-      geo.setAttribute('position', this.bodyPos);
-      geo.setAttribute('normal', this.bodyNrm);
-      geo.setIndex(new THREE.BufferAttribute(S.tris, 1));
-      setSkinAttributes(geo, sw.idx, sw.wts, S.nOut);
-      // regions: lips, eyelids, face, ears, nails (fingers+toes), areola, mouth inside
-      const M = this.masks, n = S.nOut;
-      const reg1 = new Float32Array(n * 4), reg2 = new Float32Array(n * 4);
-      for (let i = 0; i < n; i++) {
-        reg1[i * 4] = M[i * 8]; reg1[i * 4 + 1] = M[i * 8 + 1]; reg1[i * 4 + 2] = M[i * 8 + 2]; reg1[i * 4 + 3] = M[i * 8 + 3];
-        reg2[i * 4] = Math.max(M[i * 8 + 4], M[i * 8 + 5]); reg2[i * 4 + 1] = M[i * 8 + 6]; reg2[i * 4 + 2] = M[i * 8 + 7];
-      }
-      geo.setAttribute('region', new THREE.Float32BufferAttribute(reg1, 4));
-      geo.setAttribute('region2', new THREE.Float32BufferAttribute(reg2, 4));
-      this.restAttr = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3);
-      geo.setAttribute('restPos', this.restAttr);
+      this._buildBodyGeometry(opts.smooth !== false);
 
       // skeleton
       this.bones = D.bones.map((b) => { const o = new THREE.Bone(); o.name = b.name; return o; });
@@ -119,19 +133,58 @@ attribute vec4 skinWeight2;
       this.rootOffset = new THREE.Vector3();
 
       this.skinMat = BS.makeSkinMaterial ? BS.makeSkinMaterial(this) : BS.skinned8(new THREE.MeshStandardMaterial({ color: 0xd8a888, roughness: 0.5 }));
-      const body = (this.body = new THREE.SkinnedMesh(geo, this.skinMat));
+      const body = (this.body = new THREE.SkinnedMesh(this.bodyGeo, this.skinMat));
       body.name = 'skin';
       body.frustumCulled = false;
       body.castShadow = body.receiveShadow = true;
       BS.depthMaterials(body);
       this.rootBones.forEach((b) => body.add(b));
-      body.bind(this.skeleton);
+      body.bind(this.skeleton, new THREE.Matrix4());
       this.group.add(body);
 
       this.shapeListeners = [];
       this.parts = [];
       this._buildHelpers();
       this._buildEyes();
+    }
+
+    _buildBodyGeometry(smooth) {
+      const sh = sharedBody(this.D, smooth);
+      this.smooth = smooth;
+      this.S = sh.S;
+      this.subWeights = sh.sw;
+      this.masks = sh.masks;
+      const n = sh.S.nOut;
+      const geo = (this.bodyGeo = new THREE.BufferGeometry());
+      this.bodyPos = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3);
+      this.bodyNrm = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3);
+      this.restAttr = new THREE.Float32BufferAttribute(new Float32Array(n * 3), 3);
+      geo.setAttribute('position', this.bodyPos);
+      geo.setAttribute('normal', this.bodyNrm);
+      geo.setAttribute('restPos', this.restAttr);
+      for (const k in sh.attrs) geo.setAttribute(k, sh.attrs[k]);
+      geo.setIndex(sh.index);
+    }
+
+    // switch detail level; bodyGeo, S, subWeights and masks are replaced, so
+    // anything built on them must be rebuilt (the shape listeners run again)
+    setSmooth(smooth) {
+      if (smooth === this.smooth) return;
+      const old = this.bodyGeo;
+      this._buildBodyGeometry(smooth);
+      this.body.geometry = this.bodyGeo;
+      releaseBodyGeometry(old);
+      if (this.params) this.setParams(this.params);
+    }
+
+    dispose() {
+      this.group.traverse((o) => {
+        if (o.geometry && o.geometry !== this.bodyGeo) o.geometry.dispose();
+        if (o.material) for (const m of [].concat(o.material)) { if (m.map) m.map.dispose(); m.dispose(); }
+      });
+      releaseBodyGeometry(this.bodyGeo);
+      if (this.skeleton.boneTexture) this.skeleton.dispose();
+      if (this.group.parent) this.group.parent.remove(this.group);
     }
 
     // helper groups rendered as-is (not smoothed): teeth, tongue, lashes
@@ -161,7 +214,7 @@ attribute vec4 skinWeight2;
       const mesh = new THREE.SkinnedMesh(geo, mat);
       mesh.name = name;
       mesh.frustumCulled = false;
-      mesh.bind(this.skeleton);
+      mesh.bind(this.skeleton, new THREE.Matrix4());
       this.group.add(mesh);
       const part = { mesh, list, tris: new Uint32Array(idx) };
       this.parts.push(part);
@@ -213,7 +266,7 @@ attribute vec4 skinWeight2;
       const mesh = (this.eyes = new THREE.SkinnedMesh(geo, this.eyeMat));
       mesh.name = 'eyes';
       mesh.frustumCulled = false;
-      mesh.bind(this.skeleton);
+      mesh.bind(this.skeleton, new THREE.Matrix4());
       this.group.add(mesh);
     }
 
@@ -284,10 +337,12 @@ attribute vec4 skinWeight2;
         else m.copy(g);
         m.decompose(this.restPos[i], this.restQuat[i], s);
       });
-      // rebind: put the rig in rest, recompute inverse bind matrices
-      this.bones.forEach((b, i) => { b.position.copy(this.restPos[i]); b.quaternion.copy(this.restQuat[i]); b.scale.set(1, 1, 1); });
-      this.group.updateMatrixWorld(true);
-      this.skeleton.calculateInverses();
+      // inverse bind matrices from the rest frames in the human's own space, so
+      // re-shaping works wherever the group sits (a game moves and scales it)
+      this.bones.forEach((b, i) => {
+        b.position.copy(this.restPos[i]); b.quaternion.copy(this.restQuat[i]); b.scale.set(1, 1, 1);
+        this.skeleton.boneInverses[i].copy(this.restGlobal[i]).invert();
+      });
       this.applyPose();
     }
 

@@ -240,7 +240,17 @@ window.addEventListener('error', function (e) {
 <div id="fade"></div>
 <noscript><div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#141a1c;color:#eef3f1;font:18px sans-serif;padding:24px;text-align:center">Serenity Hands needs JavaScript. Open this file in Chrome, Edge, Firefox or Safari.</div></noscript>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="body-studio/lib/three.min.js"></script>
+<!-- Body Studio: realistic people (MakeHuman CC0 bodies) -->
+<script src="body-studio/assets/body-data.js"></script>
+<script src="body-studio/js/params.js"></script>
+<script src="body-studio/js/core.js"></script>
+<script src="body-studio/js/human.js"></script>
+<script src="body-studio/js/app.js"></script>
+<script src="body-studio/js/skin.js"></script>
+<script src="body-studio/js/hair.js"></script>
+<script src="body-studio/js/clothing.js"></script>
+<script src="body-studio/js/game-bridge.js"></script>
 <script>
 'use strict';
 /* =========================================================
@@ -1569,7 +1579,7 @@ const P3 = { r: null, scene: null, cam: null, cache: new Map(), fail: false, las
 function portrait3DReady() {
   if (P3.fail || !window.THREE || !R3) return false; if (P3.r) return true;
   try {
-    const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setPixelRatio(1); r.setSize(320, 320, false);
+    const r = prepRenderer(new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })); r.setPixelRatio(1); r.setSize(320, 320, false);
     const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight('#fff7ea', '#5d4a3a', 0.8)); const d = new THREE.DirectionalLight('#fff0d8', 0.55); d.position.set(1.2, 2.2, 2.5); sc.add(d);
     const rim = new THREE.DirectionalLight('#c9d8ff', 0.25); rim.position.set(-2, 1.5, -1.5); sc.add(rim);
     Object.assign(P3, { r, scene: sc, cam: new THREE.PerspectiveCamera(26, 1, 0.05, 20) }); return true;
@@ -1577,8 +1587,8 @@ function portrait3DReady() {
 }
 function portraitHuman(c) {
   const key = (c.name || '') + '|' + (c.seed || 0) + '|' + (c.idKey || ''); let h = P3.cache.get(key);
-  if (!h) { const look = c.look || (c.look = lookFor(c)); h = buildHuman(specFor(look, c.body)); P3.cache.set(key, h);
-    if (P3.cache.size > 16) { const [k0, h0] = P3.cache.entries().next().value; if (h0 !== P3.cur) { disposeHuman(h0); P3.cache.delete(k0); } } }
+  if (!h) { const look = c.look || (c.look = lookFor(c)); h = buildHuman(specFor(look, c.body), { smooth: true }); P3.cache.set(key, h);
+    if (P3.cache.size > (h.isBS ? 6 : 16)) { const [k0, h0] = P3.cache.entries().next().value; if (h0 !== P3.cur) { disposeHuman(h0); P3.cache.delete(k0); } } }
   return h;
 }
 function drawPortrait3D(c, expr, t, talking) {
@@ -1936,7 +1946,7 @@ function showTitle() {
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
-  S.me = S.me || ME_DEFAULT(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; S.home = S.home || {}; migrateStaff(); homeUpgradeSolids();
+  S.me = S.me || ME_DEFAULT(); studioTherapist(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; S.home = S.home || {}; migrateStaff(); homeUpgradeSolids();
   if (!S.got20k) { S.got20k = true; S.money = Math.max(S.money, 20000); saveGame(); }
   applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
@@ -2332,7 +2342,7 @@ function spawnClient() {
   const known = Object.values(S.people || {}).filter(p => p.lastDay !== S.day && !ents.some(e => e.c.pid === p.id));
   const partner = known.find(p => isCommitted(p));
   const back = known.length && Math.random() < (partner ? 0.45 : 0.32) + (S.owned.member ? 0.15 : 0) ? (partner && Math.random() < 0.5 ? partner : pick(known)) : null;
-  const c = back ? clientFromPerson(back) : makeClient(); if (!c.look) c.look = lookFor(c);
+  const c = back ? clientFromPerson(back) : studioVisitor() || makeClient(); if (!c.look) c.look = lookFor(c);
   if (!back && eventToday() === 'vip' && !S.event.vipDone && world.spawned >= 1) { S.event.vipDone = true; c.vip = true; c.price *= 3; c.name = '⭐ ' + c.name; toast(`⭐ VIP ${c.name.slice(2)} has arrived. Make it perfect!`); }
   const q = DESK_Q[Math.min(DESK_Q.length - 1, ents.filter(x => x.state === 'checkin' || (x.state === 'arrive' && !x.c.paid)).length)];
   const pat = Math.round(140 * patienceMult());
@@ -3675,7 +3685,7 @@ function buildHome3D() {
   const cs = F2.console; box(cs.x, cs.y, cs.w, cs.h, 0, 0.82, trim); box(cs.x + 10, cs.y + 40, 18, 9, 0.82, 0.02, lam('#111111')); box(cs.x + 6, cs.y + 80, 20, 20, 0.82, 0.4, lam('#d9c7a6'));
   // living room: TV wall, sectional, coffee table, fireplace, armchair
   const tc = F2.tvConsole; box(tc.x, tc.y, tc.w, tc.h, 0, 0.5, lam('#2b2420'));
-  const tvTexC = document.createElement('canvas'); tvTexC.width = 256; tvTexC.height = 144; const tvTex = new THREE.CanvasTexture(tvTexC);
+  const tvTexC = document.createElement('canvas'); tvTexC.width = 256; tvTexC.height = 144; const tvTex = srgbTex(new THREE.CanvasTexture(tvTexC));
   const tv = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 1.13), new THREE.MeshBasicMaterial({ map: tvTex })); tv.position.set(4.34, 1.45, 15.25); tv.rotation.y = Math.PI / 2; add(tv); tv.userData.dyn = true;
   box(421, 1410, 12, 230, 0.86, 1.2, lam('#111216')); R3.homeTV = { c: tvTexC, g: tvTexC.getContext('2d'), t: tvTex };
   const sofaM = lam('#5c6f8c'), sofaD = lam('#4a5a74'); const sf = F2.sofa; box(sf.x, sf.y, sf.w, sf.h, 0, 0.44, sofaM); box(sf.x + sf.w - 22, sf.y, 22, sf.h, 0, 0.9, sofaD); box(sf.x, sf.y - 18, sf.w, 18, 0, 0.66, sofaD); box(sf.x, sf.y + sf.h, sf.w, 18, 0, 0.66, sofaD);
@@ -3713,7 +3723,7 @@ function buildHome3D() {
   box(pn.x + 10, pn.y + pn.h - 26, pn.w - 20, 22, 0.86, 0.03, lam('#f6f4ee')); const lid = new THREE.Mesh(new THREE.BoxGeometry(pn.w * U, 0.03, pn.h * U * 0.9), black); lid.position.set((pn.x + pn.w / 2) * U, 1.25, (pn.y + pn.h * 0.45) * U); lid.rotation.x = -0.6; add(lid);
   box(pn.x + 45, 925, 80, 36, 0, 0.48, black); const sh = F2.shelves; box(sh.x, sh.y, sh.w, sh.h, 0, 2.6, trim); for (let r = 0; r < 6; r++) for (let i = 0; i < 9; i++) box(sh.x + 6 + i * 18, sh.y + 26, 14, 10, 0.12 + r * 0.42, 0.32, lam(['#a33', '#36a', '#3a6', '#c93', '#777', '#d7c49e', '#5a2b8a'][(i + r) % 7]));
   const es = F2.easel; for (const dx of [6, 34]) box(es.x + dx, es.y + 20, 4, 4, 0, 1.6, lam('#8a6a4a'));
-  const paintC = document.createElement('canvas'); paintC.width = 128; paintC.height = 96; const pg = paintC.getContext('2d'); pg.fillStyle = '#f7f3ea'; pg.fillRect(0, 0, 128, 96); const paintT = new THREE.CanvasTexture(paintC);
+  const paintC = document.createElement('canvas'); paintC.width = 128; paintC.height = 96; const pg = paintC.getContext('2d'); pg.fillStyle = '#f7f3ea'; pg.fillRect(0, 0, 128, 96); const paintT = srgbTex(new THREE.CanvasTexture(paintC));
   const cnv = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.46), lam('#ffffff', { map: paintT })); cnv.position.set((es.x + 10) * U, 1.3, (es.y + 30) * U); cnv.rotation.y = -Math.PI / 2 + 0.2; add(cnv); cnv.userData.dyn = true; R3.homePaint = { c: paintC, g: pg, t: paintT, n: 0 };
   box(1250, 1030, 70, 60, 0, 0.42, lam('#6b3e2e')); box(1250, 1030, 16, 60, 0, 0.95, lam('#5a3426'));
   // bedroom: bed, nightstands, wardrobe, lamps
@@ -4296,11 +4306,14 @@ const U = 0.01, EYE = 1.62;
 const fp = { third: false, yaw: -Math.PI / 2, pitch: -0.04, joy: { x: 0, y: 0, id: null, ox: 0, oy: 0 }, look: null, drag: null, tapStart: 0 };
 let R3 = null;
 const lam = (c, extra) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, extra || {}));
-function canvasTex(w, h, paint) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); paint(c.getContext('2d'), c.width, c.height); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
+function srgbTex(t) { if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; } // canvas pixels are sRGB
+function canvasTex(w, h, paint) { const c = document.createElement('canvas'); c.width = Math.max(2, Math.round(w)); c.height = Math.max(2, Math.round(h)); paint(c.getContext('2d'), c.width, c.height); const t = srgbTex(new THREE.CanvasTexture(c)); t.anisotropy = 4; return t; }
+// the spa's lights were tuned for three.js r128's light units; Body Studio's people are synced before every render
+function prepRenderer(r) { r._useLegacyLights = true; if (window.BS && BS.Game) BS.Game.wrapRenderer(r); return r; }
 function init3D() {
   if (R3) return true; if (!window.THREE) return false;
   try {
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = prepRenderer(new THREE.WebGLRenderer({ antialias: true }));
     renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
     renderer.domElement.id = 'w3d'; renderer.domElement.style.display = ''; $('stage').insertBefore(renderer.domElement, $('stage').firstChild);
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#bcd9ea'); scene.fog = new THREE.Fog('#d5e6ef', 16, 44);
@@ -4431,7 +4444,7 @@ function personSprite(key) {
   let s = R3.people.get(key);
   if (!s) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 512;
-    const t = new THREE.CanvasTexture(c); t.minFilter = THREE.LinearFilter;
+    const t = srgbTex(new THREE.CanvasTexture(c)); t.minFilter = THREE.LinearFilter;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 2.1), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.06 }));
     R3.scene.add(m); s = { c, g: c.getContext('2d'), t, m }; R3.people.set(key, s);
   }
@@ -4592,7 +4605,8 @@ function specFor(look, body, kind) {
     S: H * (0.112 + clamp((body.sw - 76) / 28, 0, 1) * 0.032), W: H * (0.074 + clamp((body.ww - 48) / 28, 0, 1) * 0.026), P: H * (0.094 + clamp((body.hw - 62) / 26, 0, 1) * 0.03),
     top: look.top3 || 'tee', bottom: look.bot3 || 'pants', topCol: look.top, botCol: look.bottom, shoe: look.shoe || '#eeeeee', mask: !!look.mask, faceSrc: { body, seed: look.seed || 0 }, kind };
 }
-function buildHuman(sp) {
+function buildHuman(sp, opts) {
+  if (window.BS && BS.Game && BS.Game.ready) return BS.Game.make(sp, opts); // realistic Body Studio body, same interface
   const H = sp.H, S = sp.S, W = sp.W, P = sp.P, k = 1 + 0.16 * sp.soft + (sp.muscle ? 0.1 : 0), fem = sp.masc ? 0 : 1;
   const yAnk = 0.045 * H, yKnee = 0.285 * H, yHip = 0.52 * H, yWaist = 0.615 * H, yChest = 0.72 * H, ySh = 0.815 * H, yChin = 0.872 * H, headR = H / 7.3 * 0.5;
   const skin = toonMat(sp.skin), topM = toonMat(sp.topCol), botM = toonMat(sp.botCol), shoeM = toonMat(sp.shoe), hairM = toonMat(sp.hairColor, { side: THREE.DoubleSide });
@@ -4744,15 +4758,17 @@ function mergeHuman(h) {
     }
   }
 }
-function setTopVisible(h, v) { for (const m of h.clothes.top) m.visible = v; }
-function setTableDress(h, on) { for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; for (const m of h.underTop || []) m.visible = on; }
+function setTopVisible(h, v) { if (h.isBS) return; for (const m of h.clothes.top) m.visible = v; }
+function setTableDress(h, on) { if (h.isBS) { BS.Game.tableDress(h, on); return; } for (const k of ['top', 'low', 'shoes']) for (const m of h.clothes[k]) m.visible = !on; for (const m of h.underTop || []) m.visible = on; }
 function disposeHuman(h) {
+  if (h.isBS) { BS.Game.dispose(h); if (h.sheet && h.sheet.parent) { h.sheet.parent.remove(h.sheet); h.sheet.geometry.dispose(); } return; }
   h.root.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
   if (h.root.parent) h.root.parent.remove(h.root);
   if (h.sheet && h.sheet.parent) { h.sheet.parent.remove(h.sheet); h.sheet.geometry.dispose(); }
 }
 function exprFor(mood) { return { happy: 'happy', bliss: 'bliss', impatient: 'annoyed', angry: 'annoyed', wince: 'wince', laugh: 'laugh', surprised: 'surprised', annoyed: 'annoyed' }[mood] || 'neutral'; }
 function redrawFace(h, expr, t, talking) {
+  if (h.isBS) { BS.Game.face(h, expr, talking); return; }
   const b = h.sp.faceSrc.body, seed = h.sp.faceSrc.seed, g = h.face.g, m = h.sp.masc;
   const blink = blinkAmt(t, seed);
   const gaze = expr === 'bliss' ? 0 : Math.round(saccade(t, seed) * 4) / 4;
@@ -4859,11 +4875,47 @@ const ME_OUTFITS = { scrubs: ['scrubs', 'pants'], polo: ['polo', 'pants'], linen
 const ME_DEFAULT = () => ({ H: 1.88, build: 'athletic', skin: '#d6a27a', hair: 'short', hairColor: '#2a221e', outfit: 'scrubs', topCol: '#2d6a6e', botCol: '#24494c', shoe: '#ececec', eye: '#4a3020', stubble: false });
 function meSpec() {
   const me = S.me, bd = ME_BUILDS[me.build] || ME_BUILDS.athletic, H = me.H, of = ME_OUTFITS[me.outfit] || ME_OUTFITS.scrubs;
-  const body = { masc: true, skin: { base: me.skin }, hairColor: me.hairColor, eye: me.eye, stubble: me.stubble };
+  const body = { masc: true, skin: { base: me.skin }, hairColor: me.hairColor, eye: me.eye, stubble: me.stubble, bsParams: me.bs || null };
   return { H, masc: true, soft: 0.05, muscle: bd.muscle, skin: me.skin, hairColor: me.hairColor, hair: me.hair, eye: me.eye, S: H * bd.S, W: H * bd.W, P: H * bd.P,
     top: of[0], bottom: of[1], topCol: me.topCol, botCol: me.botCol, shoe: me.shoe, faceSrc: { body, seed: 1.3 }, kind: 'me' };
 }
 const meKey = () => JSON.stringify(S.me);
+
+// ---------- Body Studio characters: your own people visit the spa, or become you ----------
+function studioRoster() { try { const r = JSON.parse(localStorage.getItem('bodystudio.roster') || '[]'); return Array.isArray(r) ? r.filter(x => x && x.params) : []; } catch (e) { return []; } }
+const STUDIO_HAIR = { bald: 'short', buzz: 'undercut', short: 'short', crew: 'short', medium: 'bob', bob: 'bob', long: 'long', wavy: 'long', curly: 'bob', afro: 'bob', ponytail: 'ponytail', bun: 'buns', braid: 'ponytail' };
+function studioLookInto(c, p) { // the game's own description (2D views, portraits fallback) follows the Body Studio character
+  const b = c.body, tones = window.BS ? BS.SKIN_TONES : SKINS, tone = tones[Math.round(clamp(p.skinTone ?? 0.35, 0, 1) * (tones.length - 1))];
+  b.bsParams = p; b.masc = (p.gender ?? 0.5) > 0.6; b.age = p.age || b.age;
+  b.skin = { base: tone, shade: shade(tone, -0.16), deep: shade(tone, -0.3), line: shade(tone, -0.42) };
+  b.hairColor = p.hairColorHex || (window.BS && BS.HAIR_COLORS[p.hairColor]) || b.hairColor;
+  b.eye = p.eyeColorHex || (window.BS && BS.EYE_COLORS[p.eyeColor]) || b.eye;
+  b.hair = STUDIO_HAIR[p.hairStyle] || b.hair; b.stubble = !!p.beard && p.beard !== 'none'; b.ahoge = false; b.clip = false;
+}
+function studioVisitor() {
+  const taken = new Set([...Object.values(S.people || {}).map(p => p.c.studioId), ...ents.map(e => e.c.studioId)].filter(Boolean));
+  const list = studioRoster().filter(r => !taken.has(r.id));
+  if (!list.length || Math.random() > 0.5) return null;
+  const r = pick(list), p = r.params, c = makeClient(), g = p.gender ?? 0.5;
+  const idKey = g < 0.35 ? 'woman' : g > 0.65 ? 'man' : 'nonbinary', id = IDS[idKey];
+  Object.assign(c, { name: (r.name || p.name || c.name).slice(0, 24), idKey, idLabel: id.label, pron: id.pron[0], subj: id.subj, studioId: r.id });
+  studioLookInto(c, p);
+  c.look = lookFor(c); c.feel = genFeel(c);
+  return c;
+}
+// a character sent from Body Studio with "Play as my therapist"
+function studioTherapist() {
+  let t = null; try { t = JSON.parse(localStorage.getItem('bodystudio.therapist') || 'null'); } catch (e) {}
+  if (!t || !t.params || (S.me.bsTs || 0) >= (t.ts || 0)) return;
+  setStudioMe(t.params, t.ts || 1); toast(`🧬 You now look like ${t.name || 'your Body Studio character'}.`);
+}
+function setStudioMe(p, ts) {
+  if (!p) { delete S.me.bs; delete S.me.bsTs; saveGame(); return; }
+  S.me.bs = p; S.me.bsTs = ts || Date.now();
+  const tones = window.BS ? BS.SKIN_TONES : SKINS; S.me.skin = tones[Math.round(clamp(p.skinTone ?? 0.35, 0, 1) * (tones.length - 1))];
+  if (window.BS && BS.Game && BS.Game.ready) { const hh = new BS.Human(BS.Game.D, { smooth: false }); hh.setParams(Object.assign(BS.defaultParams(), p)); S.me.H = +(hh.joint('head', 'tail').y + 0.01).toFixed(2); hh.dispose(); }
+  saveGame();
+}
 
 // ---------- 3D people in the spa ----------
 function lerpAngle(a, b, t) { let d = Math.atan2(Math.sin(b - a), Math.cos(b - a)); return a + d * t; }
@@ -4936,22 +4988,24 @@ function startMassage3D(e) {
   clearDecals(); setTableDress(h, true); setHumanEmote(h, ''); placeOnTable(h, F.table, false); tableSheet(h, F.table, false);
   // each body area gets its own material so redness, oil and the tension view can tint it
   M3.mats = new Map();
-  for (const m of h.parts) { if (m === h.face) continue; const z = m.userData.zone; let mt = M3.mats.get(z); if (!mt) { mt = h.skin.clone(); mt.userData = { base: mt.color.clone() }; M3.mats.set(z, mt); } m.material = mt; }
+  if (h.isBS) { h.forceSmooth = true; h.needsCollider = true; BS.Game.collider(h); } // the real body: hit-test its skin, tint it in the shader
+  else for (const m of h.parts) { if (m === h.face) continue; const z = m.userData.zone; let mt = M3.mats.get(z); if (!mt) { mt = h.skin.clone(); mt.userData = { base: mt.color.clone() }; M3.mats.set(z, mt); } m.material = mt; }
   player.x = SPOT.table.x; player.y = 400; fp.yaw = -Math.PI / 2; fp.pitch = -0.68; player.moving = false;
   ensureHands(); M3.hands.g.visible = true;
 }
 function endMassage3D() {
-  const h = M3.h; if (h) { setTableDress(h, false); if (h.sheet) h.sheet.visible = false; h.root.quaternion.identity(); for (const m of h.parts) if (m !== h.face) m.material = h.skin; }
+  const h = M3.h; if (h) { setTableDress(h, false); if (h.sheet) h.sheet.visible = false; h.root.quaternion.identity();
+    if (h.isBS) { h.forceSmooth = false; h.needsCollider = false; BS.Game.clearTint(h); } else for (const m of h.parts) if (m !== h.face) m.material = h.skin; }
   clearDecals(); for (const s of (ses ? ses.stones : [])) if (s.mesh) { R3.scene.remove(s.mesh); }
   if (M3.hands) M3.hands.g.visible = false; M3.h = null; M3.ent = null; $('tag3d').hidden = true; $('bub3d').hidden = true; $('th3d').hidden = true;
 }
 function hitTo2D(h, hit) {
-  const o = hit.object, ud = o.userData, b = ses.c.body;
+  const o = hit.object, b = ses.c.body, ud = h.isBS && o.userData.bsCollider ? BS.Game.hitInfo(h, hit) : o.userData;
   if (ud.sheet || ud.zone === 'thigh' || ud.zone === 'torso' && h.root.worldToLocal(hit.point.clone()).y < h.yHip) return { x: 700, y: CY, zone: 'towel' };
   if (ud.zone === 'head') return { x: 242, y: CY, zone: 'head' };
   const sgn = ud.s > 0 ? 1 : -1;
   if (ud.limb) {
-    const lp = ud.bone.worldToLocal(hit.point.clone()), t = clamp(-lp.y / ud.len, 0, 1), eyv = (b.sw + b.hw) / 2 + 18;
+    const t = h.isBS ? ud.t : clamp(-ud.bone.worldToLocal(hit.point.clone()).y / ud.len, 0, 1), eyv = (b.sw + b.hw) / 2 + 18;
     const sg = { ua: [[366, b.sw + 4], [480, eyv]], fa: [[480, eyv], [630, b.hw + 29]], hand: [[640, b.hw + 30], [668, b.hw + 30]], sh: [[840, b.ls], [1040, b.ls]], foot: [[1048, b.ls], [1098, b.ls]] }[ud.seg];
     return { x: lerp(sg[0][0], sg[1][0], t), y: CY + sgn * lerp(sg[0][1], sg[1][1], t), zone: ud.zone };
   }
@@ -5085,6 +5139,11 @@ function render3DMassage(dt) {
   if (time - h.faceT > 0.06) { h.faceT = time; redrawFace(h, ses.curExpr || 'neutral', time, !!bubble && bubble.t > 1.4); }
   // skin: redness where worked, tension view, oil sheen
   const red = new THREE.Color('#e05050');
+  if (h.isBS) for (const z of BS.Game.ZONES) { // the same redness and tension view, painted per zone in the skin shader
+    const zs = z === 'torso' ? ['upperBack', 'lowerBack', 'shoulderT', 'shoulderB'] : [z];
+    const r = Math.max(...zs.map(q => ses.red[q] || 0)), tens = Math.max(...zs.map(q => (ses.tension[q] || 0) / 100));
+    BS.Game.tint(h, z, red, r * 0.3, heatView ? { r: tens * 0.45, g: (1 - tens) * 0.3, b: 0.05 } : null);
+  }
   for (const [z, mt] of M3.mats) {
     const zs = z === 'torso' ? ['upperBack', 'lowerBack', 'shoulderT', 'shoulderB'] : [z];
     const r = Math.max(...zs.map(q => ses.red[q] || 0)), tens = Math.max(...zs.map(q => (ses.tension[q] || 0) / 100));
@@ -5148,7 +5207,15 @@ function showMyLook(back) {
       <label>Trousers / shorts colour <input type="color" data-me="botCol" value="${me.botCol}"></label>
       <label>Shoes <input type="color" data-me="shoe" value="${me.shoe}"></label>
       <label><input type="checkbox" data-me="stubble" ${me.stubble ? 'checked' : ''}> Stubble</label>
+      <div style="border-top:1px solid var(--line);padding-top:8px;display:grid;gap:6px"><b>🧬 Body Studio</b>
+        ${me.bs ? `<span>You're playing as <b>${esc(me.bs.name || 'your Body Studio character')}</b>.</span>` : '<span>Design yourself as a realistic person in Body Studio, then come back and pick them here.</span>'}
+        ${studioRoster().length ? `<label>Be <select id="meStudio">${studioRoster().map((r, i) => `<option value="${i}">${esc(r.name || 'Unnamed')}</option>`).join('')}</select> <button id="meStudioUse">Use</button></label>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button id="meStudioOpen">Open Body Studio</button>${me.bs ? '<button id="meStudioDrawn">Use the look above</button>' : ''}</div>
+      </div>
     </div></div>`, [['Done', () => { closeLookPrev(); saveGame(); back(); }, 'primary']]);
+  const su = $('meStudioUse'); if (su) su.onclick = () => { const r = studioRoster()[+$('meStudio').value]; if (r) { setStudioMe(Object.assign({}, r.params, { name: r.name || r.params.name }), Date.now()); showMyLook(back); } };
+  const so = $('meStudioOpen'); if (so) so.onclick = () => { saveGame(); location.href = 'body-studio/index.html'; };
+  const sd = $('meStudioDrawn'); if (sd) sd.onclick = () => { setStudioMe(null); showMyLook(back); };
   $('modal').querySelectorAll('[data-me]').forEach(el => el.oninput = el.onchange = () => {
     const k = el.dataset.me; S.me[k] = el.type === 'range' ? +el.value : el.type === 'checkbox' ? el.checked : el.value;
     if (k === 'H') $('meH').textContent = Math.round(S.me.H * 100) + ' cm'; buildLookPrev();
@@ -5159,13 +5226,13 @@ function buildLookPrev() {
   if (!window.THREE) return;
   const cv2 = $('mePrev'); if (!cv2) return;
   if (!lookPrev) {
-    try { const r = new THREE.WebGLRenderer({ canvas: cv2, antialias: true, alpha: true }); r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); r.setSize(200, 280, false);
+    try { const r = prepRenderer(new THREE.WebGLRenderer({ canvas: cv2, antialias: true, alpha: true })); r.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); r.setSize(200, 280, false);
       const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight('#fff7ea', '#6d5a48', 0.9)); const dl = new THREE.DirectionalLight('#ffffff', 0.6); dl.position.set(1, 2, 3); sc.add(dl);
       const cam = new THREE.PerspectiveCamera(32, 200 / 280, 0.1, 20); lookPrev = { r, sc, cam, h: null, raf: 0 };
     } catch (e) { return; }
   }
   if (lookPrev.h) disposeHuman(lookPrev.h);
-  lookPrev.h = buildHuman(meSpec()); lookPrev.sc.add(lookPrev.h.root); poseHuman(lookPrev.h, {}); redrawFace(lookPrev.h, 'happy', 1, false);
+  lookPrev.h = buildHuman(meSpec(), { smooth: true }); lookPrev.sc.add(lookPrev.h.root); poseHuman(lookPrev.h, {}); redrawFace(lookPrev.h, 'happy', 1, false);
   const H = S.me.H; lookPrev.cam.position.set(0, H * 0.55, 4.6); lookPrev.cam.lookAt(0, H * 0.5, 0);
   cancelAnimationFrame(lookPrev.raf);
   const spin = () => { if (!lookPrev || !$('mePrev')) { closeLookPrev(); return; } lookPrev.h.root.rotation.y = Math.sin(performance.now() / 1400) * 0.9; poseHuman(lookPrev.h, { breath: 0.01 * (0.5 - 0.5 * Math.cos(performance.now() / 600)) }); lookPrev.r.render(lookPrev.sc, lookPrev.cam); lookPrev.raf = requestAnimationFrame(spin); };
@@ -5189,6 +5256,17 @@ else (function retry3D() { // the first CDN didn't deliver three.js: try another
   sc.onerror = note2D; document.head.appendChild(sc);
 })();
 function note2D() { window.__no3D = true; setTimeout(() => toast('⚠️ 3D graphics couldn\'t start on this device, so you\'re seeing the 2D map version. Try Chrome or Safari with hardware acceleration on.'), 1500); }
+// once Body Studio's body data is unpacked, everyone is rebuilt as a realistic person
+function swapToBodyStudio() {
+  if (!R3) return;
+  if (M3.h) { setTimeout(swapToBodyStudio, 1500); return; } // never mid-massage
+  for (const h of R3.humans.values()) disposeHuman(h); R3.humans.clear();
+  if (P3.cur && P3.scene) P3.scene.remove(P3.cur.root);
+  for (const h of P3.cache.values()) disposeHuman(h); P3.cache.clear(); P3.cur = null; P3.last = '';
+  if (lookPrev) buildLookPrev();
+  if (S.me) studioTherapist();
+}
+if (window.BS && BS.Game) BS.Game.init().then(() => { if (BS.Game.ready) swapToBodyStudio(); });
 if (ageOk()) showTitle(); else showAgeGate(showTitle);
 requestAnimationFrame(frame);
 </script>
