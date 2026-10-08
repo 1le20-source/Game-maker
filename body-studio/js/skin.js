@@ -1,12 +1,14 @@
 // Body Studio skin: photoreal skin, eyes, teeth and tongue.
 //
 // Skin colour is baked per vertex from the params (tone, undertone, age,
-// regional blood and melanin, lips, nails, areolae, mouth, blush, makeup)
-// into a `color` attribute plus three mask attributes. A patched
-// MeshPhysicalMaterial adds what needs pixel detail: pores, fine relief and
-// wrinkles as a procedural bump in rest space, freckles, age spots, veins
-// and mottling, wrapped colour-shifted diffuse (subsurface scattering) with
-// back-light translucency, oily and wet layers, flush and the x-ray shell.
+// regional blood and melanin, lips, nails, areolae, mouth, blush, tan lines
+// and the soft parts of makeup) into a `color` attribute plus four mask
+// attributes. A patched MeshPhysicalMaterial adds what needs pixel detail:
+// pores, fine relief and wrinkles as a procedural bump in rest space,
+// freckles, moles, vitiligo, stretch marks, age spots, veins, eye makeup
+// drawn along the fitted lash lines, wrapped colour-shifted diffuse
+// (subsurface scattering) with back-light translucency, oily, glossy and wet
+// layers, flush and the x-ray shell.
 (function () {
   'use strict';
   const BS = (window.BS = window.BS || {});
@@ -57,7 +59,9 @@ vec4 skNoiseD(vec3 x) {
 
   // ---------------------------------------------------- skin material
   const SKIN_UNIFORMS = ['uTime', 'uFlush', 'uWet', 'uXray', 'uPupil', 'uFlushS', 'uWetS', 'uRough', 'uShine', 'uFreckle', 'uVein', 'uAge',
-    'uFuzz', 'uDark', 'uMakeup', 'uWrap', 'uScatter', 'uEyeL', 'uEyeR', 'uCanthL', 'uCanthR', 'uMouth', 'uLipZ', 'uFace', 'uEyeRad', 'uDebug'];
+    'uFuzz', 'uDark', 'uWrap', 'uScatter', 'uEyeL', 'uEyeR', 'uCanthL', 'uCanthR', 'uMouth', 'uLipZ', 'uFace', 'uEyeRad', 'uDebug',
+    'uMoles', 'uBeauty', 'uVitiligo', 'uVitCol', 'uBase', 'uStretch', 'uFound', 'uLip', 'uNail', 'uHiLite',
+    'uMkA', 'uMkB', 'uMkC', 'uMkLid', 'uMkCrease', 'uMkLiner', 'uMkHi', 'uMkO', 'uMkX', 'uMkY', 'uLidFit'];
 
   const SKIN_VERT_PARS = `#include <common>
 attribute vec3 restPos;
@@ -66,12 +70,14 @@ attribute vec4 region2;
 attribute vec4 skinA;
 attribute vec4 skinB;
 attribute vec4 skinC;
+attribute vec4 skinD;
 varying vec3 vRest;
 varying vec4 vReg;
 varying vec4 vReg2;
 varying vec4 vSkA;
 varying vec4 vSkB;
-varying vec4 vSkC;`;
+varying vec4 vSkC;
+varying vec4 vSkD;`;
 
   const SKIN_FRAG_PARS = `#include <common>
 uniform float uTime;
@@ -85,7 +91,6 @@ uniform float uVein;
 uniform float uAge;
 uniform float uFuzz;
 uniform float uDark;
-uniform float uMakeup;
 uniform vec3 uWrap;
 uniform vec3 uScatter;
 uniform vec3 uEyeL;
@@ -97,16 +102,37 @@ uniform float uLipZ;
 uniform float uFace;
 uniform float uEyeRad;
 uniform int uDebug;
+uniform float uMoles;
+uniform vec4 uBeauty;
+uniform float uVitiligo;
+uniform vec3 uVitCol;
+uniform vec3 uBase;
+uniform float uStretch;
+uniform vec2 uFound; // foundation: coverage, finish (-1 matte .. 1 dewy)
+uniform vec2 uLip; // lip product: coverage, gloss
+uniform float uNail; // nail polish
+uniform float uHiLite; // highlighter shimmer
+uniform vec4 uMkA; // eyeshadow, liner, wing length, lower liner
+uniform vec4 uMkB; // mascara, smoky, lid shimmer, liner thickness
+uniform vec4 uMkC; // shadow spread, outer-corner depth, inner-corner highlight, bare lash line
+uniform vec3 uMkLid;
+uniform vec3 uMkCrease;
+uniform vec3 uMkLiner;
+uniform vec3 uMkHi;
+uniform vec3 uMkO; // left eye frame (the right eye mirrors it): origin at the inner corner,
+uniform vec3 uMkX; // u along the eye (outer corner = 1), v up, both in eye widths
+uniform vec3 uMkY;
+uniform vec4 uLidFit; // lash lines: v = u(1-u)(x + y u) above, -u(1-u)(z + w u) below
 varying vec3 vRest;
 varying vec4 vReg;
 varying vec4 vReg2;
 varying vec4 vSkA;
 varying vec4 vSkB;
 varying vec4 vSkC;
+varying vec4 vSkD;
 float skinSh = 1.0;
 float skinThin = 0.0;
 vec3 skinN0 = vec3(0.0, 0.0, 1.0);
-vec3 skDebug = vec3(0.0);
 ${NOISE}
 // more (b > 0) or less blood under the skin, and more melanin
 vec3 skBlood(vec3 c, float b) { return c * pow(vec3(1.0, 0.78, 0.76), vec3(b)); }
@@ -117,6 +143,11 @@ void skGroove(float ph, vec3 gph, float amp, float k, inout float H, inout vec3 
   float e = exp(-fr * fr * k);
   H -= amp * e;
   G += amp * 2.0 * k * fr * e * gph;
+}
+// eye-frame coordinates of a rest-space point
+vec2 skEyeUV(vec3 p) {
+  vec3 q = vec3(abs(p.x), p.yz) - uMkO;
+  return vec2(dot(q, uMkX), dot(q, uMkY));
 }`;
 
   // wrapped, colour-shifted diffuse: red light travels further under the
@@ -140,12 +171,19 @@ vec3 skinDiffuse(const in IncidentLight L, const in vec3 N, const in vec3 V, con
 vec3 skP = vRest;
 float skFp = max(length(fwidth(skP)), 1e-6); // rest-space size of one pixel (m)
 float skCav = 0.0;
-// blotchy blood and pigment variation, centimetres across; makeup evens it
-float skEven = 1.0 - 0.55 * uMakeup;
+float skGloss = 0.0; // shimmer and gloss from products
+float skStM = 0.0; // stretch marks (smoother, slightly sunken)
+float skStPh = 0.0;
+float skStA = 0.0;
+vec3 skStG = vec3(0.0);
+vec4 skMole = vec4(0.0); // the mole under this pixel: centre, radius
+float skMoleUp = 0.0;
+// blotchy blood and pigment variation, centimetres across; foundation evens it
+float skEven = 1.0 - 0.6 * uFound.x * vReg.z;
 float skM1 = skNoise(skP * 31.0) + 0.5 * skNoise(skP * 83.0 + 7.3);
 float skM2 = skNoise(skP * 17.0 + 3.1) + 0.5 * skNoise(skP * 140.0 + 1.7);
 diffuseColor.rgb = skBlood(diffuseColor.rgb, skM1 * 0.5 * skEven * (1.0 - 0.6 * uDark));
-diffuseColor.rgb = skMel(diffuseColor.rgb, skM2 * 0.22 * skEven);
+diffuseColor.rgb = skMel(diffuseColor.rgb, skM2 * (0.22 + 0.1 * uDark) * skEven);
 // freckles: clustered spots of two sizes, averaged out once sub-pixel
 float skFr = uFreckle * vSkA.y;
 if (skFr > 0.004) {
@@ -153,22 +191,123 @@ if (skFr > 0.004) {
   float th = 0.52 - 0.3 * skFr * (0.35 + 0.65 * cl);
   float sp = max(smoothstep(th, th + 0.05, skNoise(skP * 330.0)), 0.8 * smoothstep(th + 0.03, th + 0.08, skNoise(skP * 620.0 + 13.0)));
   sp = mix(0.1 * skFr * (0.35 + 0.65 * cl), sp, 1.0 - smoothstep(0.0006, 0.002, skFp));
-  diffuseColor.rgb = skMel(diffuseColor.rgb, sp * (0.55 + 0.8 * skFr) * (0.75 + 0.5 * skNoise(skP * 150.0 + 2.0)));
+  diffuseColor.rgb = skMel(diffuseColor.rgb, sp * (0.55 + 0.8 * skFr) * (0.75 + 0.5 * skNoise(skP * 150.0 + 2.0)) * (1.0 - 0.45 * uFound.x * vReg.z));
 }
-// age spots on sun-exposed skin
-float skSpot = smoothstep(0.35, 0.85, uAge) * min(1.0, vSkA.y + 0.25);
+// age spots: a few flat tan patches on sun-exposed skin
+float skSpot = smoothstep(0.45, 0.95, uAge) * vSkA.y;
 if (skSpot > 0.01) {
-  float n = skNoise(skP * 95.0 + 31.0) + 0.3 * skNoise(skP * 420.0);
-  diffuseColor.rgb = skMel(diffuseColor.rgb, smoothstep(0.36, 0.5, n) * skSpot * 0.8);
+  float n = skNoise(skP * 70.0 + 31.0) + 0.25 * skNoise(skP * 300.0);
+  diffuseColor.rgb = skMel(diffuseColor.rgb, smoothstep(0.42, 0.52, n) * skSpot * 0.45 * (1.0 - 0.5 * uFound.x * vReg.z));
 }
 // veins: a faint blue-green network under thin skin, stretched along the limb
-float skV = uVein * vSkA.z * (1.0 - 0.75 * uDark) * (1.0 - 0.4 * uMakeup);
+float skV = uVein * vSkA.z * (1.0 - 0.75 * uDark) * (1.0 - 0.5 * uFound.x * vReg.z);
 if (skV > 0.004) {
   vec3 ax = vSkC.xyz / max(length(vSkC.xyz), 1e-5);
   vec3 q = skP - ax * dot(skP, ax) * 0.7;
   float vn = skNoise(q * 55.0) + 0.35 * skNoise(q * 140.0 + 4.0);
   float line = (1.0 - smoothstep(0.015, 0.085, abs(vn))) * smoothstep(-0.15, 0.25, skNoise(skP * 18.0 + 9.0));
   diffuseColor.rgb *= mix(vec3(1.0), vec3(0.78, 0.88, 1.04), line * skV);
+}
+// vitiligo: depigmented patches with irregular, crisp borders, mostly
+// symmetric, favouring the eyes, mouth, fingers and joints
+if (uVitiligo > 0.004) {
+  vec3 vp = vec3(abs(skP.x), skP.yz);
+  float n = skNoise(vp * 5.5) + 0.5 * skNoise(vp * 14.0 + 3.0) + 0.25 * skNoise(vp * 37.0 + 7.0) + 0.12 * skNoise(vp * 105.0 + 1.0);
+  float pref = clamp(0.3 + 1.1 * vReg.y + 0.8 * vReg.x + 0.6 * vSkA.w + 0.4 * vSkB.y + 0.25 * vReg.z, 0.0, 1.4);
+  float th = 0.5 - 0.8 * uVitiligo * pref;
+  float aa = fwidth(n) + 0.012;
+  float m = smoothstep(th - aa, th + aa, n);
+  float rim = smoothstep(th - 0.1, th - aa, n) * (1.0 - m);
+  vec3 vc = uVitCol * mix(vec3(1.0), clamp(diffuseColor.rgb / uBase, vec3(0.45), vec3(1.6)), 0.5);
+  diffuseColor.rgb = mix(skMel(diffuseColor.rgb, 0.3 * rim), vc, m);
+}
+// moles: sparse brown spots, some raised, plus an optional beauty mark
+if (uMoles > 0.004) {
+  vec3 ci = floor(skP / 0.012);
+  vec3 h1 = skHash(ci + 41.0) * 0.5 + 0.5;
+  vec3 h2 = skHash(ci + 7.0) * 0.5 + 0.5;
+  float dens = uMoles * (0.3 + 0.7 * vSkA.y) * 0.035 * (1.0 - vReg.x) * (1.0 - vReg2.x) * (1.0 - vReg2.z);
+  if (h2.x < dens) { skMole = vec4((ci + 0.25 + 0.5 * h1) * 0.012, mix(0.0006, 0.002, h2.y * h2.y)); skMoleUp = step(0.6, h2.z); }
+  if (uBeauty.w > 0.0 && distance(skP, uBeauty.xyz) < uBeauty.w * 1.6) { skMole = uBeauty; skMoleUp = 0.4; }
+  if (skMole.w > 0.0) {
+    vec3 dm = skP - skMole.xyz;
+    float d = length(dm) / skMole.w + 0.12 * skNoise(dm * 2600.0);
+    float aa = skFp / skMole.w;
+    float m = (1.0 - smoothstep(0.85 - aa, 1.0 + aa, d)) * min(1.0, 1.0 / (aa * aa + 0.01));
+    float tone = mix(1.5, 2.8, fract(h1.z * 13.7)) * (0.7 + 0.3 * uMoles);
+    diffuseColor.rgb = skMel(skBlood(diffuseColor.rgb, 0.4 * m * skMoleUp), m * tone * (1.0 - 0.3 * d * d) * (1.0 - 0.5 * skMoleUp));
+  }
+}
+// stretch marks: fine broken lines across the direction the skin stretched;
+// older ones silvery and paler than the skin, fresher ones pink-lilac
+float skSt = uStretch * length(vSkD.xyz);
+if (skSt > 0.01) {
+  vec3 ac = vSkD.xyz / length(vSkD.xyz);
+  float sp = 0.0065;
+  vec4 wn = skNoiseD(skP * 22.0);
+  float ph = dot(skP, ac) / sp + 1.4 * wn.x;
+  vec3 gph = ac / sp + 1.4 * 22.0 * wn.yzw;
+  vec3 hs = skHash(vec3(floor(ph), 3.7, 1.3)) * 0.5 + 0.5;
+  float fr = abs(fract(ph) - 0.5);
+  float aa = fwidth(ph);
+  float w = 0.05 + 0.14 * hs.x;
+  float seg = smoothstep(0.0, 0.25, skNoise(skP * 45.0 + hs * 9.0) + 0.3 * hs.y - 0.08) * smoothstep(0.0, 0.35, skSt - 0.3 * hs.z);
+  float sub = smoothstep(0.3, 1.0, aa); // finer than a pixel: show the average
+  skStM = mix(1.0 - smoothstep(w - aa * 0.5, w + aa * 0.5, fr), 2.0 * w, sub) * seg;
+  vec3 st = diffuseColor.rgb * mix(vec3(1.22, 1.16, 1.2), vec3(1.08, 0.88, 1.02), 0.4 * hs.y) + 0.01;
+  diffuseColor.rgb = mix(diffuseColor.rgb, st, 0.85 * skStM);
+  skStPh = ph; skStG = gph; skStA = (1.0 - sub) * seg;
+}
+// eye makeup along the fitted lash lines: shadow, liner with its wing,
+// smudged lower line, mascara at the lash roots
+{
+  vec2 euv = skEyeUV(skP);
+  float u = euv.x, v = euv.y;
+  if (u > -0.5 && u < 1.7 && v > -0.8 && v < 1.0) {
+    float aa = max(fwidth(v), 0.0015);
+    float uc = clamp(u, 0.0, 1.0);
+    float ext = max(u - 1.0, 0.0);
+    float up = uc * (1.0 - uc) * (uLidFit.x + uLidFit.y * uc) + 0.3 * ext;
+    float lo = -uc * (1.0 - uc) * (uLidFit.z + uLidFit.w * uc) + 0.3 * ext;
+    float dU = v - up, dL = lo - v;
+    float lat = smoothstep(-0.06, 0.12, u) * (1.0 - smoothstep(1.05, 1.4, u));
+    float inside = 1.0 - step(1.0, u);
+    vec3 c = diffuseColor.rgb;
+    float sp = uMkC.x;
+    // lid colour, densest at the lash line and blended up past the crease
+    float lid = smoothstep(-0.01, 0.02, dU) * (1.0 - smoothstep(0.3 * sp, sp, dU)) * lat;
+    // a deeper shade worked into the outer corner and the crease
+    float ov = smoothstep(0.4, 1.0, u) * smoothstep(-0.01, 0.03, dU) * (1.0 - smoothstep(0.15 * sp, 0.75 * sp, dU - 0.15 * ext)) * lat;
+    // smoky: smudged under the lower lashes
+    float sm = smoothstep(-0.01, 0.015, dL) * (1.0 - smoothstep(0.02, 0.03 + 0.14 * sp, dL)) * smoothstep(0.1, 0.55, u) * lat;
+    c = mix(c, uMkLid, uMkA.x * 0.85 * lid);
+    c = mix(c, uMkCrease, uMkA.x * uMkC.y * ov);
+    c = mix(c, mix(uMkLid, uMkCrease, 0.6), uMkB.y * 0.8 * sm);
+    c = mix(c, uMkHi, uMkC.z * 0.6 * (1.0 - smoothstep(0.02, 0.13, length(vec2(u - 0.02, v * 1.4)))));
+    // liner: thin at the inner corner, thicker outwards, flicking into a wing
+    float th = uMkB.w * (0.008 + 0.032 * smoothstep(0.05, 1.0, u));
+    float band = smoothstep(-aa, aa, dU + 0.006) * (1.0 - smoothstep(th - aa, th + aa, dU)) * smoothstep(0.02, 0.14, u) * inside;
+    float wl = uMkA.z * 0.3;
+    float wing = 0.0;
+    if (wl > 0.004 && u > 0.7) {
+      vec2 tip = vec2(1.0 + wl, 0.55 * wl + 0.01);
+      float u0 = 0.7;
+      float top0 = u0 * (1.0 - u0) * (uLidFit.x + uLidFit.y * u0) + uMkB.w * (0.008 + 0.032 * smoothstep(0.05, 1.0, u0));
+      float topE = mix(top0, tip.y, clamp((u - u0) / (tip.x - u0), 0.0, 1.0));
+      float botE = u < 1.0 ? up - 0.006 : (u - 1.0) / wl * (tip.y - 0.01);
+      wing = smoothstep(-aa, aa, topE - v) * smoothstep(-aa, aa, v - botE) * smoothstep(-aa, aa, tip.x - u);
+    }
+    float soft = mix(aa, 0.02, uMkB.y);
+    float th2 = 0.006 + 0.01 * u;
+    float low = smoothstep(-soft, soft, dL + 0.004) * (1.0 - smoothstep(th2 - soft, th2 + soft, dL)) * smoothstep(0.25, 0.6, u) * (1.0 - smoothstep(0.96, 1.03, u));
+    c = mix(c, uMkLiner, 0.92 * max(max(band, wing) * uMkA.y, low * uMkA.w));
+    // lash roots: dark on everyone, darker with mascara
+    float lash = smoothstep(-aa, aa, dU + 0.008) * (1.0 - smoothstep(0.0, 0.012 + aa, dU)) * smoothstep(0.04, 0.16, u) * inside;
+    lash = max(lash, 0.45 * smoothstep(-aa, aa, dL + 0.004) * (1.0 - smoothstep(0.0, 0.007 + aa, dL)) * smoothstep(0.2, 0.5, u) * inside);
+    c = mix(c, uMkLiner * 0.5, max(uMkC.w, uMkB.x) * 0.75 * lash);
+    diffuseColor.rgb = c;
+    skGloss = uMkB.z * uMkA.x * max(lid, ov);
+  }
 }
 // emotional flush and sweat
 diffuseColor.rgb = skBlood(diffuseColor.rgb, uFlushS * vSkA.x * 1.7 * (1.0 - 0.45 * uDark));
@@ -180,6 +319,13 @@ float skMouthO = vReg2.z * (1.0 - exp(-max(uLipZ - skP.z - 0.002, 0.0) / 0.01));
 
   const SKIN_ROUGH = `#include <roughnessmap_fragment>
 roughnessFactor = clamp(uRough + vSkB.x, 0.1, 0.95);
+// foundation finish on the face: powdery matte to dewy
+roughnessFactor += uFound.x * vReg.z * (0.01 - 0.09 * uFound.y);
+// lip products: matte to high gloss; polished nails; shimmer
+roughnessFactor = mix(roughnessFactor, mix(0.62, 0.2, uLip.y), uLip.x * smoothstep(0.2, 0.6, vReg.x));
+roughnessFactor = mix(roughnessFactor, 0.17, uNail * vReg2.x);
+roughnessFactor = mix(roughnessFactor, 0.3, max(skGloss, uHiLite * vSkD.w));
+roughnessFactor = mix(roughnessFactor, 0.32, 0.6 * skStM);
 roughnessFactor = mix(roughnessFactor, 0.16, skWet);
 `;
 
@@ -197,7 +343,7 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
   // pores: shallow pits, most visible on the nose and cheeks
   float ps = mix(0.0011, 0.0008, faceK);
   float pf = 1.0 - smoothstep(ps * 0.3, ps * 0.8, skFp);
-  float pd = mix(0.000009, 0.000017, faceK) * (1.0 + 0.6 * uAge) * (1.0 - vReg.x) * bare;
+  float pd = mix(0.000009, 0.000017, faceK) * (1.0 + 0.6 * uAge) * (1.0 - vReg.x) * bare * (1.0 - 0.4 * uFound.x * faceK);
   if (pf > 0.0) {
     vec4 n = skNoiseD(skP / ps);
     float t = clamp((n.x - 0.16) / 0.3, 0.0, 1.0);
@@ -208,7 +354,7 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
   // fine relief: a network of shallow furrows, coarser on the body
   float fs = mix(0.0026, 0.0017, faceK);
   float ff = 1.0 - smoothstep(fs * 0.2, fs * 0.6, skFp);
-  float fa = 0.00002 * (1.0 + 0.8 * uAge) * (1.0 - 0.6 * vReg.x) * bare;
+  float fa = 0.000016 * (1.0 + 0.8 * uAge) * (1.0 - 0.6 * vReg.x) * bare;
   if (ff > 0.0) {
     vec4 n = skNoiseD(skP / fs + 17.0);
     H += fa * ff * abs(n.x);
@@ -219,28 +365,39 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
   float mf = 1.0 - smoothstep(0.0012, 0.004, skFp);
   if (mf > 0.0) {
     vec4 n = skNoiseD(skP * 160.0 + 3.0);
-    float a = 0.000025 * mf * (1.0 + uAge) * bare;
+    float a = 0.000022 * mf * (1.0 + uAge) * bare;
     H += a * n.x;
     G += a * n.yzw * 160.0;
   }
+  // raised moles and the shallow furrows of stretch marks
+  if (skMole.w > 0.0 && skMoleUp > 0.0) {
+    vec3 dm = skP - skMole.xyz;
+    float r2 = dot(dm, dm) / (skMole.w * skMole.w);
+    if (r2 < 1.0) {
+      float a = skMole.w * 0.14 * skMoleUp, t = 1.0 - r2;
+      H += a * t * t;
+      G -= a * 4.0 * t * dm / (skMole.w * skMole.w);
+    }
+  }
+  if (skStA > 0.0) skGroove(skStPh, skStG, 0.00002 * skStA, 40.0, H, G);
 #if SKIN_Q > 1
   // forehead lines and the frown lines between the brows
   if (vSkB.z > 0.01) {
     vec3 em = 0.5 * (uEyeL + uEyeR);
     float x = skP.x - em.x;
     float sp = 0.0095 * uFace;
-    vec4 wn = skNoiseD(skP * 70.0);
-    float ph = (skP.y - em.y - 2.5 * x * x / uFace) / sp + 0.55 * wn.x;
-    vec3 gph = vec3(-5.0 * x / uFace, 1.0, 0.0) / sp + 0.55 * 70.0 * wn.yzw;
-    float brk = smoothstep(-0.25, 0.3, skNoise(vec3(skP.x * 55.0, floor(ph) * 3.1, 2.0)));
+    vec4 wn = skNoiseD(skP * 60.0);
+    float ph = (skP.y - em.y - 2.5 * x * x / uFace) / sp + 0.4 * wn.x;
+    vec3 gph = vec3(-5.0 * x / uFace, 1.0, 0.0) / sp + 0.4 * 60.0 * wn.yzw;
+    float brk = smoothstep(-0.3, 0.35, skNoise(vec3(skP.x * 45.0, floor(ph) * 3.1, 2.0)));
     float wf = 1.0 - smoothstep(sp * 0.06, sp * 0.2, skFp);
-    skGroove(ph, gph, 0.00022 * vSkB.z * wA * wA * brk * wf, 26.0, H, G);
+    skGroove(ph, gph, 0.00013 * vSkB.z * wA * wA * brk * wf, 14.0, H, G);
     float gy = (skP.y - em.y) / uFace;
-    float gm = smoothstep(0.004, 0.012, gy) * (1.0 - smoothstep(0.026, 0.038, gy));
-    float gx = abs(x) - 0.0052 * uFace;
-    float e2 = exp(-gx * gx / 1.6e-6) * gm * vSkB.z * wA * wA * 0.00016 * wf;
+    float gm = smoothstep(0.004, 0.012, gy) * (1.0 - smoothstep(0.024, 0.034, gy));
+    float gx = abs(x) - 0.0055 * uFace;
+    float e2 = exp(-gx * gx / 2.5e-6) * gm * vSkB.z * wA * wA * 0.00009 * wf;
     H -= e2;
-    G.x += e2 * 2.0 * gx / 1.6e-6 * sign(x);
+    G.x += e2 * 2.0 * gx / 2.5e-6 * sign(x);
   }
   // crow's feet fanning from the outer eye corners and arcs under the eyes
   if (vSkB.w > 0.01) {
@@ -257,7 +414,7 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
         float th = atan(d.y, hz);
         vec3 gth = vec3(-d.y * d.x / hz, hz, -d.y * d.z / hz) / (hz * hz + d.y * d.y);
         vec4 wn = skNoiseD(skP * 160.0);
-        skGroove(th / 0.17 + 0.35 * wn.x, gth / 0.17 + 0.35 * 160.0 * wn.yzw, 0.00011 * m * wf * vSkB.w * wA * wA, 24.0, H, G);
+        skGroove(th / 0.17 + 0.35 * wn.x, gth / 0.17 + 0.35 * 160.0 * wn.yzw, 0.00009 * m * wf * vSkB.w * wA * wA, 20.0, H, G);
       }
       vec3 d2 = skP - e;
       float r2 = length(d2);
@@ -265,7 +422,7 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
       float m2 = smoothstep(-0.25, -0.6, d2.y / r2) * smoothstep(0.0, 0.6, rr) * (1.0 - smoothstep(2.2, 3.6, rr)) * (1.0 - m);
       if (m2 * wf > 0.0) {
         vec4 wn = skNoiseD(skP * 120.0 + 5.0);
-        skGroove(rr + 0.3 * wn.x, d2 / (r2 * 0.0026 * uFace) + 0.3 * 120.0 * wn.yzw, 0.00006 * m2 * wf * vSkB.w * wA * wA, 18.0, H, G);
+        skGroove(rr + 0.3 * wn.x, d2 / (r2 * 0.0026 * uFace) + 0.3 * 120.0 * wn.yzw, 0.00005 * m2 * wf * vSkB.w * wA * wA, 18.0, H, G);
       }
     }
   }
@@ -275,7 +432,7 @@ roughnessFactor = mix(roughnessFactor, 0.16, skWet);
     float lf = 1.0 - smoothstep(ls * 0.15, ls * 0.45, skFp);
     if (lf > 0.0) {
       vec4 wn = skNoiseD(skP * 380.0);
-      skGroove((skP.x - uMouth.x) / ls + 0.5 * wn.x, vec3(1.0 / ls, 0.0, 0.0) + 0.5 * 380.0 * wn.yzw, 0.000022 * (0.6 + uAge) * smoothstep(0.3, 0.9, vReg.x) * lf, 10.0, H, G);
+      skGroove((skP.x - uMouth.x) / ls + 0.5 * wn.x, vec3(1.0 / ls, 0.0, 0.0) + 0.5 * 380.0 * wn.yzw, 0.000018 * (0.6 + uAge) * smoothstep(0.3, 0.9, vReg.x) * lf * (1.0 - 0.6 * uLip.x), 10.0, H, G);
     }
   }
   // skin folds across joints: neck rings, knuckles, wrists, elbows, knees
@@ -309,9 +466,10 @@ skinN0 = normalize(mix(nonPerturbedNormal, normal, 0.15));
 skinThin = vSkA.w;
 #ifdef USE_CLEARCOAT
 {
-  float oil = saturate(-vSkB.x * 5.0) * (1.0 - vReg.x);
-  material.clearcoat = saturate(0.04 + 0.3 * oil * uShine + 0.22 * vReg.x + 0.8 * vReg2.x + 0.9 * vReg2.z + 0.85 * skWet);
-  material.clearcoatRoughness = mix(0.34, 0.08, max(skWet, vReg2.x));
+  float oil = saturate(-vSkB.x * 5.0) * (1.0 - vReg.x) * (1.0 - uFound.x * vReg.z * saturate(0.6 - 0.6 * uFound.y));
+  float lipC = mix(0.22, uLip.y, uLip.x) * vReg.x;
+  material.clearcoat = saturate(0.04 + 0.3 * oil * uShine + lipC + vReg2.x * (0.65 + 0.35 * uNail) + 0.9 * vReg2.z + 0.85 * skWet + 0.45 * skGloss + 0.3 * uHiLite * vSkD.w);
+  material.clearcoatRoughness = mix(0.34, 0.06, max(max(skWet, vReg2.x), max(uLip.x * uLip.y * vReg.x, skGloss)));
 }
 #endif
 #ifdef USE_SHEEN
@@ -366,28 +524,53 @@ if (uDebug > 0) {
   else if (uDebug == 10) dc = vReg.xyw;
   else if (uDebug == 11) dc = vReg2.xyz;
   else if (uDebug == 12) dc = abs(normalize(vSkC.xyz + 1e-5));
+  else if (uDebug == 13) dc = abs(vSkD.xyz);
+  else if (uDebug == 14) dc = vec3(vSkD.w);
+  else if (uDebug == 15) {
+    vec2 e = skEyeUV(vRest);
+    float uc = clamp(e.x, 0.0, 1.0);
+    float up = uc * (1.0 - uc) * (uLidFit.x + uLidFit.y * uc), lo = -uc * (1.0 - uc) * (uLidFit.z + uLidFit.w * uc);
+    vec2 g = abs(fract(e * 10.0) - 0.5);
+    dc = vec3(0.25) + 0.25 * step(0.45, max(g.x, g.y));
+    dc = mix(dc, vec3(1.0, 0.2, 0.1), 1.0 - smoothstep(0.0, 0.008, abs(e.y - up)));
+    dc = mix(dc, vec3(0.1, 0.4, 1.0), 1.0 - smoothstep(0.0, 0.008, abs(e.y - lo)));
+  }
   gl_FragColor = vec4(dc, 1.0);
 }
 `;
-  const DEBUG_MODES = { flush: 1, freckle: 2, vein: 3, thin: 4, rough: 5, wrinkle: 6, ao: 7, albedo: 8, normal: 9, region: 10, region2: 11, axis: 12 };
+  const DEBUG_MODES = { flush: 1, freckle: 2, vein: 3, thin: 4, rough: 5, wrinkle: 6, ao: 7, albedo: 8, normal: 9, region: 10, region2: 11, axis: 12,
+    stretch: 13, hilite: 14, eyeframe: 15 };
+
+  // the per-vertex attributes this material reads, (re)attached to whatever
+  // body geometry the human currently has (a game swaps it for detail levels)
+  const ATTRS = [['color', 3], ['skinA', 4], ['skinB', 4], ['skinC', 4], ['skinD', 4]];
+  function attachAttributes(human) {
+    const geo = human.bodyGeo, n = human.S.nOut;
+    for (const [name, size] of ATTRS) {
+      const a = geo.attributes[name];
+      if (a && a.count === n) continue;
+      const arr = new Float32Array(n * size);
+      if (name === 'color') arr.fill(0.6);
+      if (name === 'skinC') for (let i = 3; i < arr.length; i += 4) arr[i] = 1;
+      geo.setAttribute(name, new THREE.Float32BufferAttribute(arr, size));
+    }
+    return geo;
+  }
 
   BS.makeSkinMaterial = function (human) {
-    const n = human.S.nOut, geo = human.bodyGeo;
-    const color = new THREE.Float32BufferAttribute(new Float32Array(n * 3).fill(0.6), 3);
-    geo.setAttribute('color', color);
-    geo.setAttribute('skinA', new THREE.Float32BufferAttribute(new Float32Array(n * 4), 4));
-    geo.setAttribute('skinB', new THREE.Float32BufferAttribute(new Float32Array(n * 4), 4));
-    const c = new Float32Array(n * 4);
-    for (let i = 3; i < c.length; i += 4) c[i] = 1;
-    geo.setAttribute('skinC', new THREE.Float32BufferAttribute(c, 4));
-
+    attachAttributes(human);
     const v = (x) => ({ value: x });
+    const V3 = () => v(new THREE.Vector3());
     const U = {
       uTime: v(0), uFlush: v(0), uWet: v(0), uXray: v(0), uPupil: v(0.35), uFlushS: v(0), uWetS: v(0),
-      uRough: v(0.5), uShine: v(0.4), uFreckle: v(0), uVein: v(0.2), uAge: v(0), uFuzz: v(0.2), uDark: v(0.3), uMakeup: v(0),
+      uRough: v(0.5), uShine: v(0.4), uFreckle: v(0), uVein: v(0.2), uAge: v(0), uFuzz: v(0.2), uDark: v(0.3),
       uWrap: v(new THREE.Vector3(0.34, 0.12, 0.08)), uScatter: v(new THREE.Vector3(1.0, 0.28, 0.14)),
-      uEyeL: v(new THREE.Vector3()), uEyeR: v(new THREE.Vector3()), uCanthL: v(new THREE.Vector3()), uCanthR: v(new THREE.Vector3()),
-      uMouth: v(new THREE.Vector3()), uLipZ: v(0), uFace: v(1), uEyeRad: v(0.0125), uDebug: v(0),
+      uEyeL: V3(), uEyeR: V3(), uCanthL: V3(), uCanthR: V3(), uMouth: V3(), uLipZ: v(0), uFace: v(1), uEyeRad: v(0.0125), uDebug: v(0),
+      uMoles: v(0), uBeauty: v(new THREE.Vector4()), uVitiligo: v(0), uVitCol: V3(), uBase: v(new THREE.Vector3(0.5, 0.35, 0.28)), uStretch: v(0),
+      uFound: v(new THREE.Vector2()), uLip: v(new THREE.Vector2(0, 0.5)), uNail: v(0), uHiLite: v(0),
+      uMkA: v(new THREE.Vector4()), uMkB: v(new THREE.Vector4()), uMkC: v(new THREE.Vector4(0.3, 0, 0, 0.35)),
+      uMkLid: V3(), uMkCrease: V3(), uMkLiner: v(new THREE.Vector3(0.02, 0.012, 0.01)), uMkHi: V3(),
+      uMkO: v(new THREE.Vector3(0, -10, 0)), uMkX: V3(), uMkY: V3(), uLidFit: v(new THREE.Vector4()),
     };
     human.skinUniforms = U;
 
@@ -401,7 +584,7 @@ if (uDebug > 0) {
       for (const k of SKIN_UNIFORMS) s.uniforms[k] = U[k];
       s.vertexShader = s.vertexShader
         .replace('#include <common>', SKIN_VERT_PARS)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = restPos; vReg = region; vReg2 = region2; vSkA = skinA; vSkB = skinB; vSkC = skinC;');
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRest = restPos; vReg = region; vReg2 = region2; vSkA = skinA; vSkB = skinB; vSkC = skinC; vSkD = skinD;');
       s.fragmentShader = s.fragmentShader
         .replace('#include <common>', SKIN_FRAG_PARS)
         .replace('#include <lights_physical_pars_fragment>', SKIN_DIFFUSE + chunk('lights_physical_pars_fragment', [
@@ -424,6 +607,113 @@ if (uDebug > 0) {
     return mat;
   };
 
+  // ------------------------------------------------- colour helpers
+  const smooth01 = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const clamp01 = (x) => Math.min(1, Math.max(0, x));
+  const lin = (hex) => new THREE.Color(hex); // three converts sRGB hex to linear
+  const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  const TONES = BS.SKIN_TONES.map(lin);
+  const toneAt = (t) => {
+    const f = Math.min(0.9999, Math.max(0, t)) * (TONES.length - 1), i = Math.floor(f);
+    return TONES[i].clone().lerp(TONES[i + 1], f - i);
+  };
+  // base albedo: the table is "how skin looks", albedo is a bit deeper; lit
+  // skin and ACES add saturation back, but deep skin keeps its richness
+  function skinBase(tone, under, ageN) {
+    const dark = smooth01(0.25, 0.85, tone);
+    const c = toneAt(tone).multiplyScalar(0.78 + 0.06 * dark);
+    const l = lum(c);
+    c.lerp(new THREE.Color(l, l, l), 0.25 - 0.17 * dark);
+    const k = (under - 0.5) * 2;
+    c.r *= 1 + 0.02 * k; c.g *= 1 - 0.035 * Math.max(0, -k); c.b *= 1 - 0.1 * k;
+    c.r *= 1 - 0.05 * ageN; c.b *= 1 - 0.1 * ageN; // sallower with age
+    return c;
+  }
+  // natural lips: pale pink to deep rose, scaled to the skin's depth
+  function naturalLip(base, lipC, ageN) {
+    const L = lum(base), dark = smooth01(0.03, 0.2, 0.25 - L);
+    const c = lin('#c98a82').lerp(lin('#983848'), lipC).multiplyScalar(Math.pow(L / 0.36, 0.75));
+    c.lerp(base.clone().multiply(new THREE.Color(0.78, 0.55, 0.6)), 0.45 * dark);
+    return c.lerp(base, 0.25 * ageN);
+  }
+  const REF = skinBase(0.3, 0.5, 0);
+  const REF_LIP = naturalLip(REF, 0.35, 0);
+
+  // Makeup looks (params.makeupStyle). Amounts are at full intensity
+  // (params.makeup scales them); colours are swatches as they'd look on a
+  // light-medium skin. `...Op` is how opaque a product is: sheer ones take
+  // the wearer's own depth, opaque ones keep their colour on any skin.
+  const LOOKS = {
+    natural: { found: 0.35, conceal: 0.45, finish: 0.3, blush: 0.3, blushCol: '#e3968a', contour: 0.1, highlight: 0.2,
+      shadow: 0.3, lid: '#c09a86', crease: '#93705f', shadowOp: 0.15, spread: 0.85, outerV: 0.25,
+      mascara: 0.65, lip: 0.35, lipCol: '#c9837c', lipOp: 0.15, gloss: 0.75, nail: 0.45, nailCol: '#efcfc6', nailOp: 0.4 },
+    everyday: { found: 0.5, conceal: 0.6, blush: 0.35, blushCol: '#dc8679', contour: 0.2, highlight: 0.25,
+      shadow: 0.45, lid: '#ad8471', crease: '#7a5546', shadowOp: 0.25, spread: 0.95, outerV: 0.45,
+      liner: 0.55, linerCol: '#2b1d18', thick: 0.45, wing: 0.15, mascara: 0.9,
+      lip: 0.55, lipCol: '#b8636b', lipOp: 0.45, gloss: 0.45, lipLiner: 0.2, nail: 0.7, nailCol: '#c98189' },
+    'soft glam': { found: 0.7, conceal: 0.75, finish: 0.2, blush: 0.45, blushCol: '#df8471', lift: 0.35, contour: 0.4, highlight: 0.5, glow: 1,
+      shadow: 0.8, lid: '#b47c5f', crease: '#6b4030', shadowOp: 0.45, spread: 1.1, outerV: 0.65, shimmer: 0.55, inner: 0.5, innerCol: '#f1d8bf',
+      liner: 0.7, linerCol: '#1e1512', thick: 0.6, wing: 0.45, lower: 0.25, mascara: 1,
+      lip: 0.7, lipCol: '#ab5d63', lipOp: 0.55, gloss: 0.55, lipLiner: 0.45, nail: 0.85, nailCol: '#b26f78' },
+    glam: { found: 0.85, conceal: 0.85, finish: -0.5, blush: 0.45, blushCol: '#cf6c5f', lift: 0.5, contour: 0.6, highlight: 0.65, glow: 1,
+      shadow: 0.95, lid: '#a35c35', crease: '#45261b', shadowOp: 0.7, spread: 1.25, outerV: 0.85, shimmer: 0.75, inner: 0.7, innerCol: '#f4dcb8',
+      liner: 0.95, linerCol: '#0e0b0b', thick: 0.8, wing: 0.7, lower: 0.35, mascara: 1,
+      lip: 0.9, lipCol: '#8f1d2b', lipOp: 0.9, gloss: 0.12, lipLiner: 0.7, nail: 1, nailCol: '#8c1522' },
+    'smoky eye': { found: 0.65, conceal: 0.75, finish: -0.2, blush: 0.25, blushCol: '#c98174', contour: 0.35, highlight: 0.3,
+      shadow: 1, lid: '#4d4649', crease: '#211d20', shadowOp: 0.8, spread: 1.3, outerV: 0.7, smoky: 1, shimmer: 0.25,
+      liner: 0.8, linerCol: '#0d0b0c', thick: 0.6, wing: 0.2, lower: 0.85, mascara: 1,
+      lip: 0.45, lipCol: '#b47b74', nude: true, gloss: 0.4, nail: 0.9, nailCol: '#2b2326' },
+    'bold lip': { found: 0.7, conceal: 0.7, finish: -0.3, blush: 0.2, blushCol: '#d38a7c', contour: 0.25, highlight: 0.3,
+      shadow: 0.2, lid: '#b39181', crease: '#8a6858', shadowOp: 0.2, spread: 0.8, outerV: 0.3,
+      liner: 0.6, linerCol: '#100c0c', thick: 0.5, wing: 0.35, mascara: 0.95,
+      lip: 1, lipCol: '#b3121f', lipOp: 0.95, gloss: 0.08, lipLiner: 0.9, nail: 1, nailCol: '#a3121c' },
+    'graphic liner': { found: 0.55, conceal: 0.6, finish: -0.2, blush: 0.2, blushCol: '#d68c80', contour: 0.2, highlight: 0.25,
+      shadow: 0.15, lid: '#c4a090', crease: '#8f6f62', shadowOp: 0.15, spread: 0.7, outerV: 0.2,
+      liner: 1, linerCol: '#070607', thick: 1, wing: 1, mascara: 1,
+      lip: 0.45, lipCol: '#b8807a', nude: true, gloss: 0.25, nail: 0.9, nailCol: '#121012' },
+    editorial: { found: 0.75, conceal: 0.7, finish: 0.8, blush: 0.55, blushCol: '#c25a6e', lift: 1, contour: 0.45, highlight: 0.75, glow: 1,
+      shadow: 1, lid: '#2f5bc2', crease: '#1c2a6b', shadowOp: 0.9, spread: 1.5, outerV: 0.6, shimmer: 0.85, inner: 0.6, innerCol: '#e8f0ff',
+      liner: 0.8, linerCol: '#070607', thick: 0.75, wing: 0.9, lower: 0.5, mascara: 1,
+      lip: 0.9, lipCol: '#7c1f4a', lipOp: 0.85, gloss: 0.9, lipLiner: 0.5, nail: 1, nailCol: '#2f5bc2' },
+  };
+  BS.MAKEUP_LOOKS = LOOKS;
+  const HEX = /^#[0-9a-f]{6}$/i;
+
+  // resolve params into product amounts and linear colours for this skin
+  function makeupLook(p, base, lipNat) {
+    const name = p.makeupStyle ?? ((p.makeup || 0) > 0 ? 'everyday' : 'none');
+    const st = LOOKS[name];
+    const k = clamp01(p.makeup ?? 0.6);
+    const c = st ? Math.pow(k, 0.6) : 0;
+    // a sheer product deepens with the skin; an opaque one keeps its colour
+    const tint = (hex, op, ref = REF, skin = base) => { const a = lin(hex); return skin.clone().multiply(a).multiply(new THREE.Color(1 / ref.r, 1 / ref.g, 1 / ref.b)).lerp(a, op); };
+    // nails are not face makeup: a chosen polish shows even with no look
+    const nailHex = HEX.test(p.nailColor || '') ? p.nailColor : st && st.nail ? st.nailCol : null;
+    const nail = nailHex ? (HEX.test(p.nailColor || '') && !st ? 1 : Math.max(0.6, st.nail || 0) * c) : 0;
+    const out = { nail, nailT: nailHex ? tint(nailHex, (st && !HEX.test(p.nailColor || '') && st.nailOp) || 0.95) : null };
+    if (!st || c <= 0) return Object.assign(out, { face: false });
+    const g = (key, d = 0) => st[key] ?? d;
+    const lidHex = HEX.test(p.eyeshadow || '') ? p.eyeshadow : g('lid', '#b89482');
+    const lidT = tint(lidHex, HEX.test(p.eyeshadow || '') ? 0.85 : g('shadowOp', 0.3));
+    let creaseT = tint(g('crease', '#8f6b5c'), Math.max(0.3, g('shadowOp', 0.3)));
+    if (HEX.test(p.eyeshadow || '')) creaseT = lidT.clone().multiplyScalar(0.45).lerp(new THREE.Color(lum(lidT) * 0.45, lum(lidT) * 0.45, lum(lidT) * 0.45), 0.25);
+    const lipHex = HEX.test(p.lipstick || '') ? p.lipstick : g('lipCol', '#c47a72');
+    let lipT;
+    if (st.nude && !HEX.test(p.lipstick || '')) { const a = lin(lipHex); lipT = lipNat.clone().lerp(a.multiplyScalar(lum(lipNat) / lum(a)), 0.7); }
+    else lipT = tint(lipHex, HEX.test(p.lipstick || '') ? 0.9 : g('lipOp', 0.5), REF_LIP, lipNat);
+    return Object.assign(out, {
+      face: true, k, c,
+      found: g('found') * c, conceal: g('conceal') * c, finish: g('finish'),
+      blush: g('blush') * c, blushT: tint(g('blushCol', '#d98a7f'), 0.15), lift: g('lift'),
+      contour: g('contour') * c, highlight: g('highlight') * c, glow: g('glow'),
+      shadow: g('shadow') * c, lidT, creaseT, spread: g('spread', 1), outerV: g('outerV'), smoky: g('smoky') * c, shimmer: g('shimmer'),
+      inner: g('inner') * c, innerT: tint(g('innerCol', '#efd6c0'), 0.5),
+      liner: g('liner') * c, linerT: lin(g('linerCol', '#1a1414')), thick: g('thick', 0.5) * (0.6 + 0.4 * k), wing: g('wing'), lower: g('lower') * c,
+      mascara: g('mascara') * c,
+      lip: (HEX.test(p.lipstick || '') ? Math.max(0.8, g('lip')) : g('lip')) * c, lipT, gloss: g('gloss', 0.5), lipLiner: g('lipLiner') * c,
+    });
+  }
+
   // ------------------------------------------------- per-vertex baking
   // bone groups for regional masks (anything else is lower trunk)
   const CATS = [
@@ -432,19 +722,25 @@ if (uDebug > 0) {
     /^(upperleg|pelvis\.)/, /^lowerleg/, /^foot/, /^toe/,
   ];
   const NC = CATS.length;
-  const smooth01 = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const lin = (hex) => new THREE.Color(hex); // three converts sRGB hex to linear
+  // baked masks per vertex: blood, pigment, palm/sole, cheek (blush), contour,
+  // highlight, under-eye, exposed, high blush, bikini, trunks, face makeup
+  const MC = 12;
+  const _f = new THREE.Vector3(), _ex = new THREE.Vector3(), _ey = new THREE.Vector3();
 
   class SkinBaker {
     constructor(human) {
       this.h = human;
+      this.geo = attachAttributes(human);
       const n = (this.n = human.S.nOut);
       const D = human.D, { idx, wts } = human.subWeights;
       const map = D.bones.map((b) => CATS.findIndex((re) => re.test(b.name)));
+      const breast = [human.boneIndex('breast.L'), human.boneIndex('breast.R')];
       const W = (this.W = new Float32Array(n * NC));
+      const BW = (this.BW = new Float32Array(n));
       for (let i = 0; i < n; i++) for (let k = 0; k < 8; k++) {
-        const w = wts[i * 8 + k], c = map[idx[i * 8 + k]];
+        const w = wts[i * 8 + k], b = idx[i * 8 + k], c = map[b];
         if (w && c >= 0) W[i * NC + c] += w;
+        if (w && (b === breast[0] || b === breast[1])) BW[i] += w;
       }
       // neighbour lists (CSR) for curvature and smoothing
       const tris = human.S.tris, deg = new Uint32Array(n + 1);
@@ -458,12 +754,12 @@ if (uDebug > 0) {
       }
       this.nbOff = deg;
       this.nb = nb;
-      this.M = new Float32Array(n * 8); // blood, pigment, palm/sole, cheek, liner, shadow, under-eye, exposed
+      this.M = new Float32Array(n * MC);
       this.k0 = new Float32Array(n);
       this.k1 = new Float32Array(n);
       this.sig = NaN;
-      const g = human.bodyGeo.attributes;
-      this.A = g.skinA; this.B = g.skinB; this.C = g.skinC; this.color = g.color;
+      const g = this.geo.attributes;
+      this.A = g.skinA; this.B = g.skinB; this.C = g.skinC; this.Dm = g.skinD; this.color = g.color;
     }
 
     // rest-shape fingerprint: geometry masks are only rebuilt when it changes
@@ -491,43 +787,46 @@ if (uDebug > 0) {
 
     // landmarks + every mask that depends on the body's shape
     geometry(U) {
-      const h = this.h, n = this.n, W = this.W, M = this.M;
+      const h = this.h, n = this.n, W = this.W, M = this.M, BW = this.BW;
       const R = h.restAttr.array, Nr = h.bodyNrm.array;
-      const reg = h.bodyGeo.attributes.region.array, reg2 = h.bodyGeo.attributes.region2.array;
-      const A = this.A.array, B = this.B.array, C = this.C.array;
+      const reg = this.geo.attributes.region.array, reg2 = this.geo.attributes.region2.array;
+      const A = this.A.array, B = this.B.array, C = this.C.array, Dd = this.Dm.array;
       const J = (name, end) => h.joint(name, end);
       const eL = J('eye.L'), eR = J('eye.R');
       const ipd = eL.x - eR.x, fs = ipd / 0.058;
       const eyeY = (eL.y + eR.y) / 2;
-      // nose tip, lips and outer eye corners, found on the mesh
-      let noseZ = -Infinity, nose = 0, lipZ = -Infinity, lx = 0, ly = 0, lz = 0, ln = 0;
-      const canth = [null, null], canX = [0, 0];
+      // nose tip, lips, outer eye corners and nipples, found on the mesh
+      let noseZ = -Infinity, nose = 0, lipZ = -Infinity, lx = 0, ly = 0, lz = 0, ln = 0, lipTop = -Infinity;
+      const canth = [null, null], canX = [0, 0], nip = [new THREE.Vector3(), new THREE.Vector3()], nipN = [0, 0];
       for (let i = 0; i < n; i++) {
         const x = R[i * 3], y = R[i * 3 + 1], z = R[i * 3 + 2];
         if (reg[i * 4 + 2] > 0.5 && Math.abs(x) < 0.15 * ipd && y < eyeY - 0.2 * ipd && y > eyeY - 1.4 * ipd && z > noseZ) { noseZ = z; nose = i; }
-        if (reg[i * 4] > 0.5) { lx += x; ly += y; lz += z; ln++; if (z > lipZ) lipZ = z; }
+        if (reg[i * 4] > 0.5) { lx += x; ly += y; lz += z; ln++; if (z > lipZ) lipZ = z; if (Math.abs(x) < 0.004) lipTop = Math.max(lipTop, y); }
         if (reg[i * 4 + 1] > 0.3 && Math.abs(y - eyeY) < 0.004 * fs) {
           const s = x > 0 ? 0 : 1;
           if (Math.abs(x) > canX[s]) { canX[s] = Math.abs(x); canth[s] = i; }
         }
+        if (reg2[i * 4 + 1] > 0.5) { const s = x >= 0 ? 0 : 1; nip[s].x += x; nip[s].y += y; nip[s].z += z; nipN[s]++; }
       }
       const P = (i) => new THREE.Vector3(R[i * 3], R[i * 3 + 1], R[i * 3 + 2]);
       const noseP = P(nose), mouth = new THREE.Vector3(lx / ln, ly / ln, lz / ln);
       const cant = canth.map((i, s) => (i !== null ? P(i) : (s ? eR : eL).clone()));
-      const eyeRad = h.eyes ? this.eyeRadius(eL) : 0.0125;
+      const eyeRad = this.eyeRadius(eL);
       U.uEyeL.value.copy(eL); U.uEyeR.value.copy(eR);
       U.uCanthL.value.copy(cant[0]); U.uCanthR.value.copy(cant[1]);
       U.uMouth.value.copy(mouth); U.uLipZ.value = lipZ; U.uFace.value = fs; U.uEyeRad.value = eyeRad;
       this.mouth = mouth; this.lipZ = lipZ;
+      this.fitLids(U, eL, eyeRad);
+      ['L', 'R'].forEach((s, k) => { if (nipN[k]) nip[k].multiplyScalar(1 / nipN[k]); else nip[k].copy(J('breast.' + s, 'tail')); });
 
       // limb landmarks per side (0 = left, +X)
-      const sides = ['L', 'R'].map((s) => {
+      const sides = ['L', 'R'].map((s, k) => {
         const wr = J('wrist.' + s), mid = J('finger3-1.' + s);
         const along = mid.clone().sub(wr), across = J('finger2-1.' + s).sub(J('finger5-1.' + s));
         const palm = new THREE.Vector3().crossVectors(along, across).normalize();
         if (palm.y > 0) palm.negate(); // A-pose: palms face down and forward
         const knuckles = [];
-        for (let f = 2; f <= 5; f++) for (let k = 1; k <= 3; k++) knuckles.push(J(`finger${f}-${k}.${s}`));
+        for (let f = 2; f <= 5; f++) for (let j = 1; j <= 3; j++) knuckles.push(J(`finger${f}-${j}.${s}`));
         knuckles.push(J('finger1-2.' + s), J('finger1-3.' + s));
         const tips = [];
         for (let f = 1; f <= 5; f++) tips.push(J(`finger${f}-3.${s}`, 'tail'));
@@ -536,26 +835,46 @@ if (uDebug > 0) {
         return {
           palm, wrist: wr, knuckles, tips, toes, elbow: J('lowerarm01.' + s), knee: J('lowerleg01.' + s),
           shoulder: J('upperarm01.' + s), temple: J('eye.' + s).add(new THREE.Vector3((s === 'L' ? 1 : -1) * 0.75 * ipd, 0.25 * ipd, -0.5 * ipd)),
-          eye: s === 'L' ? eL : eR,
+          eye: s === 'L' ? eL : eR, nip: nip[k],
         };
       });
-      const neckY = J('neck01').y, chestTop = J('spine01', 'tail').y, chestBot = J('spine02').y;
+      const chestTop = J('spine01', 'tail').y, chestBot = J('spine02').y;
+      // trunk landmarks for tan lines and stretch marks
+      const hs = J('head', 'tail').y / 1.7, hip = J('upperleg01.L');
+      const navel = new THREE.Vector3(0, 0.4 * J('spine04').y + 0.6 * J('spine03').y, 0);
+      let crotch = hip.y;
+      for (let i = 0; i < n; i++) {
+        const y = R[i * 3 + 1];
+        if (Math.abs(R[i * 3]) < 0.008 && y < crotch && y > hip.y - 0.25 * hs && W[i * NC + 6] + W[i * NC + 7] < 0.01) crotch = y;
+      }
+      const topY = hip.y + 0.045 * hs, hipHalf = hip.x + 0.07 * hs, underY = nip[0].y - 0.055 * hs, strapX = 0.85 * Math.abs(nip[0].x);
+      const mY = (mouth.y - eyeY) / fs, lipTopY = (Math.max(lipTop, mouth.y) - eyeY) / fs;
       const fit = h.fit, main = h.subWeights.idx;
       const g = (d2, r) => Math.exp(-d2 / (r * r));
       const d2 = (x, y, z, p) => (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y) + (z - p.z) * (z - p.z);
+      // gaussian falloff from a segment (face units)
+      const seg = (X, Y, ax, ay, bx, by, r) => {
+        const vx = bx - ax, vy = by - ay, t = clamp01(((X - ax) * vx + (Y - ay) * vy) / (vx * vx + vy * vy));
+        const dx = X - ax - vx * t, dy = Y - ay - vy * t;
+        return Math.exp(-(dx * dx + dy * dy) / (r * r));
+      };
+      const band = (v, a, b, e) => smooth01(a - e, a + e, v) * (1 - smooth01(b - e, b + e, v));
+      let beauty = -1, beautyD = Infinity;
 
       for (let i = 0; i < n; i++) {
         const o = i * 3, x = R[o], y = R[o + 1], z = R[o + 2], nx = Nr[o], ny = Nr[o + 1], nz = Nr[o + 2];
         const w = i * NC;
         const head = W[w], neck = W[w + 1], chest = W[w + 2], shoulder = W[w + 3], uarm = W[w + 4], farm = W[w + 5];
         const hand = W[w + 6], finger = W[w + 7], thigh = W[w + 8], shin = W[w + 9], foot = W[w + 10], toe = W[w + 11];
+        const lowTrunk = Math.max(0, 1 - head - neck - chest - shoulder - uarm - farm - hand - finger - thigh - shin - foot - toe);
         const lip = reg[i * 4], lid = reg[i * 4 + 1], face = reg[i * 4 + 2], ear = reg[i * 4 + 3];
         const nail = reg2[i * 4], mouthIn = reg2[i * 4 + 2];
         const S = sides[x >= 0 ? 0 : 1], sx = x >= 0 ? 1 : -1;
         const front = Math.max(0, nz);
 
         // face
-        let noseM = 0, cheekM = 0, foreM = 0, eyeM = 0, tzone = 0, chinM = 0, under = 0, liner = 0, shadow = 0, templeM = 0;
+        let noseM = 0, cheekM = 0, foreM = 0, eyeM = 0, tzone = 0, chinM = 0, under = 0, templeM = 0;
+        let contour = 0, hilite = 0, blushHi = 0, faceMk = 0;
         if (head > 0.05) {
           const fy = (y - eyeY) / fs;
           noseM = face * g(d2(x, y, z, noseP), 0.017 * fs);
@@ -569,10 +888,25 @@ if (uDebug > 0) {
           eyeM = face * g(de * de, 0.03 * fs) * (1 - lip);
           // under-eye shadow: a crescent below the lower lid
           under = face * smooth01(eyeRad * 1.05, eyeRad * 1.35, de) * (1 - smooth01(eyeRad * 1.6, eyeRad * 2.1, de)) * smooth01(-0.2, -0.6, (y - S.eye.y) / de) * (1 - lid * 0.5);
-          // makeup: liner along the lid margins, shadow on the upper lid
-          liner = lid * (1 - smooth01(eyeRad * 1.05, eyeRad * 1.22, de)) * (y > S.eye.y - 0.25 * eyeRad ? 1 : 0.45);
-          shadow = Math.max(lid, face * 0.6 * g(de * de, eyeRad * 1.7)) * smooth01(0, 0.5, (y - S.eye.y) / de) * smooth01(eyeRad * 1.02, eyeRad * 1.25, de) * (1 - smooth01(eyeRad * 1.8, eyeRad * 2.3, de));
           templeM = head * g(d2(x, y, z, S.temple), 0.02 * fs) * (1 - ear);
+          // makeup zones in face units: X out from the midline, Y up from the eyes
+          const X = Math.abs(x) / fs, Y = fy, side = smooth01(0.15, 0.55, Math.abs(nx)), facing = smooth01(0.1, 0.5, nz);
+          faceMk = Math.max(face, head * (1 - ear) * smooth01(-0.3, 0.2, nz) * 0.7, neck * front * 0.4) * (1 - lip) * (1 - mouthIn);
+          contour = faceMk * Math.min(1,
+            seg(X, Y, 0.066, 0.42 * mY, 0.042, 0.72 * mY, 0.0085) * side // under the cheekbone
+            + 0.7 * head * smooth01(-0.15, -0.6, ny) * smooth01(mY - 0.06, mY - 0.03, Y) * (1 - smooth01(0.6, 0.85, nz)) // jawline
+            + 0.6 * g((X - 0.011) ** 2, 0.0035) * band(Y, 0.55 * mY, -0.004, 0.006) * (1 - smooth01(0.85, 0.97, nz)) // sides of the nose
+            + 0.55 * smooth01(0.048, 0.066, X) * smooth01(-0.005, 0.02, Y) * (1 - ear)); // temples
+          hilite = faceMk * facing * Math.min(1,
+            seg(X, Y, 0.03, 0.4 * mY, 0.056, 0.27 * mY, 0.0075) // cheekbones
+            + 0.8 * g(X * X, 0.0035) * band(Y, 0.6 * mY, -0.01, 0.006) * smooth01(0.7, 0.95, nz) // nose bridge
+            + 0.6 * seg(X, Y, 0.022, 0.017, 0.045, 0.013, 0.006) // brow bone
+            + 0.9 * g(X * X + (Y - lipTopY - 0.003) ** 2, 0.004) // cupid's bow
+            + 0.5 * g(X * X + (Y - (mY - 0.035)) ** 2, 0.008)); // chin
+          blushHi = faceMk * facing * seg(X, Y, 0.042, 0.5 * mY, 0.066, 0.05 * mY, 0.011);
+          // beauty mark: above the left corner of the mouth
+          const bd = (x - 0.021 * fs) ** 2 + (y - mouth.y - 0.017 * fs) ** 2;
+          if (face > 0.5 && nz > 0.4 && bd < beautyD) { beautyD = bd; beauty = i; }
         }
         // limbs
         const handAll = hand + finger;
@@ -591,7 +925,7 @@ if (uDebug > 0) {
         let toeK = 0;
         if (toe + foot > 0.05) for (const k of S.toes) toeK = Math.max(toeK, g(d2(x, y, z, k), 0.012));
         const wristD = d2(x, y, z, S.wrist);
-        const armpit = (shoulder + uarm + chest) * g(d2(x, y, z, S.shoulder) , 0.07) * smooth01(0.1, 0.6, -ny);
+        const armpit = (shoulder + uarm + chest) * g(d2(x, y, z, S.shoulder), 0.07) * smooth01(0.1, 0.6, -ny);
         const exposed = Math.min(1, head * face + neck * 0.6 + handAll + farm * 0.7 + foot * 0.3);
 
         // folds across joints: [amplitude, spacing in cm]
@@ -605,19 +939,55 @@ if (uDebug > 0) {
         fold(toeK * toe * 0.7, 0.12);
         const mb = main[i * 8], ax = fit[mb].y;
 
+        // swimwear cover for tan lines: bikini (cups, band, straps, briefs) or trunks
+        let bikini = 0, trunks = 0;
+        const trunkish = Math.max(0, 1 - head - handAll - farm - 0.8 * uarm - shin - foot - toe);
+        if (trunkish > 0.2) {
+          const e = 0.005;
+          const cup = ((x - S.nip.x) / (0.07 * hs)) ** 2 + ((y - S.nip.y - 0.008 * hs) / (0.062 * hs)) ** 2;
+          const cupM = (1 - smooth01(0.75, 1.05, cup)) * smooth01(-0.3, 0.1, nz);
+          const bandM = band(y, underY - 0.006, underY + 0.012, e) * (chest + lowTrunk);
+          const strapM = (1 - smooth01(0.005, 0.005 + e, Math.abs(Math.abs(x) - strapX))) * smooth01(underY, underY + 0.02, y) * (1 - neck) * (chest + shoulder);
+          const t = Math.min(1, Math.abs(x) / hipHalf);
+          const legF = crotch + (topY - 0.035 * hs - crotch) * Math.pow(t, 1.6), legB = crotch - 0.02 * hs + (topY - 0.09 * hs - crotch) * Math.pow(t, 1.2);
+          const leg = legB + (legF - legB) * smooth01(-0.3, 0.3, nz);
+          const briefs = smooth01(leg - e, leg + e, y) * (1 - smooth01(topY - e, topY + e, y));
+          bikini = trunkish * Math.max(cupM, bandM, strapM, briefs);
+          trunks = trunkish * band(y, hip.y - 0.17 * hs, topY, e) * (1 - chest);
+        }
+        // stretch marks: around the hips and outer thighs, fanning out from the
+        // navel on the lower belly and from the nipple on the breasts
+        let st = 0, axx = 0, axy = 0, axz = 0;
+        {
+          const hipM = (thigh + lowTrunk) * band(y, crotch - 0.13 * hs, topY + 0.04 * hs, 0.03 * hs) * Math.max(smooth01(0.2, 0.65, Math.abs(nx)), 0.8 * smooth01(0.0, -0.5, nz)) * (1 - handAll);
+          if (hipM > 0.01) { st = hipM; axx = -nx * ny; axy = 1 - ny * ny; axz = -nz * ny; }
+          const bellyM = lowTrunk * smooth01(0.25, 0.6, nz) * band(y, hip.y, navel.y + 0.01, 0.02 * hs) * smooth01(0.02, 0.06, Math.abs(x));
+          if (bellyM > st) { st = bellyM; const rx = x - navel.x, ry = y - navel.y; axx = ny * 0 - nz * ry; axy = nz * rx; axz = nx * ry - ny * rx; }
+          const dn = Math.sqrt(d2(x, y, z, S.nip));
+          const brM = Math.min(1, BW[i] * 1.5) * band(dn, 0.035 * hs, 0.1 * hs, 0.012 * hs) * smooth01(-0.2, 0.3, nz);
+          if (brM > st) { st = brM; const rx = x - S.nip.x, ry = y - S.nip.y, rz = z - S.nip.z; axx = ny * rz - nz * ry; axy = nz * rx - nx * rz; axz = nx * ry - ny * rx; }
+          const l = Math.hypot(axx, axy, axz) || 1;
+          st = Math.min(1, st) / l;
+        }
+
         // pigment and blood masks for the colour pass
         const blood = 0.55 * ear + 0.4 * noseM + 0.2 * cheekM + 0.22 * lid + 0.14 * handAll + 0.28 * tip * handAll
           + 0.16 * (foot + toe) + 0.25 * toeK * toe + 0.35 * kneeM + 0.3 * elbowM + 0.4 * knuck * dorsal * handAll + 0.12 * chinM
           + 0.08 * neck * front + 0.05 * exposed;
         const pigment = 0.35 * kneeM + 0.45 * elbowM + 0.6 * knuck * dorsal * handAll + 0.3 * lid + 0.25 * armpit + 0.25 * toeK * toe * (1 - sole);
-        M[i * 8] = Math.min(1.2, blood);
-        M[i * 8 + 1] = pigment;
-        M[i * 8 + 2] = Math.max(palmM * (1 - nail), sole);
-        M[i * 8 + 3] = cheekM;
-        M[i * 8 + 4] = Math.min(1, liner * 1.3);
-        M[i * 8 + 5] = shadow;
-        M[i * 8 + 6] = under;
-        M[i * 8 + 7] = exposed;
+        const m = i * MC;
+        M[m] = Math.min(1.2, blood);
+        M[m + 1] = pigment;
+        M[m + 2] = Math.max(palmM * (1 - nail), sole);
+        M[m + 3] = cheekM;
+        M[m + 4] = contour;
+        M[m + 5] = hilite;
+        M[m + 6] = under;
+        M[m + 7] = exposed;
+        M[m + 8] = blushHi;
+        M[m + 9] = bikini;
+        M[m + 10] = trunks;
+        M[m + 11] = faceMk;
 
         // shader masks
         const q = i * 4;
@@ -628,15 +998,17 @@ if (uDebug > 0) {
         A[q + 2] = Math.min(1, farm * volar * 0.9 + handAll * dorsal * 0.7 * (1 - knuck) + uarm * 0.5 * smooth01(0, 0.6, -nx * sx)
           + templeM * 0.7 + foot * smooth01(0.2, 0.7, ny) * 0.5 + chest * front * 0.25 + neck * 0.2 + thigh * 0.15 * smooth01(0, 0.6, -nx * sx));
         A[q + 3] = Math.min(1, ear + 0.6 * finger + 0.2 * hand + 0.3 * toe + 0.6 * noseM * smooth01(0.0, -0.6, ny + 0.3) + 0.4 * lid + 0.15 * lip);
-        B[q] = -0.08 * tzone - 0.13 * lip - 0.32 * nail - 0.38 * mouthIn - 0.04 * lid - 0.25 * liner + 0.12 * (elbowM + kneeM) + 0.07 * palmM + 0.12 * sole
+        B[q] = -0.08 * tzone - 0.13 * lip - 0.32 * nail - 0.38 * mouthIn - 0.04 * lid + 0.12 * (elbowM + kneeM) + 0.07 * palmM + 0.12 * sole
           + 0.05 * (1 - face) * (1 - lip);
         B[q + 1] = crease;
         B[q + 2] = foreM;
         B[q + 3] = eyeM;
         C[q] = ax[0] * spacing; C[q + 1] = ax[1] * spacing; C[q + 2] = ax[2] * spacing;
+        Dd[q] = axx * st; Dd[q + 1] = axy * st; Dd[q + 2] = axz * st; Dd[q + 3] = hilite;
       }
+      this.beauty = beauty >= 0 ? P(beauty) : null;
       this.ambientOcclusion(R, Nr, C);
-      this.A.needsUpdate = this.B.needsUpdate = this.C.needsUpdate = true;
+      this.A.needsUpdate = this.B.needsUpdate = this.C.needsUpdate = this.Dm.needsUpdate = true;
     }
 
     // eyeball radius from the eye mesh (sclera layer, rest pose)
@@ -651,6 +1023,45 @@ if (uDebug > 0) {
         s += Math.hypot(x - c.x, y - c.y, z - c.z); k++;
       }
       return k ? s / k : 0.0125;
+    }
+
+    // The eye opening as seen from the front (the nearest skin in front of
+    // the eyeball in each direction), with its corners and two lash-line
+    // curves fitted to it: makeup is drawn in this frame.
+    fitLids(U, eL, rad) {
+      const R = this.h.restAttr.array, W = this.W, n = this.n;
+      const f = _f.set(0.3, 0, 1).normalize(), ex = _ex.set(1, 0, 0).addScaledVector(f, -f.x).normalize(), ey = _ey.crossVectors(f, ex);
+      const NB = 96, best = new Float32Array(NB).fill(Infinity), pa = new Float32Array(NB), pb = new Float32Array(NB);
+      const lim = (1.8 * rad) ** 2;
+      for (let i = 0; i < n; i++) {
+        if (W[i * NC] < 0.5) continue;
+        const dx = R[i * 3] - eL.x, dy = R[i * 3 + 1] - eL.y, dz = R[i * 3 + 2] - eL.z;
+        const a = dx * ex.x + dy * ex.y + dz * ex.z, b = dx * ey.x + dy * ey.y + dz * ey.z, c = dx * f.x + dy * f.y + dz * f.z;
+        const r2 = a * a + b * b;
+        if (r2 > lim || c < Math.sqrt(Math.max(0, rad * rad - r2)) - 0.0004) continue; // behind the eyeball: hidden
+        const k = Math.floor((Math.atan2(b, a) / (2 * Math.PI) + 0.5) * NB) % NB;
+        if (r2 < best[k]) { best[k] = r2; pa[k] = a; pb[k] = b; }
+      }
+      let ia = -1, oa = -1;
+      for (let k = 0; k < NB; k++) if (best[k] < Infinity) { if (ia < 0 || pa[k] < pa[ia]) ia = k; if (oa < 0 || pa[k] > pa[oa]) oa = k; }
+      if (ia < 0 || oa === ia) return;
+      const ix = pa[ia], iy = pb[ia], wx = pa[oa] - ix, wy = pb[oa] - iy, Wd = Math.hypot(wx, wy), cx = wx / Wd, cy = wy / Wd;
+      // v = u(1-u)(c0 + c1 u) by least squares, for each lid
+      const S = [[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]];
+      for (let k = 0; k < NB; k++) {
+        if (best[k] === Infinity) continue;
+        const qa = pa[k] - ix, qb = pb[k] - iy, u = (qa * cx + qb * cy) / Wd, v = (qb * cx - qa * cy) / Wd;
+        if (u < 0.03 || u > 0.97) continue;
+        const s = S[v >= 0 ? 0 : 1], p0 = u * (1 - u), p1 = p0 * u, y = Math.abs(v);
+        s[0] += p0 * p0; s[1] += p0 * p1; s[2] += p1 * p1; s[3] += p0 * y; s[4] += p1 * y;
+      }
+      const solve = (s) => { const det = s[0] * s[2] - s[1] * s[1]; return Math.abs(det) < 1e-12 ? [0.6, 0] : [(s[3] * s[2] - s[4] * s[1]) / det, (s[0] * s[4] - s[1] * s[3]) / det]; };
+      const up = solve(S[0]), lo = solve(S[1]);
+      U.uMkO.value.copy(eL).addScaledVector(ex, ix).addScaledVector(ey, iy);
+      U.uMkX.value.set(0, 0, 0).addScaledVector(ex, cx / Wd).addScaledVector(ey, cy / Wd);
+      U.uMkY.value.set(0, 0, 0).addScaledVector(ey, cx / Wd).addScaledVector(ex, -cy / Wd);
+      U.uLidFit.value.set(up[0], up[1], lo[0], lo[1]);
+      this.lidWidth = Wd;
     }
 
     // cavity occlusion from mesh curvature at two scales: creases, nostrils,
@@ -681,75 +1092,106 @@ if (uDebug > 0) {
     // albedo from params + masks (cheap: runs on every param change)
     colors(p, U) {
       const n = this.n, M = this.M, col = this.color.array;
-      const reg = this.h.bodyGeo.attributes.region.array, reg2 = this.h.bodyGeo.attributes.region2.array;
-      const tones = BS.SKIN_TONES.map(lin);
-      const toneAt = (t) => {
-        const f = Math.min(0.9999, Math.max(0, t)) * (tones.length - 1), i = Math.floor(f);
-        return tones[i].clone().lerp(tones[i + 1], f - i);
-      };
-      const tone = p.skinTone ?? 0.35, under = p.undertone ?? 0.5, ageN = Math.min(1, Math.max(0, ((p.age ?? 28) - 22) / 60));
+      const reg = this.geo.attributes.region.array, reg2 = this.geo.attributes.region2.array;
+      const tone = clamp01(p.skinTone ?? 0.35), under = p.undertone ?? 0.5, ageN = clamp01(((p.age ?? 28) - 22) / 60);
       const dark = smooth01(0.25, 0.85, tone), fair = 1 - dark;
-      const blush = p.blush ?? 0.25, makeup = p.makeup ?? 0, lipC = p.lipColor ?? 0.35;
-      // base albedo: the table is "how skin looks", albedo is a bit deeper
-      const base = toneAt(tone).multiplyScalar(0.78);
-      const bl0 = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
-      base.lerp(new THREE.Color(bl0, bl0, bl0), 0.25); // lit skin and ACES add saturation back
-      const k = (under - 0.5) * 2;
-      base.r *= 1 + 0.02 * k; base.g *= 1 - 0.035 * Math.max(0, -k); base.b *= 1 - 0.1 * k;
-      base.r *= 1 - 0.05 * ageN; base.b *= 1 - 0.1 * ageN; // sallower with age
-      const lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+      const blush = p.blush ?? 0.25, lipC = p.lipColor ?? 0.35;
+      const base = skinBase(tone, under, ageN);
       const L = lum(base);
       const palm = toneAt(tone * 0.38).multiplyScalar(0.8);
       palm.g *= 0.92; palm.b *= 0.9;
-      // lips: pale pink -> deep rose, scaled to the skin's depth
-      const lipRef = lin('#c98a82').lerp(lin('#983848'), lipC);
-      const lipCol = lipRef.multiplyScalar(Math.pow(L / 0.36, 0.75)).lerp(base.clone().multiply(new THREE.Color(0.78, 0.55, 0.6)), 0.45 * dark);
-      lipCol.lerp(base, 0.25 * ageN).lerp(lin('#9e2c3e').multiplyScalar(0.8 + 0.4 * fair), 0.45 * makeup);
+      const lipCol = naturalLip(base, lipC, ageN);
       const areola = base.clone().multiply(new THREE.Color(0.66, 0.46, 0.44)).lerp(lin('#b87a70').multiplyScalar(Math.pow(L / 0.36, 0.8)), 0.3);
       const nailCol = lin('#efc9c0').lerp(base, 0.25).multiplyScalar(0.85);
       const mouthCol = lin('#7c2a30');
-      const liner = lin('#231815'), lidShadow = lin('#7d5c50').lerp(base, 0.3);
+      const mk = makeupLook(p, base, lipCol), F = mk.face ? mk : null;
       const bloodT = [1, 0.74, 0.72], melT = [0.66, 0.55, 0.48];
       const bv = 0.4 + 0.6 * fair; // blood shows less through dark skin
+      const tan = clamp01(p.tanLines ?? 0), fem = 1 - smooth01(0.35, 0.65, p.gender ?? 0.5);
+      // products as [target r, g, b] for the inner loop
+      const blushT = F && F.blushT, lipT = F && F.lipT, nailT = mk.nailT;
+      const lipDeep = F ? F.lipT.clone().multiplyScalar(0.62) : null;
       for (let i = 0; i < n; i++) {
-        const m = i * 8;
+        const m = i * MC;
         let r = base.r, g = base.g, b = base.b;
-        const bl = Math.min(1.4, M[m] * bv + (blush * (0.6 + 0.4 * fair) + 0.3 * makeup) * M[m + 3] * 0.9 + M[m + 7] * 0.04 * ageN);
+        // foundation hides the person's own redness and shadows on the face
+        const fd = F ? F.found * M[m + 11] : 0;
+        const bl = Math.min(1.4, M[m] * bv * (1 - 0.55 * fd) + blush * (0.6 + 0.4 * fair) * M[m + 3] * 0.9 * (1 - 0.7 * fd) + M[m + 7] * 0.04 * ageN);
         r *= 1 - bl * (1 - bloodT[0]); g *= 1 - bl * (1 - bloodT[1]); b *= 1 - bl * (1 - bloodT[2]);
-        const mel = M[m + 1] * (0.15 + 0.85 * dark) + M[m + 6] * (0.25 + 0.5 * dark) + M[m + 7] * 0.05;
+        const conceal = F ? 1 - 0.8 * F.conceal * M[m + 11] : 1;
+        const mel = M[m + 1] * (0.15 + 0.85 * dark) * (1 - 0.5 * fd) + M[m + 6] * (0.25 + 0.5 * dark) * conceal + M[m + 7] * 0.05;
         r *= 1 - mel * (1 - melT[0]); g *= 1 - mel * (1 - melT[1]); b *= 1 - mel * (1 - melT[2]);
-        if (M[m + 6] > 0) { const u = M[m + 6] * 0.35 * fair; g *= 1 - 0.05 * u; b *= 1 + 0.08 * u; }
+        if (M[m + 6] > 0) { const u = M[m + 6] * 0.35 * fair * conceal; g *= 1 - 0.05 * u; b *= 1 + 0.08 * u; }
         const pm = M[m + 2] * (0.25 + 0.6 * dark);
         r += (palm.r - r) * pm; g += (palm.g - g) * pm; b += (palm.b - b) * pm;
+        // tan lines: what a swimsuit covered stays paler
+        if (tan > 0) {
+          const cv = tan * (M[m + 9] * fem + M[m + 10] * (1 - fem));
+          r *= 1 + 0.17 * cv; g *= 1 + 0.24 * cv; b *= 1 + 0.3 * cv;
+        }
+        if (F) {
+          r += (base.r * 1.01 - r) * 0.45 * fd; g += (base.g * 1.01 - g) * 0.45 * fd; b += (base.b * 1.01 - b) * 0.45 * fd;
+          const ct = F.contour * M[m + 4];
+          r *= 1 - 0.2 * ct; g *= 1 - 0.27 * ct; b *= 1 - 0.29 * ct;
+          const hl = F.highlight * M[m + 5];
+          r *= 1 + 0.1 * hl; g *= 1 + 0.09 * hl; b *= 1 + 0.07 * hl;
+          const bm = F.blush * 0.7 * (M[m + 3] * (1 - F.lift) + M[m + 8] * F.lift);
+          r += (blushT.r * r / base.r - r) * bm; g += (blushT.g * g / base.g - g) * bm; b += (blushT.b * b / base.b - b) * bm;
+        }
         const li = smooth01(0.15, 0.85, reg[i * 4]);
         r += (lipCol.r - r) * li; g += (lipCol.g - g) * li; b += (lipCol.b - b) * li;
+        if (F && F.lip > 0) {
+          // lipstick has a crisper edge than the lips' own colour, and a liner traces it
+          const lr = reg[i * 4], lc = smooth01(0.3, 0.6, lr) * F.lip * 0.95;
+          r += (lipT.r - r) * lc; g += (lipT.g - g) * lc; b += (lipT.b - b) * lc;
+          const ll = F.lipLiner * 0.45 * smooth01(0.25, 0.4, lr) * (1 - smooth01(0.48, 0.7, lr));
+          r += (lipDeep.r - r) * ll; g += (lipDeep.g - g) * ll; b += (lipDeep.b - b) * ll;
+        }
         const ar = smooth01(0.1, 0.7, reg2[i * 4 + 1]);
         r += (areola.r - r) * ar; g += (areola.g - g) * ar; b += (areola.b - b) * ar;
         const na = smooth01(0.2, 0.8, reg2[i * 4]);
         r += (nailCol.r - r) * na; g += (nailCol.g - g) * na; b += (nailCol.b - b) * na;
+        if (mk.nail > 0) {
+          const pc = smooth01(0.35, 0.75, reg2[i * 4]) * mk.nail * 0.97;
+          r += (nailT.r - r) * pc; g += (nailT.g - g) * pc; b += (nailT.b - b) * pc;
+        }
         const mo = smooth01(0.0, 0.6, reg2[i * 4 + 2]);
         r += (mouthCol.r - r) * mo; g += (mouthCol.g - g) * mo; b += (mouthCol.b - b) * mo;
-        if (makeup > 0) {
-          const sh = M[m + 5] * makeup * 0.55;
-          r += (lidShadow.r - r) * sh; g += (lidShadow.g - g) * sh; b += (lidShadow.b - b) * sh;
-          const ln = M[m + 4] * makeup * 0.9;
-          r += (liner.r - r) * ln; g += (liner.g - g) * ln; b += (liner.b - b) * ln;
-        }
         col[i * 3] = r; col[i * 3 + 1] = g; col[i * 3 + 2] = b;
       }
       this.color.needsUpdate = true;
 
       U.uDark.value = dark;
       U.uShine.value = p.skinShine ?? 0.4;
-      U.uRough.value = 0.64 - 0.22 * (p.skinShine ?? 0.4) + 0.05 * ageN;
+      U.uRough.value = 0.64 - 0.22 * (p.skinShine ?? 0.4) + 0.05 * ageN - 0.04 * dark;
       U.uFreckle.value = p.freckles ?? 0;
       U.uVein.value = (p.veins ?? 0.2) * (1 + 0.6 * ageN);
       U.uAge.value = ageN;
       U.uFuzz.value = 0.12 + 0.3 * (p.bodyHair ?? 0.15);
-      U.uMakeup.value = makeup;
       // scattering looks warmer and reaches less far through darker skin
       U.uWrap.value.set(0.36 - 0.1 * dark, 0.13 - 0.03 * dark, 0.08 - 0.02 * dark);
-      U.uScatter.value.set(1.0, 0.3 + 0.05 * dark, 0.16).multiplyScalar(1.1 - 0.5 * dark);
+      U.uScatter.value.set(1.0, 0.3 + 0.05 * dark, 0.16).multiplyScalar(1.1 - 0.45 * dark);
+      // variety
+      U.uBase.value.set(base.r, base.g, base.b);
+      const moles = clamp01(p.moles ?? 0);
+      U.uMoles.value = moles;
+      if (this.beauty && moles > 0.3) U.uBeauty.value.set(this.beauty.x, this.beauty.y, this.beauty.z, 0.0011 + 0.0004 * moles);
+      else U.uBeauty.value.w = 0;
+      U.uVitiligo.value = clamp01(p.vitiligo ?? 0);
+      const vit = skinBase(0, under, ageN).multiply(new THREE.Color(1.02, 0.95, 0.95));
+      U.uVitCol.value.set(vit.r, vit.g, vit.b);
+      U.uStretch.value = clamp01(p.stretchMarks ?? 0);
+      // makeup
+      U.uNail.value = mk.nail;
+      U.uFound.value.set(F ? F.found : 0, F ? F.finish : 0);
+      U.uLip.value.set(F ? F.lip : 0, F ? F.gloss : 0.5);
+      U.uHiLite.value = F ? F.highlight * F.glow : 0;
+      U.uMkA.value.set(F ? F.shadow : 0, F ? F.liner : 0, F ? F.wing : 0, F ? F.lower : 0);
+      U.uMkB.value.set(F ? F.mascara : 0, F ? F.smoky : 0, F ? F.shimmer : 0, F ? F.thick : 0);
+      U.uMkC.value.set(0.3 * (F ? F.spread : 1), F ? F.outerV : 0, F ? F.inner : 0, 0.35);
+      const set3 = (u, c) => u.value.set(c.r, c.g, c.b);
+      if (F) { set3(U.uMkLid, F.lidT); set3(U.uMkCrease, F.creaseT); set3(U.uMkLiner, F.linerT); set3(U.uMkHi, F.innerT); }
+      else U.uMkLiner.value.set(0.022, 0.012, 0.009);
     }
 
     update(p, U) {
@@ -819,13 +1261,17 @@ float eyeAO() {
       .replace('#include <common>', '#include <common>\nvarying vec3 vEyeW;')
       .replace('#include <skinning_vertex>', '#include <skinning_vertex>\nvEyeW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
   }
-
-  BS.makeEyeMaterial = function () {
+  function eyeTexture(size) {
     const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 1024;
+    canvas.width = canvas.height = size;
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
+    return { canvas, tex };
+  }
+
+  BS.makeEyeMaterial = function () {
+    const { canvas, tex } = eyeTexture(1024);
     const EU = eyeUniforms();
     const mat = new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.42, ior: 1.4, specularIntensity: 0.5 });
     mat.userData.eye = { canvas, tex, uniforms: EU, key: '' };
@@ -984,7 +1430,7 @@ gl_FragColor = vec4( outgoingLight * cao * cao * (1.0 - 0.7 * uXray), 0.0 );`);
     const main = p.eyeColorHex || C[p.eyeColor] || C.Brown;
     let second = main;
     const het = p.heterochromia;
-    if (typeof het === 'string' && (C[het] || /^#[0-9a-f]{6}$/i.test(het))) second = C[het] || het;
+    if (typeof het === 'string' && (C[het] || HEX.test(het))) second = C[het] || het;
     else if (het) { const [r, , b] = srgb(main); second = b > r ? C.Amber : C.Blue; }
     return [main, second];
   }
@@ -1043,18 +1489,21 @@ diffuseColor.rgb *= 0.88 + 0.12 * skNoise(vMouthRest * 1400.0) + 0.06 * skNoise(
     return mat;
   }
 
-  // ------------------------------------------------------------ module
+  // ------------------------------------------------------------- module
   class SkinModule {
     constructor(app) {
       const h = (this.human = app.human);
       this.app = app;
       this.U = h.skinUniforms;
-      const q = app.query;
-      const qual = app.quality === 'low' ? 0 : app.quality === 'medium' ? 1 : 2;
+      const q = app.query || new URLSearchParams('');
+      const qual = (this.qual = app.quality === 'low' ? 0 : app.quality === 'medium' ? 1 : 2);
       this.ghost = [];
-      if (this.U && h.skinMat.defines && 'SKIN_Q' in h.skinMat.defines) {
+      this.own = []; // materials this instance made (freed in dispose)
+      const ours = this.U && h.skinMat.defines && 'SKIN_Q' in h.skinMat.defines;
+      if (ours) {
         h.skinMat.defines.SKIN_Q = qual;
-        if (qual === 0) { h.skinMat.sheen = 0; h.skinMat.clearcoat = 0; }
+        h.skinMat.sheen = qual ? 1 : 0;
+        h.skinMat.clearcoat = qual ? 1 : 0;
         h.skinMat.needsUpdate = true;
         this.baker = new SkinBaker(h);
         this.ghost.push(h.skinMat);
@@ -1066,18 +1515,21 @@ diffuseColor.rgb *= 0.88 + 0.12 * skNoise(vMouthRest * 1400.0) + 0.06 * skNoise(
       this.MU = { uMouthC: { value: new THREE.Vector3() }, uLipZ: { value: 0 }, uXray: this.U.uXray };
       for (const [part, kind] of [[h.teeth, 'teeth'], [h.tongue, 'tongue']]) {
         if (!part) continue;
+        const old = part.mesh.material;
         part.mesh.material = makeMouthMaterial(kind, this.MU);
+        if (!old.userData.bsSkin) old.dispose(); // human.js's plain stand-in
+        part.mesh.material.userData.bsSkin = true;
         part.mesh.receiveShadow = true;
         this.ghost.push(part.mesh.material);
+        this.own.push(part.mesh.material);
       }
-      // dev params: ?xray=1 &flush= &wet= &pupil= &skindebug=flush|freckle|vein|thin|rough|wrinkle|ao|albedo|normal|region|region2|axis
+      // dev params: ?xray=1 &flush= &wet= &pupil= &skindebug=flush|freckle|vein|thin|rough|wrinkle|ao|albedo|normal|region|region2|axis|stretch|hilite|eyeframe
       for (const k of ['xray', 'flush', 'wet', 'pupil']) {
         if (q.get(k) !== null) this.U['u' + k[0].toUpperCase() + k.slice(1)].value = parseFloat(q.get(k)) || 0;
       }
       if (this.U.uDebug && q.get('skindebug')) this.U.uDebug.value = DEBUG_MODES[q.get('skindebug')] || 0;
       if (this.U.uFlushS) { this.U.uFlushS.value = this.U.uFlush.value; this.U.uWetS.value = this.U.uWet.value; }
       this.xray = false;
-      this._m = new THREE.Matrix4();
       this._v = new THREE.Vector3();
       this._v2 = new THREE.Vector3();
     }
@@ -1085,44 +1537,57 @@ diffuseColor.rgb *= 0.88 + 0.12 * skNoise(vMouthRest * 1400.0) + 0.06 * skNoise(
     _setupEyes(qual) {
       const h = this.human, eyes = h.eyes;
       const mat = h.eyeMat;
-      this.eye = mat && mat.userData.eye;
-      if (!eyes || !this.eye) return;
-      const EU = this.eye.uniforms;
+      const eye = (this.eye = mat && mat.userData.eye);
+      if (!eyes || !eye) return;
+      const EU = eye.uniforms;
       EU.uXray = this.U.uXray;
-      if (qual === 0) { this.eye.canvas.width = this.eye.canvas.height = 512; }
+      // a distant game person gets a smaller eye texture
+      const size = qual === 0 ? 512 : 1024;
+      if (eye.canvas.width !== size) {
+        eye.tex.dispose();
+        Object.assign(eye, eyeTexture(size), { key: '' });
+        mat.map = eye.tex;
+      }
       // split the cornea shell into its own group and material
       const geo = eyes.geometry, uv = geo.attributes.uv.array, nc = uv.length / 2;
-      const ball = [], cornea = [];
-      for (let t = 0; t < nc; t += 3) (uv[t * 2] > 0.85 && uv[t * 2 + 1] < 0.15 ? cornea : ball).push(t, t + 1, t + 2);
-      geo.setIndex(ball.concat(cornea));
-      geo.clearGroups();
-      geo.addGroup(0, ball.length, 0);
-      geo.addGroup(ball.length, cornea.length, 1);
+      if (!geo.groups.length) {
+        const ball = [], cornea = [];
+        for (let t = 0; t < nc; t += 3) (uv[t * 2] > 0.85 && uv[t * 2 + 1] < 0.15 ? cornea : ball).push(t, t + 1, t + 2);
+        geo.setIndex(ball.concat(cornea));
+        geo.addGroup(0, ball.length, 0);
+        geo.addGroup(ball.length, cornea.length, 1);
+      }
       this.cornea = makeCorneaMaterial(EU);
+      this.own.push(this.cornea);
       eyes.material = [mat, this.cornea];
       eyes.receiveShadow = true;
       this.ghost.push(mat);
       // smooth normals: corners that share a MakeHuman vertex share a normal
-      const E = h.D.eye, corner = new Uint32Array(nc);
-      for (let i = 0; i < nc; i++) corner[i] = E.tris[i * 2];
-      const acc = new Float32Array(E.nVerts * 3);
-      const smoothNormals = () => {
-        const N = geo.attributes.normal.array;
-        acc.fill(0);
-        for (let i = 0; i < nc; i++) { const v = corner[i] * 3; acc[v] += N[i * 3]; acc[v + 1] += N[i * 3 + 1]; acc[v + 2] += N[i * 3 + 2]; }
-        for (let i = 0; i < nc; i++) {
-          const v = corner[i] * 3, l = Math.hypot(acc[v], acc[v + 1], acc[v + 2]) || 1;
-          N[i * 3] = acc[v] / l; N[i * 3 + 1] = acc[v + 1] / l; N[i * 3 + 2] = acc[v + 2] / l;
-        }
-        geo.attributes.normal.needsUpdate = true;
-      };
-      if (!h._skinEyeHook) { h._skinEyeHook = true; h.addShapeListener(smoothNormals); }
+      if (!h._skinEyeHook) {
+        h._skinEyeHook = true;
+        const E = h.D.eye, corner = new Uint32Array(nc);
+        for (let i = 0; i < nc; i++) corner[i] = E.tris[i * 2];
+        const acc = new Float32Array(E.nVerts * 3);
+        h.addShapeListener(() => {
+          const N = geo.attributes.normal.array;
+          acc.fill(0);
+          for (let i = 0; i < nc; i++) { const v = corner[i] * 3; acc[v] += N[i * 3]; acc[v + 1] += N[i * 3 + 1]; acc[v + 2] += N[i * 3 + 2]; }
+          for (let i = 0; i < nc; i++) {
+            const v = corner[i] * 3, l = Math.hypot(acc[v], acc[v + 1], acc[v + 2]) || 1;
+            N[i * 3] = acc[v] / l; N[i * 3 + 1] = acc[v + 1] / l; N[i * 3 + 2] = acc[v + 2] / l;
+          }
+          geo.attributes.normal.needsUpdate = true;
+        });
+      }
       this.iEye = [h.boneIndex('eye.L'), h.boneIndex('eye.R')];
       this.iHead = h.boneIndex('head');
     }
 
     onParams(p) {
+      const h = this.human;
       if (this.baker) {
+        // the human may have swapped its body geometry (detail level)
+        if (this.baker.geo !== h.bodyGeo || this.baker.n !== h.S.nOut) this.baker = new SkinBaker(h);
         this.baker.update(p, this.U);
         this.MU.uMouthC.value.copy(this.baker.mouth);
         this.MU.uLipZ.value = this.baker.lipZ;
@@ -1166,6 +1631,15 @@ diffuseColor.rgb *= 0.88 + 0.12 * skNoise(vMouthRest * 1400.0) + 0.06 * skNoise(
         const target = U.uPupil.value + 0.025 * Math.sin(t * 0.9) * Math.sin(t * 0.37 + 1.3);
         EU.uPupilS.value += (target - EU.uPupilS.value) * (1 - Math.exp(-dt * 4));
       }
+    }
+
+    dispose() {
+      const h = this.human;
+      if (this.xray) { for (const m of this.ghost) { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; } h.body.castShadow = true; }
+      if (this.eye && h.eyes) h.eyes.material = h.eyeMat;
+      for (const m of this.own) m.dispose();
+      this.own.length = 0;
+      this.baker = null;
     }
   }
 

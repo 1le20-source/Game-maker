@@ -155,16 +155,18 @@
   function wave(m, P, t) {
     m.stand(P, t, 0.6);
     m.armLife(P, t, 1);
-    const T = 5, u = t % T, o = SIDE[1];
+    const T = 5, u = t % T, o = SIDE[1], lm = L(m);
     const up = env(u, 0.05, 0.6, 3.5, 4.2), w = env(u, 0.45, 0.75, 3.1, 3.55);
+    // the forearm swings side to side about the elbow
     const osc = Math.sin((u - 0.5) * TAU * 2.3) * w;
-    m.armTo(P, o, L(m).S.x + 0.2 + 0.07 * osc, L(m).eyeY + 0.03 + 0.02 * Math.abs(osc), L(m).S.z + 0.12, up);
-    pole(P, o, 0.4, -1, 0.1, up);
-    hand(P, o, m.palmFwd, -0.1 + 0.18 * osc, 0.05, 0.05, 0.1, 0.35, up);
+    anchor(P, o, 1, 0, 0, 0, up);
+    m.armTo(P, o, lm.S.x + 0.11 + 0.07 * osc, lm.eyeY - 0.01 - 0.012 * osc * osc, lm.S.z + 0.15, up);
+    pole(P, o, 0.7, -1, -0.15, up);
+    hand(P, o, m.palmFwd, -0.15 + 0.2 * osc, 0.1 * osc, 0.08, 0.15, 0.3, up);
     P[o + A.grav] *= 1 - up;
-    P[C.headRoll] -= 0.05 * up;
+    P[C.headRoll] -= 0.04 * up;
     P[C.side] -= 0.03 * up;
-    P[o + A.shrug] += 0.05 * up;
+    P[o + A.shrug] += 0.03 * up;
   }
 
   function clap(m, P, t) {
@@ -174,7 +176,7 @@
     const sep = Math.pow(0.5 + 0.5 * Math.cos(ph * TAU), 0.6) * k;
     for (let s = 0; s < 2; s++) {
       const o = SIDE[s];
-      m.armTo(P, o, lm.handHalf + 0.012 + 0.1 * sep, lm.chestY - 0.06 + 0.02 * sep, lm.chestZ + 0.24, k);
+      m.armTo(P, o, lm.handHalf + 0.012 + 0.09 * sep, lm.chestY - 0.1 + 0.02 * sep, lm.chestZ + 0.14 + 0.02 * sep, k);
       anchor(P, o, 1, 0, 0, 0, k);
       pole(P, o, 1, -0.8, -0.4, k);
       hand(P, o, m.palmIn, -0.15, 0, 0.06, 0.15, 0.05, k);
@@ -487,81 +489,81 @@
   const EMOTIONS = [
     { id: 'neutral', label: 'Neutral', emoji: '😐' },
     { id: 'happy', label: 'Happy', emoji: '😊',
-      face: { MouthLeftPullUp: 0.8, MouthRightPullUp: 0.75, LeftCheekUp: 0.6, RightCheekUp: 0.55, LeftLowerLidUp: 0.35, RightLowerLidUp: 0.35, UpperLipUp: 0.1, JawDrop: 0.08, LeftOuterBrowUp: 0.15, RightOuterBrowUp: 0.15 },
+      face: { MouthLeftPullUp: 0.95, MouthRightPullUp: 0.9, LeftCheekUp: 0.85, RightCheekUp: 0.8, LeftLowerLidUp: 0.32, RightLowerLidUp: 0.3, UpperLipUp: 0.25, lowerLipDown: 0.12, JawDrop: 0.03, LeftOuterBrowUp: 0.12, RightOuterBrowUp: 0.12 },
       body: { bendHi: -0.03, headPitch: -0.03, headRoll: 0.04 }, energy: 1, heart: 6, flush: 0.12, breath: 1.05 },
     { id: 'laughing', label: 'Laughing', emoji: '😂',
-      face: { MouthLeftPullUp: 0.95, MouthRightPullUp: 0.9, LeftCheekUp: 0.85, RightCheekUp: 0.8, LeftLowerLidUp: 0.6, RightLowerLidUp: 0.6, LeftUpperLidClosed: 0.3, RightUpperLidClosed: 0.3, UpperLipUp: 0.3, LeftInnerBrowUp: 0.3, RightInnerBrowUp: 0.3, NasolabialDeepener: 0.4 },
-      body: { headPitch: -0.08 }, heart: 14, flush: 0.45, breath: 1.2,
-      anim(m, F, t, k) { const fit = m.laugh; F.JawDrop += k * (0.25 + 0.3 * fit * (0.5 + 0.5 * Math.sin(t * TAU * 4.6))); F.JawDropStretched += 0.15 * k * fit; },
+      face: { MouthLeftPullUp: 0.95, MouthRightPullUp: 0.95, LeftCheekUp: 0.95, RightCheekUp: 0.9, LeftLowerLidUp: 0.55, RightLowerLidUp: 0.55, LeftUpperLidClosed: 0.28, RightUpperLidClosed: 0.3, UpperLipUp: 0.45, LeftInnerBrowUp: 0.35, RightInnerBrowUp: 0.35, NasolabialDeepener: 0.3 },
+      body: { headPitch: -0.06 }, heart: 14, flush: 0.45, breath: 1.2,
+      anim(m, F, t, k) { const fit = m.laugh; F.JawDrop += k * (0.12 + fit * (0.12 + 0.1 * Math.sin(t * TAU * 4.6))); F.lowerLipDown += 0.15 * k * fit; },
       arms(m, P, t) { m.poseBelly(P, 0, 1); } },
     { id: 'sad', label: 'Sad', emoji: '😢',
-      face: { LeftInnerBrowUp: 0.85, RightInnerBrowUp: 0.85, LeftBrowDown: 0.25, RightBrowDown: 0.25, LeftUpperLidClosed: 0.25, RightUpperLidClosed: 0.25, MouthLeftPullDown: 0.6, MouthRightPullDown: 0.6, lowerLipUp: 0.25, MouthLeftPlatysma: 0.15, MouthRightPlatysma: 0.15 },
-      body: { bendHi: 0.16, neck: 0.12, headPitch: 0.12, shrug: -0.06, fwd: 0.08, hipY: -0.006, curl: 0.08 }, gaze: { down: 0.32, mul: 0.5 }, heart: -2, breath: 0.85, blink: 0.8, sigh: 1 },
+      face: { LeftInnerBrowUp: 1, RightInnerBrowUp: 1, LeftBrowDown: 0.2, RightBrowDown: 0.2, LeftUpperLidClosed: 0.3, RightUpperLidClosed: 0.3, MouthLeftPullDown: 0.8, MouthRightPullDown: 0.8, lowerLipUp: 0.35, MouthLeftPlatysma: 0.2, MouthRightPlatysma: 0.2 },
+      body: { bendHi: 0.1, neck: 0.05, headPitch: 0.05, shrug: -0.05, fwd: 0.07, hipY: -0.006, curl: 0.08 }, gaze: { down: 0.16, mul: 0.6 }, heart: -2, breath: 0.85, blink: 0.8, sigh: 1 },
     { id: 'crying', label: 'Crying', emoji: '😭',
-      face: { LeftInnerBrowUp: 1, RightInnerBrowUp: 1, LeftBrowDown: 0.4, RightBrowDown: 0.4, LeftUpperLidClosed: 0.45, RightUpperLidClosed: 0.45, LeftLowerLidUp: 0.45, RightLowerLidUp: 0.45, LeftCheekUp: 0.35, RightCheekUp: 0.35, MouthLeftPullDown: 0.75, MouthRightPullDown: 0.75, NoseWrinkler: 0.3, MouthLeftPlatysma: 0.4, MouthRightPlatysma: 0.4, UpperLipUp: 0.2 },
-      body: { bendHi: 0.2, neck: 0.12, headPitch: 0.16, shrug: 0.02, fwd: 0.1 }, gaze: { down: 0.35, mul: 0.4 }, heart: 10, flush: 0.5, wet: 0.85, breath: 1.1,
-      anim(m, F, t, k) { const s = m.sob; F.JawDrop += k * (0.12 + 0.22 * s); F.lowerLipDown += k * (0.25 + 0.15 * noise(t * 9)); F.lowerLipForward += 0.2 * k; },
+      face: { LeftInnerBrowUp: 1.15, RightInnerBrowUp: 1.15, LeftBrowDown: 0.4, RightBrowDown: 0.4, LeftUpperLidClosed: 0.5, RightUpperLidClosed: 0.5, LeftLowerLidUp: 0.5, RightLowerLidUp: 0.5, LeftCheekUp: 0.4, RightCheekUp: 0.4, MouthLeftPullDown: 0.95, MouthRightPullDown: 0.95, MouthLeftPullSide: 0.25, MouthRightPullSide: 0.25, NoseWrinkler: 0.4, MouthLeftPlatysma: 0.5, MouthRightPlatysma: 0.5, UpperLipUp: 0.2 },
+      body: { bendHi: 0.12, neck: 0.05, headPitch: 0.06, shrug: 0.02, fwd: 0.08 }, gaze: { down: 0.18, mul: 0.4 }, heart: 10, flush: 0.5, wet: 0.85, breath: 1.1,
+      anim(m, F, t, k) { const s = m.sob; F.JawDrop += k * (0.1 + 0.16 * s); F.lowerLipDown += k * (0.2 + 0.12 * noise(t * 9)); F.LeftInnerBrowUp += 0.15 * k * s; F.RightInnerBrowUp += 0.15 * k * s; },
       arms(m, P, t) { m.poseWipe(P, 1, t); } },
     { id: 'angry', label: 'Angry', emoji: '😠',
-      face: { LeftBrowDown: 1, RightBrowDown: 1, NoseWrinkler: 0.35, LeftUpperLidOpen: 0.25, RightUpperLidOpen: 0.25, LeftLowerLidUp: 0.45, RightLowerLidUp: 0.45, lowerLipUp: 0.35, MouthLeftPullDown: 0.3, MouthRightPullDown: 0.3, NasolabialDeepener: 0.25, LipsKiss: 0.1 },
-      body: { bendHi: 0.07, headPitch: 0.1, shrug: 0.06, fwd: 0.05, curl: 0.55, thumb: 0.5, hipZ: 0.01 }, heart: 22, flush: 0.55, breath: 1.35, blink: 0.6,
+      face: { LeftBrowDown: 1, RightBrowDown: 1, NoseWrinkler: 0.35, LeftUpperLidOpen: 0.3, RightUpperLidOpen: 0.3, LeftLowerLidUp: 0.45, RightLowerLidUp: 0.45, lowerLipUp: 0.4, MouthLeftPullDown: 0.35, MouthRightPullDown: 0.35, NasolabialDeepener: 0.3, LipsKiss: 0.15 },
+      body: { bendHi: 0.05, headPitch: 0.06, shrug: 0.06, fwd: 0.05, hipZ: 0.01 }, heart: 22, flush: 0.55, breath: 1.35, blink: 0.6,
       arms(m, P) { for (let s = 0; s < 2; s++) { P[SIDE[s] + A.curl] = 1; P[SIDE[s] + A.thumb] = 0.9; P[SIDE[s] + A.ax] += 0.07; } } },
     { id: 'furious', label: 'Furious', emoji: '🤬',
-      face: { LeftBrowDown: 1.15, RightBrowDown: 1.15, NoseWrinkler: 0.7, LeftUpperLidOpen: 0.45, RightUpperLidOpen: 0.45, LeftLowerLidUp: 0.4, RightLowerLidUp: 0.4, UpperLipUp: 0.7, JawDrop: 0.18, JawDropStretched: 0.2, NasolabialDeepener: 0.7, MouthLeftPullSide: 0.35, MouthRightPullSide: 0.35, MouthLeftPlatysma: 0.5, MouthRightPlatysma: 0.5 },
-      body: { bendHi: 0.12, bendLo: 0.04, headPitch: 0.12, neck: 0.06, shrug: 0.12, fwd: 0.1, hipY: -0.015, hipZ: 0.02 }, heart: 38, flush: 0.85, breath: 1.7, blink: 0.4,
-      anim(m, F, t, k) { F.JawDrop += 0.06 * k * m.breath; },
+      face: { LeftBrowDown: 1.15, RightBrowDown: 1.15, NoseWrinkler: 0.7, LeftUpperLidOpen: 0.45, RightUpperLidOpen: 0.45, LeftLowerLidUp: 0.4, RightLowerLidUp: 0.4, UpperLipUp: 0.6, JawDrop: 0.14, JawDropStretched: 0.15, NasolabialDeepener: 0.6, MouthLeftPullSide: 0.3, MouthRightPullSide: 0.3, MouthLeftPlatysma: 0.5, MouthRightPlatysma: 0.5 },
+      body: { bendHi: 0.08, bendLo: 0.03, headPitch: 0.06, neck: 0.03, shrug: 0.12, fwd: 0.1, hipY: -0.015, hipZ: 0.02 }, heart: 38, flush: 0.85, breath: 1.7, blink: 0.4,
+      anim(m, F, t, k) { F.JawDrop += 0.05 * k * m.breath; },
       arms(m, P) { for (let s = 0; s < 2; s++) { const o = SIDE[s]; P[o + A.curl] = 1; P[o + A.thumb] = 1; P[o + A.ax] += 0.12; P[o + A.reach] -= 0.1; } } },
     { id: 'surprised', label: 'Surprised', emoji: '😮',
-      face: { LeftInnerBrowUp: 0.9, RightInnerBrowUp: 0.9, LeftOuterBrowUp: 0.95, RightOuterBrowUp: 0.95, LeftUpperLidOpen: 0.85, RightUpperLidOpen: 0.85, JawDrop: 0.45, LipsKiss: 0.2, lowerLipDown: 0.2 },
-      body: { bendHi: -0.06, headPitch: -0.05, neck: -0.04, shrug: 0.06, hipZ: -0.012 }, heart: 16, breath: 1.3, blink: 0.4,
+      face: { LeftInnerBrowUp: 0.9, RightInnerBrowUp: 0.9, LeftOuterBrowUp: 0.95, RightOuterBrowUp: 0.95, LeftUpperLidOpen: 0.75, RightUpperLidOpen: 0.75, JawDrop: 0.4, LipsKiss: 0.25, lowerLipDown: 0.15 },
+      body: { bendHi: -0.05, headPitch: -0.04, neck: -0.04, shrug: 0.06, hipZ: -0.012 }, heart: 16, breath: 1.3, blink: 0.4,
       arms(m, P) { for (let s = 0; s < 2; s++) { const o = SIDE[s]; P[o + A.reach] -= 0.12; P[o + A.az] += 0.25; P[o + A.spread] += 0.5; P[o + A.curl] = 0.15; } } },
     { id: 'scared', label: 'Scared', emoji: '😨',
-      face: { LeftInnerBrowUp: 1, RightInnerBrowUp: 1, LeftOuterBrowUp: 0.35, RightOuterBrowUp: 0.35, LeftBrowDown: 0.3, RightBrowDown: 0.3, LeftUpperLidOpen: 0.9, RightUpperLidOpen: 0.9, MouthLeftPullSide: 0.55, MouthRightPullSide: 0.55, JawDrop: 0.2, lowerLipDown: 0.35, MouthLeftPlatysma: 0.55, MouthRightPlatysma: 0.55 },
-      body: { bendHi: 0.12, neck: 0.04, headPitch: 0.02, shrug: 0.14, fwd: 0.1, hipY: -0.02, hipZ: -0.025, kx: -0.15 }, gaze: { dart: 1 }, heart: 40, flush: -0.3, breath: 1.8, blink: 1.4, tremble: 1,
+      face: { LeftInnerBrowUp: 1, RightInnerBrowUp: 1, LeftOuterBrowUp: 0.35, RightOuterBrowUp: 0.35, LeftBrowDown: 0.3, RightBrowDown: 0.3, LeftUpperLidOpen: 0.85, RightUpperLidOpen: 0.85, MouthLeftPullSide: 0.6, MouthRightPullSide: 0.6, JawDrop: 0.18, lowerLipDown: 0.4, MouthLeftPlatysma: 0.6, MouthRightPlatysma: 0.6 },
+      body: { bendHi: 0.1, neck: 0.03, shrug: 0.14, fwd: 0.1, hipY: -0.02, hipZ: -0.025, kx: -0.15 }, gaze: { dart: 1 }, heart: 40, flush: -0.3, breath: 1.8, blink: 1.4, tremble: 1,
       arms(m, P) { m.poseClasp(P, 'chest', 1, true); } },
     { id: 'disgusted', label: 'Disgusted', emoji: '🤢',
-      face: { NoseWrinkler: 0.95, UpperLipUp: 0.65, LeftCheekUp: 0.45, RightCheekUp: 0.2, LeftBrowDown: 0.5, RightBrowDown: 0.4, LeftLowerLidUp: 0.4, RightLowerLidUp: 0.3, MouthLeftPullDown: 0.35, MouthRightPullDown: 0.2, lowerLipDown: 0.2, MouthLeftPlatysma: 0.3 },
+      face: { NoseWrinkler: 1, UpperLipUp: 0.7, LeftCheekUp: 0.5, RightCheekUp: 0.25, LeftBrowDown: 0.55, RightBrowDown: 0.45, LeftLowerLidUp: 0.45, RightLowerLidUp: 0.35, MouthLeftPullDown: 0.4, MouthRightPullDown: 0.25, lowerLipDown: 0.25, MouthLeftPlatysma: 0.35 },
       body: { hipZ: -0.02, bendHi: -0.04, headPitch: -0.05, headYaw: 0.12, headRoll: -0.05, neck: -0.06 }, gaze: { away: 0.2, mul: 0.7 }, heart: 4 },
     { id: 'contempt', label: 'Contempt', emoji: '😒',
-      face: { MouthLeftPullUp: 0.5, MouthLeftPullSide: 0.35, LeftCheekUp: 0.15, LeftUpperLidClosed: 0.22, RightUpperLidClosed: 0.22, LeftBrowDown: 0.15, lowerLipUp: 0.15 },
-      body: { headPitch: -0.1, headRoll: -0.05, headYaw: -0.08, bendHi: -0.03 }, gaze: { down: 0.08, mul: 0.8 }, heart: 2,
+      face: { MouthLeftPullUp: 0.7, MouthLeftPullSide: 0.5, LeftCheekUp: 0.25, LeftUpperLidClosed: 0.25, RightUpperLidClosed: 0.25, lowerLipUp: 0.2, RightBrowDown: 0.15 },
+      body: { headPitch: -0.1, headRoll: -0.05, headYaw: -0.08, bendHi: -0.03 }, gaze: { down: 0.06, mul: 0.8 }, heart: 2,
       arms(m, P) { m.poseCrossArms(P, 1); } },
     { id: 'confused', label: 'Confused', emoji: '😕',
-      face: { LeftBrowDown: 0.55, RightOuterBrowUp: 0.55, RightInnerBrowUp: 0.45, MouthRightPullSide: 0.3, MouthMoveLeft: 0.25, lowerLipUp: 0.2, MouthLeftPullDown: 0.2 },
+      face: { LeftBrowDown: 0.7, RightOuterBrowUp: 0.7, RightInnerBrowUp: 0.5, MouthRightPullDown: 0.35, MouthMoveLeft: 0.35, lowerLipUp: 0.3, LeftLowerLidUp: 0.3 },
       body: { headRoll: 0.14, headPitch: 0.02, headYaw: -0.05 }, gaze: { away: 0.25, mul: 0.8 }, heart: 4,
       arms(m, P, t) { m.poseScratch(P, 1, t); } },
     { id: 'thinking', label: 'Thinking', emoji: '🤔',
-      face: { LeftBrowDown: 0.35, RightBrowDown: 0.2, RightOuterBrowUp: 0.25, lowerLipUp: 0.25, MouthMoveRight: 0.25, MouthRightPullSide: 0.15, LeftLowerLidUp: 0.2, RightLowerLidUp: 0.2 },
+      face: { LeftBrowDown: 0.45, RightBrowDown: 0.25, RightOuterBrowUp: 0.35, lowerLipUp: 0.35, MouthMoveRight: 0.3, MouthRightPullSide: 0.2, LeftLowerLidUp: 0.3, RightLowerLidUp: 0.3 },
       body: { headRoll: 0.06, headPitch: -0.04 }, gaze: { down: -0.3, away: 0.45, mul: 0.25 }, blink: 0.7,
       arms(m, P) { m.poseChin(P, 1, 1); m.poseSupport(P, 0, 1); } },
     { id: 'shy', label: 'Shy', emoji: '☺️',
-      face: { MouthLeftPullUp: 0.4, MouthRightPullUp: 0.3, LeftCheekUp: 0.25, RightCheekUp: 0.2, LeftLowerLidUp: 0.25, RightLowerLidUp: 0.25, lowerLipUp: 0.15, LeftInnerBrowUp: 0.3, RightInnerBrowUp: 0.3 },
-      body: { headPitch: 0.15, headRoll: 0.1, headYaw: 0.1, neck: 0.05, shrug: 0.05, fwd: 0.06, bendHi: 0.04 }, gaze: { down: 0.3, away: 0.35, mul: 0.6, glance: 1 }, heart: 12, flush: 0.85, blink: 1.2,
+      face: { MouthLeftPullUp: 0.55, MouthRightPullUp: 0.45, LeftCheekUp: 0.4, RightCheekUp: 0.3, LeftLowerLidUp: 0.3, RightLowerLidUp: 0.3, lowerLipUp: 0.2, LeftInnerBrowUp: 0.4, RightInnerBrowUp: 0.4, LipsKiss: 0.15 },
+      body: { headPitch: 0.07, headRoll: 0.1, headYaw: 0.1, neck: 0.03, shrug: 0.05, fwd: 0.06, bendHi: 0.03 }, gaze: { down: 0.16, away: 0.35, mul: 0.6, glance: 1 }, heart: 12, flush: 0.85, blink: 1.2,
       arms(m, P) { m.poseClasp(P, 'low', 1); } },
     { id: 'love', label: 'In love', emoji: '😍',
-      face: { MouthLeftPullUp: 0.6, MouthRightPullUp: 0.6, LeftCheekUp: 0.4, RightCheekUp: 0.4, LeftInnerBrowUp: 0.4, RightInnerBrowUp: 0.4, LeftUpperLidClosed: 0.22, RightUpperLidClosed: 0.22, LeftLowerLidUp: 0.25, RightLowerLidUp: 0.25, JawDrop: 0.05 },
+      face: { MouthLeftPullUp: 0.7, MouthRightPullUp: 0.7, LeftCheekUp: 0.6, RightCheekUp: 0.6, LeftInnerBrowUp: 0.5, RightInnerBrowUp: 0.5, LeftUpperLidClosed: 0.3, RightUpperLidClosed: 0.3, LeftLowerLidUp: 0.3, RightLowerLidUp: 0.3, JawDrop: 0.05 },
       body: { headRoll: 0.12, headPitch: 0.03, bendHi: -0.02 }, heart: 14, flush: 0.6, breath: 0.95, blink: 0.6, sigh: 0.8,
       arms(m, P) { m.poseClasp(P, 'chest', 1); } },
     { id: 'tired', label: 'Tired', emoji: '😴',
-      face: { LeftUpperLidClosed: 0.48, RightUpperLidClosed: 0.5, LeftInnerBrowUp: 0.25, RightInnerBrowUp: 0.25, MouthLeftPullDown: 0.15, MouthRightPullDown: 0.15, JawDrop: 0.04 },
-      body: { bendHi: 0.12, neck: 0.1, headPitch: 0.1, shrug: -0.05, fwd: 0.05, hipY: -0.008 }, gaze: { down: 0.15, mul: 0.5 }, heart: -6, breath: 0.75, blink: 0.5, sigh: 0.6,
-      anim(m, F, t, k) { const y = m.yawn; F.JawDrop += k * 0.75 * y; F.LipsKiss += k * 0.2 * y; F.LeftUpperLidClosed += k * 0.4 * y; F.RightUpperLidClosed += k * 0.4 * y; F.LeftInnerBrowUp += 0.4 * k * y; F.RightInnerBrowUp += 0.4 * k * y; F.NoseWrinkler += 0.2 * k * y; },
+      face: { LeftUpperLidClosed: 0.55, RightUpperLidClosed: 0.6, LeftInnerBrowUp: 0.35, RightInnerBrowUp: 0.35, MouthLeftPullDown: 0.25, MouthRightPullDown: 0.25, JawDrop: 0.04 },
+      body: { bendHi: 0.08, neck: 0.05, headPitch: 0.04, shrug: -0.05, fwd: 0.05, hipY: -0.008 }, gaze: { down: 0.1, mul: 0.5 }, heart: -6, breath: 0.75, blink: 0.5, sigh: 0.6,
+      anim(m, F, t, k) { const y = m.yawn; F.JawDrop += k * 0.7 * y; F.JawDropStretched += k * 0.15 * y; F.LeftUpperLidClosed += k * 0.35 * y; F.RightUpperLidClosed += k * 0.35 * y; F.LeftInnerBrowUp += 0.4 * k * y; F.RightInnerBrowUp += 0.4 * k * y; F.NoseWrinkler += 0.2 * k * y; },
       arms(m, P) { m.poseYawnHand(P, 1); } },
     { id: 'bored', label: 'Bored', emoji: '🥱',
-      face: { LeftUpperLidClosed: 0.32, RightUpperLidClosed: 0.3, MouthLeftPullDown: 0.15, MouthRightPullDown: 0.1, MouthMoveLeft: 0.3, lowerLipUp: 0.15, CheeksPump: 0.1 },
-      body: { headRoll: -0.1, headPitch: 0.04, bendHi: 0.06, shrug: -0.03 }, gaze: { away: 0.4, mul: 0.4, glance: 1 }, heart: -6, breath: 0.85, blink: 0.7, sigh: 1,
+      face: { LeftUpperLidClosed: 0.4, RightUpperLidClosed: 0.38, MouthLeftPullDown: 0.2, MouthRightPullDown: 0.15, MouthMoveLeft: 0.35, lowerLipUp: 0.25, CheeksPump: 0.15 },
+      body: { headRoll: -0.1, headPitch: 0.03, bendHi: 0.05, shrug: -0.03 }, gaze: { away: 0.4, mul: 0.4, glance: 1 }, heart: -6, breath: 0.85, blink: 0.7, sigh: 1,
       arms(m, P) { m.poseCrossArms(P, 0.85); } },
     { id: 'proud', label: 'Proud', emoji: '😤',
-      face: { MouthLeftPullUp: 0.35, MouthRightPullUp: 0.35, lowerLipUp: 0.25, LeftUpperLidClosed: 0.12, RightUpperLidClosed: 0.12, LeftCheekUp: 0.15, RightCheekUp: 0.15 },
+      face: { MouthLeftPullUp: 0.6, MouthRightPullUp: 0.55, lowerLipUp: 0.4, LeftUpperLidClosed: 0.2, RightUpperLidClosed: 0.2, LeftCheekUp: 0.3, RightCheekUp: 0.3, LipsKiss: 0.1 },
       body: { bendHi: -0.12, bendLo: -0.03, headPitch: -0.1, neck: -0.05, shrug: -0.02, fwd: -0.07 }, gaze: { down: 0.1 }, heart: 4, breath: 0.95,
       arms(m, P) { m.poseHips(P, 1); } },
     { id: 'pain', label: 'In pain', emoji: '😣',
-      face: { LeftBrowDown: 0.8, RightBrowDown: 0.8, LeftInnerBrowUp: 0.5, RightInnerBrowUp: 0.5, LeftUpperLidClosed: 0.55, RightUpperLidClosed: 0.55, LeftLowerLidUp: 0.7, RightLowerLidUp: 0.7, NoseWrinkler: 0.55, UpperLipUp: 0.45, MouthLeftPullSide: 0.55, MouthRightPullSide: 0.55, JawDrop: 0.08, LeftCheekUp: 0.4, RightCheekUp: 0.4, NasolabialDeepener: 0.6 },
-      body: { bendHi: 0.16, bendLo: 0.08, headPitch: 0.06, shrug: 0.08, fwd: 0.08, hipY: -0.02, hipZ: -0.02 }, gaze: { down: 0.15, mul: 0.5 }, heart: 22, flush: 0.35, wet: 0.3, breath: 1.5, blink: 0.6, tremble: 0.4,
+      face: { LeftBrowDown: 0.9, RightBrowDown: 0.9, LeftInnerBrowUp: 0.6, RightInnerBrowUp: 0.6, LeftUpperLidClosed: 0.7, RightUpperLidClosed: 0.7, LeftLowerLidUp: 0.8, RightLowerLidUp: 0.8, NoseWrinkler: 0.7, UpperLipUp: 0.6, MouthLeftPullSide: 0.7, MouthRightPullSide: 0.7, JawDrop: 0.08, LeftCheekUp: 0.6, RightCheekUp: 0.6, NasolabialDeepener: 0.7 },
+      body: { bendHi: 0.12, bendLo: 0.06, headPitch: 0.02, shrug: 0.08, fwd: 0.08, hipY: -0.02, hipZ: -0.02 }, gaze: { down: 0.1, mul: 0.5 }, heart: 22, flush: 0.35, wet: 0.3, breath: 1.5, blink: 0.6, tremble: 0.4,
       arms(m, P) { m.poseBelly(P, 0, 1); m.poseBelly(P, 1, 0.6); } },
     { id: 'flirty', label: 'Flirty', emoji: '😏',
-      face: { MouthLeftPullUp: 0.55, MouthRightPullUp: 0.3, LeftCheekUp: 0.3, RightCheekUp: 0.15, LeftUpperLidClosed: 0.18, RightUpperLidClosed: 0.18, RightOuterBrowUp: 0.35, lowerLipUp: 0.1 },
-      body: { headRoll: 0.1, headPitch: 0.08, headYaw: 0.06, bendHi: -0.03, hipX: 0.02, pelRoll: 0.05 }, gaze: { mul: 1 }, heart: 9, flush: 0.35, wink: 1,
+      face: { MouthLeftPullUp: 0.85, MouthRightPullUp: 0.4, LeftCheekUp: 0.5, RightCheekUp: 0.25, LeftUpperLidClosed: 0.3, RightUpperLidClosed: 0.28, RightOuterBrowUp: 0.5, RightInnerBrowUp: 0.15, lowerLipUp: 0.1, LeftLowerLidUp: 0.25, RightLowerLidUp: 0.2 },
+      body: { headRoll: 0.1, headPitch: 0.05, headYaw: 0.06, bendHi: -0.03, hipX: 0.02, pelRoll: 0.05 }, gaze: { mul: 1 }, heart: 9, flush: 0.35, wink: 1,
       arms(m, P, t) { m.poseHair(P, 1, t); } },
   ];
   const EMO_INDEX = {};
@@ -586,6 +588,8 @@
     [0.05, 0, 0.1, 0.18, 0.2, 0.55], // f v
     [0.14, 0, 0.2, 0.05, 0, 0], // t d n s
   ];
+  const LID_CLOSE = ['LeftUpperLidClosed', 'RightUpperLidClosed'], LID_OPEN = ['LeftUpperLidOpen', 'RightUpperLidOpen'];
+  const LID_LOW = ['LeftLowerLidUp', 'RightLowerLidUp'];
   const VOWELS = [0, 1, 2, 3, 4, 0, 1, 0];
   const CONS = [5, 6, 7, 7, 7, 5];
 
@@ -639,6 +643,7 @@
       this.soles = new Int32Array(feet.length);
       this.nSoles = 0;
       this.prof = new Float32Array(200 * 3); // per cm of height: half width, front, back
+      this.profRaw = new Float32Array(200 * 3);
 
       this.lm = { S: V(), hip: V(), knee: V(), ankle: V(), chin: V() };
       this.relax = {};
@@ -679,9 +684,18 @@
       this.talk = { t: 0, syl: 0, sylDur: 0.2, phrase: 2, pause: 0, inPhrase: true, cur: 0, next: 0, amp: 0, stress: 0, gesture: 0, gestureGoal: 0 };
       this.vis = new Float32Array(6);
       this.dt = 0;
+      // MakeHuman face units: per bone rotations in the rest-WORLD frame
+      // (MakeHuman's skeleton.setPose turns them into bone-local poses)
       this.F = {};
-      for (const k in D.faceUnits) this.F[k] = 0;
-      this.faceOut = {};
+      this.units = {};
+      for (const k in D.faceUnits) {
+        this.F[k] = 0;
+        const u = D.faceUnits[k];
+        this.units[k] = Object.keys(u).map((b) => ({ b: +b, q: new THREE.Quaternion().fromArray(u[b]) }));
+      }
+      this.faceQ = h.bones.map(() => QT());
+      this.faceHit = new Uint8Array(nb);
+      this.faceList = new Int32Array(nb);
       this.camLocal = V();
       this.gazeTarget = V();
 
@@ -730,6 +744,16 @@
         if (x > pr[b * 3]) pr[b * 3] = x;
         if (z > pr[b * 3 + 1]) pr[b * 3 + 1] = z;
         if (z < pr[b * 3 + 2]) pr[b * 3 + 2] = z;
+      }
+      // the base mesh is sparse per centimetre: dilate over +-2 cm
+      const raw = this.profRaw;
+      raw.set(pr);
+      for (let b = 0; b < 200; b++) {
+        for (let j = Math.max(0, b - 2); j <= Math.min(199, b + 2); j++) {
+          if (raw[j * 3] > pr[b * 3]) pr[b * 3] = raw[j * 3];
+          if (raw[j * 3 + 1] > pr[b * 3 + 1]) pr[b * 3 + 1] = raw[j * 3 + 1];
+          if (raw[j * 3 + 2] < pr[b * 3 + 2]) pr[b * 3 + 2] = raw[j * 3 + 2];
+        }
       }
       for (let b = 1; b < 200; b++) if (pr[b * 3 + 1] < -0.5) { pr[b * 3] = pr[b * 3 - 3]; pr[b * 3 + 1] = pr[b * 3 - 2]; pr[b * 3 + 2] = pr[b * 3 - 1]; }
       // soles: the lowest foot vertices
@@ -919,7 +943,9 @@
     armTo(P, o, x, y, z, k = 1) {
       const S = this.lm.S;
       const dx = x - S.x, dy = y - S.y, dz = z - S.z, d = Math.hypot(dx, dy, dz) || 1e-6;
-      arm(P, o, dx, dy, dz, Math.min(d / this.armLen, 1), k);
+      // reach may exceed 1: a target anchored to a moving body part is only
+      // reachable once that part has moved; the IK clamps it then
+      arm(P, o, dx, dy, dz, d / this.armLen, k);
     }
     poseHips(P, k) {
       const lm = this.lm, y = lm.waistY + 0.01, x = this.halfW(y) + 0.028;
@@ -1596,7 +1622,7 @@
 
     // --------------------------------------------------------------- face
     face(t) {
-      const F = this.F, E = this.emo, h = this.human, D = this.D;
+      const F = this.F, E = this.emo, h = this.human;
       for (const k in F) F[k] = 0;
       for (let i = 1; i < E.length; i++) {
         const e = EMOTIONS[i], k = E[i];
@@ -1613,19 +1639,41 @@
         F.LeftOuterBrowUp += 0.35 * st; F.RightOuterBrowUp += 0.3 * st; F.LeftInnerBrowUp += 0.2 * st; F.RightInnerBrowUp += 0.2 * st;
       }
       // blinks close whatever the lids are doing
-      const bl = this.blink;
-      for (const [up, open, lo] of [['LeftUpperLidClosed', 'LeftUpperLidOpen', 'LeftLowerLidUp'], ['RightUpperLidClosed', 'RightUpperLidOpen', 'RightLowerLidUp']]) {
-        const isL = up[0] === 'L';
-        const w = Math.max(bl, isL ? this.wink : 0);
-        const base = F[up] - F[open] * 0.6;
-        F[up] = lerp(base, 1, w); F[open] *= 1 - w; F[lo] += 0.15 * w;
+      for (let s = 0; s < 2; s++) {
+        const w = Math.max(this.blink, s ? 0 : this.wink), c = LID_CLOSE[s], o = LID_OPEN[s];
+        F[c] = lerp(F[c], 1.05, w); F[o] *= 1 - w; F[LID_LOW[s]] += 0.15 * w;
       }
-      const out = BS.blendFaceUnits(D, F, this.faceOut);
-      for (const k in out) h.pose[k].multiply(out[k]);
+      this.blendFace(F);
       const u = h.skinUniforms;
       if (u) {
         if (u.uFlush) u.uFlush.value = this.flush;
         if (u.uWet) u.uWet.value = this.wet;
+      }
+    }
+
+    // blend face units as MakeHuman's PoseUnit.getBlendedPose (slerp each
+    // from rest by its weight, premultiply), then move each bone's world
+    // rotation into its local pose frame: local = rest^-1 * world * rest
+    blendFace(F) {
+      const h = this.human, U = this.units, FQ = this.faceQ, hit = this.faceHit, list = this.faceList;
+      let n = 0;
+      for (const name in F) {
+        const w = F[name];
+        if (w < 1e-3 && w > -1e-3) continue;
+        const a = Math.min(1.5, Math.abs(w));
+        for (const { b, q } of U[name]) {
+          if (!hit[b]) { hit[b] = 1; FQ[b].identity(); list[n++] = b; }
+          _q1.copy(q);
+          if (w < 0) _q1.invert();
+          _q2.identity().slerp(_q1, a);
+          FQ[b].premultiply(_q2);
+        }
+      }
+      for (let i = 0; i < n; i++) {
+        const b = list[i], r = h.restGlobalQuat[b];
+        _q1.copy(r).invert().multiply(FQ[b]).multiply(r);
+        h.pose[b].multiply(_q1);
+        hit[b] = 0;
       }
     }
 
