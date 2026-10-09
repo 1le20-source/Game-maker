@@ -1,6 +1,6 @@
 // Body Studio — procedural shape corrections on top of MakeHuman's morph
-// targets: natural breast shape and support, and round glutes with a soft
-// gluteal fold.
+// targets: natural breast shape and support, round glutes with a soft
+// gluteal fold, and a smooth hip line.
 // core.js calls BS.shapeCorrect(D, p, P) inside BS.morph after the targets are
 // applied and before heightScale; P is the base-mesh position array (D.base
 // units, decimeters). ?noshape=1 turns it off for before/after comparisons.
@@ -14,18 +14,27 @@
 // a full convex curve down to a soft inframammary fold, the upper pole stays a
 // gentle slope that only rounds near the top, the side fills out toward the
 // armpit, and the tip becomes a smooth dome with the areola on it instead of
-// a point. Gravity (softness, age, size) then moves the mound down a little
-// and a bra's support (everyone wears one or a top) lifts and centres it.
+// a point. Height is counted from the chest wall just outside the breast in
+// each direction (16 direction bins, measured every morph), so the ribs under
+// the fold and the upper chest stay where they are: a clean inframammary fold
+// and a flat upper chest. The nipple keeps only a trace of its relief, so a
+// top or bra shows a smooth cup, never a point.
+// Gravity (softness, age, size) then moves the mound down a little, the
+// lower pole with it so a soft breast rolls over its fold rather than folding
+// into it, and a bra's support (everyone wears one or a top) lifts and
+// centres it.
 // The cleavage never closes past the midline.
+//
+// Hips. A fixed smooth field on the outer hip and upper thigh (Hip curve).
 //
 // Glutes. A rounder, fuller buttock (scaled by the Butt detail, body fat and
 // the female macro) with its mass sitting in the lower half, a gluteal fold
 // under it that deepens with fat and softness, blending smoothly from the
 // lower back over the buttock into the back of the thigh.
 //
-// Controls (params.js DETAILS with no MakeHuman targets, so they show up in
-// the Body tab's Chest and Figure groups and live in p.details, -1..1, 0 =
-// natural default):
+// Controls (params.js DETAILS with no MakeHuman targets, listed together in
+// the Body tab's "Curves & shape" group, the first under "Fine detail"; they
+// live in p.details, -1..1, 0 = natural default):
 //   breastround    Breast shape: -1 teardrop (fuller below, flatter upper
 //                  pole, a little lower) .. +1 round (fuller upper pole)
 //   breastside     Side fullness: how much the outer side swells toward the arm
@@ -33,6 +42,8 @@
 //                  (p.breastSupport 0..1, if set, overrides it)
 //   buttround      Butt roundness: fuller, rounder glutes
 //   buttlift       Butt lift: fullest point higher, fold tighter (-1 lower)
+//   hipcurve       Hip curve: +1 fills the hip dip and rounds the line from
+//                  the hip into the thigh (~1 cm), -1 lets the dip show
 // They work with breastSize, breastFirmness, age, weight, muscle, gender and
 // the Butt (glutes) detail. BS.shapeInfo holds the last breast measurements
 // (apex, chest normal, projection H) for debugging.
@@ -55,6 +66,8 @@
   // `backOff` behind the apex counts toward the distance (the torso's side)
   const FOOT = { lat: 0.8, med: 0.72, up: 1.05, down: 0.95, back: 0.55, backOff: 0.3 };
   const ARM = /^(shoulder|upperarm|lowerarm|wrist|finger|metacarpal|thumb)/;
+  // chest-wall baseline: NB direction bins, measured on the footprint band EDGE
+  const NB = 16, EDGE = [0.62, 1.02];
 
   // ------------------------------------------------------------ static data
   function prep(D) {
@@ -98,15 +111,22 @@
         if (r > 1.05 && r < 1.75 && armW[v] < 0.2 && B[v * 3] * s > -0.1) { ringIdx.push(v); ringR.push(r); }
         if (D.masks[v * 8 + ai] > 128 && B[v * 3] * s > 0) rA = Math.max(rA, r);
       }
+      // direction bins around the apex: the skin just outside the breast in
+      // each direction (band EDGE) tells where the real chest wall is there
+      const bin = new Float32Array(idx.length), edge = [];
+      for (let i = 0; i < idx.length; i++) {
+        bin[i] = ((Math.atan2(DW[i], DU[i]) / (2 * Math.PI)) * NB + NB) % NB;
+        if (R[i] > EDGE[0] && R[i] < EDGE[1]) edge.push(i);
+      }
       return {
         s, apex0: [ax, ay, az], ar: Int32Array.from(ar), arW: Float32Array.from(arW), rA,
         idx: Int32Array.from(idx), R: Float32Array.from(R), DU: Float32Array.from(DU), DW: Float32Array.from(DW),
-        ringIdx: Int32Array.from(ringIdx), ringR: Float32Array.from(ringR),
+        ringIdx: Int32Array.from(ringIdx), ringR: Float32Array.from(ringR), bin, edge: Int32Array.from(edge),
         // per-morph scratch
-        T: new Float32Array(idx.length),
+        T: new Float32Array(idx.length), Hs: new Float32Array(idx.length), Tb: new Float32Array(NB), Tn: new Float32Array(NB),
       };
     });
-    const S = { sides, glutes: prepGlutes(D, inBody) };
+    const S = { sides, glutes: prepGlutes(D, inBody), hips: prepHips(D, inBody, armW) };
     return (D._shape = S);
   }
 
@@ -233,8 +253,8 @@
       // roundness of the dome by direction: the lower pole fills out most,
       // the upper pole stays a slope (fuller with youth, firmness, support)
       const young = 1 - ageK;
-      const kLow = F * clamp(0.62 + 0.18 * size + 0.12 * roundK, 0, 0.95);
-      const kUp = F * clamp(0.12 + 0.18 * firm * young + 0.2 * support - 0.1 * ageK + 0.35 * roundK, 0, 0.85);
+      const kLow = F * clamp(0.62 + 0.18 * size + 0.12 * roundK + 0.15 * ageK * (1 - firm), 0, 0.95);
+      const kUp = F * clamp(0.22 + 0.12 * firm * young + 0.2 * support - 0.05 * ageK + 0.35 * roundK, 0, 0.85);
       const kLat = F * clamp(0.45 + 0.15 * size + 0.3 * sideK + 0.1 * fat, 0, 0.92);
       const kMed = F * clamp(0.32 + 0.12 * support + 0.1 * roundK, 0, 0.8);
       const kTip = F * clamp(0.88 + 0.06 * roundK, 0, 0.97);
@@ -247,10 +267,37 @@
       const tN = 0.95; // base of the nipple in t
 
       // ---- per vertex
-      const T = sd.T;
+      const T = sd.T, Tb = sd.Tb, Tn = sd.Tn;
       for (let i = 0; i < sd.idx.length; i++) {
         const o = sd.idx[i] * 3;
         T[i] = hOf(P[o], P[o + 1], P[o + 2]) / H;
+      }
+      // the fitted wall is only a smooth average: the ribs under the fold and
+      // the upper chest stand off it a little. Measure that stand-off just
+      // outside the breast in each direction and count height from there, so
+      // only the breast itself is reshaped (a clean fold, a flat upper chest)
+      Tb.fill(0); Tn.fill(0);
+      for (let j = 0; j < sd.edge.length; j++) {
+        const i = sd.edge[j], b = Math.floor(sd.bin[i]) % NB;
+        Tb[b] += T[i]; Tn[b]++;
+      }
+      let tMean = 0, nb = 0;
+      for (let b = 0; b < NB; b++) if (Tn[b]) { Tb[b] /= Tn[b]; tMean += Tb[b]; nb++; }
+      tMean = nb ? tMean / nb : 0;
+      for (let b = 0; b < NB; b++) if (!Tn[b]) {
+        // empty bin: the nearest filled bins on each side, interpolated
+        let a = 1, c = 1;
+        while (a < NB && !Tn[(b - a + NB) % NB]) a++;
+        while (c < NB && !Tn[(b + c) % NB]) c++;
+        Tb[b] = a < NB ? (Tb[(b - a + NB) % NB] * c + Tb[(b + c) % NB] * a) / (a + c) : tMean;
+      }
+      for (let b = 0; b < NB; b++) Tn[b] = clamp((Tb[(b + NB - 1) % NB] + 2 * Tb[b] + Tb[(b + 1) % NB]) / 4, -0.2, 0.55);
+      for (let i = 0; i < sd.idx.length; i++) {
+        const f = sd.bin[i], b0 = Math.floor(f) % NB, fr = f - Math.floor(f);
+        let tb = Tn[b0] + (Tn[(b0 + 1) % NB] - Tn[b0]) * fr;
+        tb = tMean + (tb - tMean) * smooth(0.04, 0.3, sd.R[i]);
+        T[i] = (T[i] - tb) / (1 - tb);
+        sd.Hs[i] = H * (1 - tb);
       }
       for (let i = 0; i < sd.idx.length; i++) {
         const o = sd.idx[i] * 3, r = sd.R[i], du = sd.DU[i], dw = sd.DW[i];
@@ -264,19 +311,22 @@
         const near = smooth(0.05, 0.45, r);
         let k = (kLow * wLow + kUp * wUp + kLat * wLat + kMed * wMed) / ws;
         // every direction rounds into the same smooth dome near the top
-        const t0 = 0.45 + 0.25 * (wUp / ws);
+        const t0 = 0.35 + 0.15 * (wUp / ws);
         k += (kTip - k) * smooth(t0, 0.95, Math.min(t, 1));
         // soft start at the chest wall except under the breast (the fold)
         const lowN = (wLow / ws) * near;
         const base = lowN * smooth(0, 0.18, t) + (1 - lowN) * smooth(0, 0.5, t);
-        // dome up to the nipple's base (tN); the nipple keeps its own relief on top
-        // (scaled down, so it reads as a soft point under fabric, not a peg)
-        const g = t < tN ? tN * domeG(t / tN) * base : -(t - tN) * 0.7 / Math.max(k, 0.05);
-        const out = k * g * H * fade;
+        // dome up to the nipple's base (tN); the nipple keeps only a trace of
+        // its relief (everyone with breasts wears a top: a smooth cup, no point)
+        const g = t < tN ? tN * domeG(t / tN) * base : -(t - tN) * 0.92 / Math.max(k, 0.05);
+        const Hm = sd.Hs[i], out = k * g * Hm * fade;
         // lateral swelling, strongest mid-flank
-        const sw = side * H * fade * (wLat / ws) * near * 4 * t * (1 - Math.min(t, 1));
+        const sw = side * Hm * fade * (wLat / ws) * near * 4 * t * (1 - Math.min(t, 1));
         // gravity and support move the mound as a whole, the base stays
-        const mound = smooth(0, 0.9, Math.min(t, 1)) * fade;
+        // (the lower pole drops with the mound, so a heavy breast rolls over
+        // its fold instead of folding up into it)
+        const lowD = wLow / ws;
+        const mound = (smooth(0, 0.9, Math.min(t, 1)) * (1 - lowD) + smooth(0, 0.3, t) * lowD) * fade;
         const dy = H * (lift - sag) * mound;
         const dx = -s * H * toward * mound;
         const x0 = P[o] * s;
@@ -344,10 +394,47 @@
     }
   }
 
+  // ------------------------------------------------------------ hips
+  // The outer hip line from the hip bone down into the thigh. A fixed smooth
+  // field on the side of the hip and upper thigh (base mesh, decimeters):
+  // "Hip curve" +1 fills the hip dip and rounds the line from the waist over
+  // the hip into the thigh, -1 lets the dip under the hip bone show.
+  function prepHips(D, inBody, armW) {
+    const B = D.base, Y0 = -3.6, BIN = 0.4, NBY = 15, xmax = new Float32Array(NBY);
+    // the base body's outer outline, per 4 cm of height (a ring of the cage)
+    for (let v = 0; v < D.nV; v++) {
+      if (!inBody[v] || armW[v] > 0.05) continue;
+      const b = Math.round((B[v * 3 + 1] - Y0) / BIN);
+      if (b >= 0 && b < NBY) xmax[b] = Math.max(xmax[b], Math.abs(B[v * 3]));
+    }
+    const idx = [], Wt = [];
+    for (let v = 0; v < D.nV; v++) {
+      if (!inBody[v] || armW[v] > 0.2) continue;
+      const x = Math.abs(B[v * 3]), y = B[v * 3 + 1];
+      if (y < -3.4 || y > 1.2 || x < 0.6) continue;
+      const f = clamp((y - Y0) / BIN, 0, NBY - 1), b0 = Math.min(NBY - 2, Math.floor(f));
+      const xm = xmax[b0] + (xmax[b0 + 1] - xmax[b0]) * (f - b0);
+      const side = smooth(0.7, 0.95, x / (xm || 1)) * (1 - smooth(0.05, 0.2, armW[v]));
+      const vert = Math.exp(-(((y + 1.4) / 0.8) ** 2));
+      const w = side * vert;
+      if (w < 0.01) continue;
+      idx.push(v); Wt.push(w * (B[v * 3] < 0 ? -1 : 1));
+    }
+    return { idx: Int32Array.from(idx), Wt: Float32Array.from(Wt) };
+  }
+  function hips(S, D, p, P) {
+    const H = S.hips, c = det(p, 'hipcurve');
+    if (!H || Math.abs(c) < 1e-3) return;
+    // about 1 cm at the full setting, a little more on a fuller body
+    const amt = c * (c > 0 ? 0.1 : 0.07) * (0.8 + 0.4 * clamp(p.weight ?? 0.5, 0, 1));
+    for (let i = 0; i < H.idx.length; i++) P[H.idx[i] * 3] += amt * H.Wt[i];
+  }
+
   BS.shapeCorrect = function (D, p, P) {
     if (OFF) return;
     const S = prep(D);
     breasts(S, D, p, P);
     glutes(S, D, p, P);
+    hips(S, D, p, P);
   };
 })();
