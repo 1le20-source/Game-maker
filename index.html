@@ -255,6 +255,7 @@ window.addEventListener('error', function (e) {
 <script src="body-studio/js/clothing.js"></script>
 <script src="body-studio/js/swimwear.js"></script>
 <script src="body-studio/js/game-bridge.js"></script>
+<script src="body-studio/js/textiles.js"></script>
 <script>
 'use strict';
 /* =========================================================
@@ -2939,7 +2940,7 @@ function clientFromPerson(p) {
 function hearts(a) { const n = Math.round(a / 20); return '<span style="color:#ff7aa8;letter-spacing:1px">' + '♥'.repeat(n) + '</span><span style="color:#4a5a5e">' + '♥'.repeat(5 - n) + '</span>'; }
 function showPeople(back) {
   S.people = S.people || {}; S.gifts = S.gifts || {};
-  const list = Object.values(S.people).sort((a, b) => b.aff - a.aff);
+  const list = Object.values(S.people).filter(p => !window.hasNumber || hasNumber(p)).sort((a, b) => b.aff - a.aff); // only people whose number you have
   const inv = GIFTS.filter(g => S.gifts[g.id] > 0);
   const card = (p, i) => {
     const canHome = p.aff >= 45 && p.status !== 'ex' && !p.upset && !liveInPartner() && (world.loc === 'home' ? S.homeNight !== S.day && !homeDate() && !(world.dateArriveT > 0) : S.lastDateDay !== S.day && !(S.homeDate && S.homeDate.day === S.day));
@@ -2960,7 +2961,7 @@ function showPeople(back) {
   };
   showModal(`<h2>💞 People you know</h2>
     <p>Clients you've treated come back as regulars. Great sessions and friendly chats build affection; at 45+ you can ask them out (one date a day). Keep it sweet: dates are about getting to know each other.</p>
-    <div class="shop">${list.length ? list.map(card).join('') : '<div class="ctl">Nobody yet. Every client you treat becomes someone you know.</div>'}</div>
+    <div class="shop">${list.length ? list.map(card).join('') : '<div class="ctl">No contacts yet. Ask clients for their 📱 number — in the waiting room, or after a great massage — and they\'ll show up here.</div>'}</div>
     <h2 style="margin-top:16px">🎁 Gift shop</h2><p>Balance: <b>$${S.money}</b></p>
     <div class="shop">${GIFTS.map(g => `<div class="item"><div class="t">${g.name}</div><div class="d">+${g.aff} affection · you have ${S.gifts[g.id] || 0}</div><button data-buy="${g.id}" class="primary" ${S.money < g.price ? 'disabled' : ''}>$${g.price}</button></div>`).join('')}<div class="item"><div class="t">💍 Engagement ring</div><div class="d">For a proposal to a partner who lives with you · you have ${S.gifts.ring || 0}</div><button data-ring="1" class="primary" ${S.money < 2500 ? 'disabled' : ''}>$2500</button></div></div>`,
     [['← Back', back, '']]);
@@ -4249,8 +4250,8 @@ function clientMenu(e) {
     dlg('You', pick(JOKES), [['…', () => dlg(c.name, hit ? pick(['*laughs* Okay, that was good.', 'Ha! I\'m stealing that one.']) : pick(['…Wow. Okay. *polite smile*', 'I\'m going to pretend I didn\'t hear that.']), null)]]); }]);
   if (!e.didCompliment) opts.push(['🌟 Compliment their style', () => { e.didCompliment = true; const ok = (p && p.aff >= 30) || Math.random() < 0.7; setEmote(e, ok ? 'heart' : 'sweat', 2.5); if (ok && p) p.aff = Math.min(100, p.aff + 3);
     dlg(c.name, ok ? pick(['Aww, thank you! I picked this out this morning.', 'Really? You just made my day.']) : pick(['Oh… um, thanks.', 'Haha… thanks, I guess?']), null); }]);
-  if (!p && !e.didNumber) opts.push(['📱 Ask if they want to stay in touch', () => { e.didNumber = true; const ok = c.chatty || Math.random() < 0.5;
-    if (ok) { recordVisit(c, 3, true, true); const q = personOfC(c); if (q) { q.aff = Math.max(q.aff, 22); q.visits = Math.max(0, q.visits - 1); } saveGame(); setEmote(e, 'heart', 2.5); }
+  if ((!p || !(window.hasNumber && hasNumber(p))) && !e.didNumber) opts.push(['📱 Ask for their number', () => { e.didNumber = true; const ok = (p && p.aff >= 30) || c.chatty || Math.random() < 0.5;
+    if (ok) { if (!p) recordVisit(c, 3, true, true); const q = personOfC(c); if (q) { q.number = true; if (!p) { q.aff = Math.max(q.aff, 22); q.visits = Math.max(0, q.visits - 1); } } saveGame(); setEmote(e, 'heart', 2.5); }
     dlg(c.name, ok ? 'Sure! Here, let me put my number in your phone. 📱' : 'Maybe after the massage? I\'m a bit shy, haha.', null); }]);
   const inv = GIFTS.filter(g => (S.gifts || {})[g.id] > 0);
   if (p && inv.length && p.giftDay !== S.day) opts.push([`🎁 Give a gift (${inv[0].name})`, () => { const g = inv[0]; S.gifts[g.id]--; p.giftDay = S.day; p.aff = Math.min(100, p.aff + g.aff); saveGame(); setEmote(e, 'heart', 3); chime(); dlg(c.name, `For me? ${g.name.slice(0, 2)} Oh, you didn't have to… thank you!`, null); }]);
