@@ -724,7 +724,7 @@
       chest.append(this.slider({ path: 'breastFirmness', label: 'Breast firmness', def: 0.5, ends: ['Soft', 'Firm'] }));
 
       this.note(el, 'Fine detail', 'kicker');
-      for (const g of BS.BODY_GROUPS) if (g !== 'Body type') this.detailGroup(el, g, { skip: (d) => d.key === 'waist' });
+      for (const g of BS.BODY_GROUPS) if (g !== 'Body type') this.detailGroup(el, g, { skip: (d) => d.key === 'waist', open: g === 'Curves & shape' });
     }
     offerNudge(box, k) {
       const id = BS.IDENTITIES[k], p = this.p, [lo, hi] = id.gender;

@@ -4250,7 +4250,7 @@ function clientMenu(e) {
     dlg('You', pick(JOKES), [['…', () => dlg(c.name, hit ? pick(['*laughs* Okay, that was good.', 'Ha! I\'m stealing that one.']) : pick(['…Wow. Okay. *polite smile*', 'I\'m going to pretend I didn\'t hear that.']), null)]]); }]);
   if (!e.didCompliment) opts.push(['🌟 Compliment their style', () => { e.didCompliment = true; const ok = (p && p.aff >= 30) || Math.random() < 0.7; setEmote(e, ok ? 'heart' : 'sweat', 2.5); if (ok && p) p.aff = Math.min(100, p.aff + 3);
     dlg(c.name, ok ? pick(['Aww, thank you! I picked this out this morning.', 'Really? You just made my day.']) : pick(['Oh… um, thanks.', 'Haha… thanks, I guess?']), null); }]);
-  if ((!p || !(window.hasNumber && hasNumber(p))) && !e.didNumber) opts.push(['📱 Ask for their number', () => { e.didNumber = true; const ok = (p && p.aff >= 30) || c.chatty || Math.random() < 0.5;
+  if ((!p || !(window.hasNumber && hasNumber(p))) && !e.didNumber) opts.push(['📱 Ask for their number', () => { e.didNumber = true; const ok = !(p && p.status === 'ex') && ((p && p.aff >= 30) || c.chatty || Math.random() < 0.5);
     if (ok) { if (!p) recordVisit(c, 3, true, true); const q = personOfC(c); if (q) { q.number = true; if (!p) { q.aff = Math.max(q.aff, 22); q.visits = Math.max(0, q.visits - 1); } } saveGame(); setEmote(e, 'heart', 2.5); }
     dlg(c.name, ok ? 'Sure! Here, let me put my number in your phone. 📱' : 'Maybe after the massage? I\'m a bit shy, haha.', null); }]);
   const inv = GIFTS.filter(g => (S.gifts || {})[g.id] > 0);
@@ -5360,6 +5360,8 @@ requestAnimationFrame(frame);
 </script>
 <script src="game/massage.js"></script>
 <script src="game/home.js"></script>
+<script src="game/life.js"></script>
+<script src="game/perf.js"></script>
 <script src="game/town.js"></script>
 </body>
 </html>

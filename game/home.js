@@ -264,6 +264,7 @@
       return;
     }
     info.free.makeout = 1; info.gained += 5;
+    if (g.rememberMoment && !(p.memories || []).some((x) => /first kiss/.test(x.what))) g.rememberMoment(p, '💋 Your first kiss');
     e.state = 'date'; e.pose = 'kiss'; e.expr = 'bliss'; e.path = null;
     faceEachOther(e, 40); fp.pitch = pitchToFace(e) - 0.04;
     setEmote(e, 'heart', 4); chime();
@@ -290,7 +291,7 @@
     const gained = clamp(info.gained + 6, -20, 30);
     p.dates++; p.aff = clamp(p.aff + gained, 0, 100); p.nights = (p.nights || 0) + 1;
     if (p.status === 'friend' || p.status === 'acquaintance') p.status = 'dating';
-    S.homeNight = S.day; saveGame();
+    S.homeNight = S.day; if (g.rememberMoment) g.rememberMoment(p, '🌙 Spent the night together'); saveGame();
     setTimeout(() => {
       const morning = () => wakeUpTogether(e, p, gained);
       showModal(`<h2>🌙 Goodnight</h2><p>You head upstairs together with ${esc(p.c.name)}, and the night is yours.</p>`, [['☀️ Morning →', () => {
