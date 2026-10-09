@@ -418,7 +418,7 @@ const LINES = {
 const PNAME = ['', 'Light', 'Medium', 'Firm'];
 
 // ---------- Client generation ----------
-function makeClient() {
+function makeClient(opts) {
   const idKey = weighted(Object.fromEntries(Object.entries(IDS).map(([k, v]) => [k, v.w])));
   const id = IDS[idKey];
   const masc = idKey === 'man' || idKey === 'transman';
@@ -449,7 +449,71 @@ function makeClient() {
   applyBuild(c);
   c.feel = genFeel(c);
   c.price = Math.round({ 30: 45, 60: 80, 90: 110 }[duration] * (0.8 + rep() * 0.07) * (S.owned.decor ? 1.15 : 1) * (S.owned.cert ? 1.2 : 1) * (S.owned.gold ? 1.25 : 1) * ((S.staff || []).length >= 3 ? 1.1 : 1));
+  if (!(opts && opts.noCast)) castInto(c, opts);
   return c;
+}
+// ---------- The cast: everyone you meet is a designed Body Studio character (body-studio/js/cast.js) ----------
+const CAST_V = 1; // bump to re-run migrateCast on old saves
+function castList() { return (window.BS && BS.CAST) || []; }
+function castMember(id) { return id && window.BS && BS.CAST_BY_ID ? BS.CAST_BY_ID[id] : null; }
+function castTaken() { // cast ids already in someone's life: known people, staff, candidates, the guard, anyone on screen
+  const t = new Set(), add = b => { if (b && b.castId) t.add(b.castId); };
+  for (const p of Object.values(S.people || {})) add(p.c && p.c.body);
+  for (const s of S.staff || []) add(s.c && s.c.body);
+  for (const c of S.cands || []) add(c.c && c.c.body);
+  if (S.guardC) add(S.guardC.body);
+  for (const e of ents) add(e.c && e.c.body);
+  if (typeof staffEnts !== 'undefined') for (const st of staffEnts) add(st.s && st.s.c && st.s.c.body);
+  return t;
+}
+function castPick(idKey, filter, taken) { // a free cast member, preferring the wanted identity
+  taken = taken || castTaken();
+  const free = castList().filter(m => !taken.has(m.id) && (!filter || filter(m)));
+  const same = free.filter(m => m.game === idKey);
+  return same.length ? pick(same) : free.length ? pick(free) : null;
+}
+function castBody(b, m) { // the game's own description of a cast member (2D drawing, portraits fallback, tags)
+  const p = JSON.parse(JSON.stringify(m.params)), d = p.details || {}, g = p.gender ?? 0.5;
+  studioLookInto({ body: b }, p);
+  b.castId = m.id; b.bio = m.bio; b.age = p.age;
+  b.build = BUILDS[m.build] ? m.build : m.build === 'thick' ? 'curvy' : 'average'; b.buildLabel = m.buildLabel;
+  b.soft = clamp((p.weight - 0.3) * 1.4, 0, 1); b.muscle = p.muscle > 0.65; b.Hk = 1;
+  b.sw = clamp(76 + g * 16 + (p.muscle - 0.5) * 12 + (d.shoulders || 0) * 6, 72, 106);
+  b.hw = clamp(80 - g * 12 + (p.weight - 0.5) * 14 + (d.hips || 0) * 8 + (d['shape-hourglass'] || 0) * 4 + (d['shape-pear'] || 0) * 5, 60, 96);
+  b.ww = Math.min(clamp(52 + g * 14 + (p.weight - 0.5) * 22 + (d.waist || 0) * 8, 44, 84), b.sw - 10);
+  b.nw = 16 + g * 6; b.ls = b.hw * 0.5;
+  b.freckles = []; if ((p.freckles || 0) > 0.15) for (let i = 0; i < 40; i++) b.freckles.push([rand(330, 560), rand(-0.75, 0.75), rand(0.8, 1.8)]);
+  b.tattoo = null; b.earring = /she|they/.test(p.pronouns || '') && Math.random() < 0.5;
+  return b;
+}
+function castInto(c, opts) { // turn a freshly generated client into a free cast member (keeps the visit itself: request, price, quirks)
+  const m = opts && opts.cast ? castMember(opts.cast) : castPick(c.idKey, opts && opts.filter);
+  if (!m) return c; // everyone's busy: a procedural one-off person
+  const id = IDS[m.game] || IDS.nonbinary;
+  Object.assign(c, { name: m.name, idKey: m.game, idLabel: id.label, pron: m.pronouns, subj: m.pronouns === 'they/them' ? 'they' : id.subj, seed: 1 + castList().indexOf(m) * 0.217 });
+  castBody(c.body, m); c.buildLabel = m.buildLabel; c.look = null;
+  c.feel = genFeel(c);
+  return c;
+}
+function castBio(c, cls) { const b = c && c.body, m = b && castMember(b.castId); return m ? `<div class="${cls || 'd'}" style="opacity:.82;font-size:12.5px;margin:3px 0">${esc(m.bio)}</div>` : ''; }
+function castRefresh(b) { // saved cast people pick up the latest design of their character (name and story stay theirs)
+  const m = b && castMember(b.castId); if (!m) return;
+  const name = b.bsParams && b.bsParams.name; castBody(b, m); if (name) b.bsParams.name = name;
+}
+function migrateCast() { // once per CAST_V: people from older saves become cast members of the same identity, keeping names and relationships
+  if (!castList().length) return;
+  const all = [...Object.values(S.people || {}).map(p => p.c), ...(S.staff || []).map(s => s.c), ...(S.cands || []).map(x => x.c), S.guardC].filter(c => c && c.body);
+  for (const c of all) castRefresh(c.body);
+  if ((S.castV || 0) >= CAST_V) return;
+  const taken = castTaken();
+  for (const c of all) {
+    const b = c.body; if (b.castId || b.bsParams) continue; // already a cast member, or someone from your own Body Studio
+    const idKey = c.idKey || (IDS[Object.keys(IDS).find(k => IDS[k].label === c.idLabel)] ? Object.keys(IDS).find(k => IDS[k].label === c.idLabel) : b.masc ? 'man' : 'woman');
+    const m = castPick(idKey, c === S.guardC ? (x => x.role === 'guard') : null, taken) || (c === S.guardC ? castPick(idKey, null, taken) : null); if (!m) continue;
+    taken.add(m.id); castBody(b, m); b.bsParams.name = c.name;
+    if (c.look) { const mood = c.look.mood; c.look = lookFor(c); c.look.mood = mood || ''; }
+  }
+  S.castV = CAST_V; saveGame();
 }
 
 // ---------- Body layout ----------
@@ -1060,7 +1124,7 @@ function nextClient() {
     <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
     <div style="flex:1;min-width:220px">
       <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
-      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>${castBio(c)}
       <div class="req">“${esc(c.req.text)}”</div>
       <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
     </div></div>`,
@@ -1950,7 +2014,7 @@ function showTitle() {
      ['❓ How to play', () => showHelp(showTitle), '']]);
 }
 function afterLoad() {
-  S.me = S.me || ME_DEFAULT(); studioTherapist(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; S.home = S.home || {}; migrateStaff(); homeUpgradeSolids();
+  S.me = S.me || ME_DEFAULT(); studioTherapist(); S.people = S.people || {}; S.gifts = S.gifts || {}; S.staff = S.staff || []; S.home = S.home || {}; migrateStaff(); migrateCast(); homeUpgradeSolids();
   if (!S.got20k) { S.got20k = true; S.money = Math.max(S.money, 20000); saveGame(); }
   applyUpgradeSolids(); if (R3) buildUpgrades3D();
   refreshScents(); buildRoom(); refreshUI(true);
@@ -2173,8 +2237,12 @@ function lookFor(c) {
   const b = c.body, [top, bottom] = pick(OUTFITS);
   const top3 = b.masc ? pick(['tee', 'hoodie', 'polo', 'sweater', 'linen', 'tank']) : pick(['tee', 'blouse', 'hoodie', 'sweater', 'tank', 'dress', 'polo', 'tee']);
   const skirt = top3 === 'dress' || (!b.masc && Math.random() < 0.3), bot3 = skirt ? 'skirt' : pick(['pants', 'pants', 'shorts']);
-  return { skin: b.skin.base, hairColor: b.hairColor, hair: b.hair, eye: b.eye, masc: b.masc, top, bottom, shoe: pick(['#f4f4f4', '#2b2b2b', '#b07a50', '#c94f4f']),
+  const L = { skin: b.skin.base, hairColor: b.hairColor, hair: b.hair, eye: b.eye, masc: b.masc, top, bottom, shoe: pick(['#f4f4f4', '#2b2b2b', '#b07a50', '#c94f4f']),
     skirt, top3, bot3, H: (b.masc ? rand(1.7, 1.88) : rand(1.56, 1.76)) * (b.Hk || 1), seed: c.seed, ahoge: b.ahoge, neck: pick(['round', 'v']), sw: b.sw / 7.4, ww: b.ww / 6.6, hw: b.hw / 7.2, h: b.masc ? rand(1, 1.07) : rand(0.93, 1.02) };
+  const bp = b.bsParams; // a Body Studio character: their real height and outfit
+  if (bp) { if (bp.heightCm) { L.H = bp.heightCm / 100; L.h = clamp(L.H / 1.72, 0.88, 1.12); } if (bp.outfitColor) L.top = bp.outfitColor; if (bp.outfitColor2) L.bottom = bp.outfitColor2;
+    L.skirt = bp.outfit === 'dress'; L.top3 = { dress: 'dress', sport: 'tank', formal: 'linen', scrubs: 'scrubs' }[bp.outfit] || L.top3; L.bot3 = L.skirt ? 'skirt' : bp.outfit === 'sport' ? 'shorts' : 'pants'; }
+  return L;
 }
 const PLAYER_LOOK = { seed: 1.3, skin: '#d6a27a', hairColor: '#2a221e', hair: 'short', eye: '#4a3020', masc: true, top: '#2d6a6e', bottom: '#24494c', shoe: '#ececec', skirt: false, sw: 13.6, ww: 11.4, hw: 10, h: 1.07 };
 const player = { x: 1000, y: 980, dir: 'up', ph: 0, moving: false, path: null, goal: null, trail: [] };
@@ -2467,7 +2535,7 @@ function greet(e) {
     <div class="intro"><canvas id="introP" width="300" height="300"></canvas>
     <div style="flex:1;min-width:220px">
       <div class="cname" style="text-align:left">${esc(c.name)} <span class="pron">${esc(c.pron)}</span></div>
-      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>
+      <div class="tags" style="justify-content:flex-start"><span class="tag">${esc(c.idLabel)}</span>${bodyTag(c)}<span class="tag">${c.duration} min · ${esc(c.req.service)}</span><span class="tag">💵 $${c.price}</span></div>${castBio(c)}
       <div class="req">“${esc(c.req.text)}”</div>
       <p style="font-size:13px;margin:4px 0">Focus: <b>${c.req.focus.map(z => ZLABEL[z]).join(', ')}</b></p>
     </div></div>`,
@@ -2859,7 +2927,7 @@ function recordVisit(c, stars, talked, byStaff) {
   saveGame();
 }
 function clientFromPerson(p) {
-  const c = makeClient(), keep = JSON.parse(JSON.stringify(p.c));
+  const c = makeClient({ noCast: true }), keep = JSON.parse(JSON.stringify(p.c));
   Object.assign(c, keep, { pid: p.id }); c.look.mood = ''; c.feel = genFeel(c);
   return c;
 }
@@ -2873,7 +2941,7 @@ function showPeople(back) {
     const canDate = world.loc !== 'home' && p.aff >= 45 && S.lastDateDay !== S.day && p.status !== 'ex' && !p.upset, canAsk = p.status === 'dating' && p.dates >= 3 && p.status !== 'partner';
     return `<div class="item"><div style="display:flex;gap:10px;align-items:center"><canvas data-pp="${i}" width="120" height="120" style="width:64px;height:64px;border-radius:10px;border:1px solid var(--line)"></canvas>
       <div><div class="t">${esc(p.c.name)} <span class="pron">${esc(p.c.pron)}</span></div><div class="d">${STATUS_LABEL[p.status]}${p.livesIn ? ' · lives with you 🏡' : ''} · ${MOODS[moodOf(p)].label} · ${p.visits} visit${p.visits === 1 ? '' : 's'}${p.dates ? ` · ${p.dates} date${p.dates === 1 ? '' : 's'}` : ''}</div><div>${hearts(p.aff)} <span class="d">${p.aff}/100</span></div></div></div>
-      <div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
+      ${castBio(p.c)}<div class="d">${p.status === 'acquaintance' ? 'Keep giving great sessions and chatting to become friends.' : `Loves ${p.likes.map(l => TOPIC_LABEL[l]).join(' & ')}. Not into ${TOPIC_LABEL[p.dislike]}.`}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <select data-gsel="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>${inv.length ? inv.map(g => `<option value="${g.id}">${g.name} ×${S.gifts[g.id]}</option>`).join('') : '<option>No gifts</option>'}</select>
         <button data-gift="${i}" ${inv.length && p.giftDay !== S.day ? '' : 'disabled'}>🎁 Give</button>
@@ -3239,11 +3307,11 @@ function robber() { return ents.find(e => e.robber && ['robApproach', 'robbing']
 const ROB_SPOT = { x: 322, y: 908 };
 function scheduleRobbery() { world.robT = Math.random() < (S.day <= 1 ? 0.25 : 0.4) ? rand(70, 220) : -1; }
 function guardC() {
-  if (!S.guardC) { const c = makeClient(); S.guardC = { body: Object.assign({}, c.body, { masc: true, hair: 'short', ahoge: false, clip: false }), seed: c.seed, name: c.name }; }
+  if (!S.guardC) { const c = makeClient({ filter: m => m.role === 'guard' }); S.guardC = { body: c.body.castId ? c.body : Object.assign({}, c.body, { masc: true, hair: 'short', ahoge: false, clip: false }), seed: c.seed, name: c.name, idKey: c.idKey }; }
   return S.guardC;
 }
 function spawnRobber() {
-  const c = makeClient(); c.name = 'Masked robber'; c.pron = '';
+  const c = makeClient({ noCast: true }); c.name = 'Masked robber'; c.pron = '';
   c.body = Object.assign({}, c.body, { hair: 'short', hairColor: '#141414', ahoge: false, clip: false }); c.look = Object.assign(lookFor(c), { top: '#1b1d22', bottom: '#24262c', shoe: '#111111', top3: 'hoodie', bot3: 'pants', skirt: false, mood: 'angry', mask: true });
   const e = { c, robber: true, x: SPOT.door.x, y: SPOT.door.y + 30, dir: 'up', ph: 0, moving: false, path: null, seat: -1, state: 'robApproach', wait: 0, patience: 1, maxPatience: 1, uid: ++uidN, ang: -Math.PI / 2, tasks: [], emote: null, emoteT: 0, robT: 28 };
   ents.push(e);
@@ -4148,7 +4216,7 @@ function homeInteractables() {
   return list;
 }
 
-function bodyTag(c) { const b = c.body; return b && b.build ? `<span class="tag">${BUILDS[b.build].label} · ${b.age}</span>` : ''; }
+function bodyTag(c) { const b = c.body; return b && b.build ? `<span class="tag">${b.buildLabel || (BUILDS[b.build] || BUILDS.average).label} · ${b.age}</span>` : ''; }
 
 // =====================================================================
 //  Free choices: walk up to anyone and decide what to do; sit anywhere
@@ -4907,7 +4975,7 @@ function studioVisitor() {
   const taken = new Set([...Object.values(S.people || {}).map(p => p.c.studioId), ...ents.map(e => e.c.studioId)].filter(Boolean));
   const list = studioRoster().filter(r => !taken.has(r.id));
   if (!list.length || Math.random() > 0.5) return null;
-  const r = pick(list), p = r.params, c = makeClient(), g = p.gender ?? 0.5;
+  const r = pick(list), p = r.params, c = makeClient({ noCast: true }), g = p.gender ?? 0.5;
   const known = { woman: 'woman', man: 'man', transwoman: 'transwoman', transman: 'transman', nonbinary: 'nonbinary', genderfluid: 'genderfluid', agender: 'nonbinary', intersex: 'nonbinary', twospirit: 'nonbinary' };
   const idKey = known[p.identity] || (g < 0.35 ? 'woman' : g > 0.65 ? 'man' : 'nonbinary'), id = IDS[idKey];
   const label = window.BS && BS.IDENTITIES[p.identity] ? BS.IDENTITIES[p.identity].label : id.label;
