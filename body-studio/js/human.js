@@ -5,11 +5,72 @@
   const BS = (window.BS = window.BS || {});
   const THREE = window.THREE;
 
+  // ---- soft tissue (js/softbody.js). Each human's springs and hand dents
+  // live in the spare texels of its skeleton's bone texture, after the bone
+  // matrices, so every material skinned to that human (body, garment shells,
+  // free garment pieces, shadow depth) reads its own human's values, whenever
+  // it was compiled, without per-material uniforms. The displacement is a
+  // smooth field of the rest position added before skinning; normals follow
+  // through the field's Jacobian. A header texel without the magic number
+  // (no soft body attached) leaves skinning exactly as before.
+  const SOFT = (BS.SOFT_LAYOUT = { magic: 4242, base: 163 * 4, regions: 2, regionStride: 5, maxRegions: 16, dentStride: 3, maxDents: 4 });
+  SOFT.dents = SOFT.regions + SOFT.maxRegions * SOFT.regionStride;
+  SOFT.texels = SOFT.dents + SOFT.maxDents * SOFT.dentStride;
+  const softGLSL = () => `
+#ifndef BS_NO_SOFT
+vec4 bsTexel( const in int k ) {
+	int size = textureSize( boneTexture, 0 ).x;
+	int j = ${SOFT.base} + k;
+	return texelFetch( boneTexture, ivec2( j % size, j / size ), 0 );
+}
+// region: t0 = centre, bound^2; t1..t3 = ellipsoid axes / radii; t4 = displacement
+// dent: t0 = centre, radius; t1 = press direction, depth; t2 = skin drag, rim
+void bsSoft( const in vec3 p, out vec3 d, out mat3 J ) {
+	d = vec3( 0.0 );
+	J = mat3( 0.0 );
+	vec4 hd = bsTexel( 0 );
+	if ( hd.x != ${SOFT.magic}.0 ) return;
+	int nr = int( hd.y ), nd = int( hd.z );
+	for ( int i = 0; i < ${SOFT.maxRegions}; i ++ ) {
+		if ( i >= nr ) break;
+		int b = ${SOFT.regions} + i * ${SOFT.regionStride};
+		vec4 t0 = bsTexel( b );
+		vec3 q = p - t0.xyz;
+		if ( dot( q, q ) >= t0.w ) continue;
+		vec3 ax = bsTexel( b + 1 ).xyz, ay = bsTexel( b + 2 ).xyz, az = bsTexel( b + 3 ).xyz;
+		vec3 u = vec3( dot( ax, q ), dot( ay, q ), dot( az, q ) );
+		float s = 1.0 - dot( u, u );
+		if ( s <= 0.0 ) continue;
+		vec3 D = bsTexel( b + 4 ).xyz;
+		d += ( s * s ) * D;
+		J += outerProduct( D, ( -4.0 * s ) * ( u.x * ax + u.y * ay + u.z * az ) );
+	}
+	for ( int i = 0; i < ${SOFT.maxDents}; i ++ ) {
+		if ( i >= nd ) break;
+		int b = ${SOFT.dents} + i * ${SOFT.dentStride};
+		vec4 a0 = bsTexel( b );
+		vec3 q = p - a0.xyz;
+		float l = length( q ), s = l / a0.w;
+		if ( s >= 1.6 ) continue;
+		vec4 a1 = bsTexel( b + 1 ), a2 = bsTexel( b + 2 );
+		// only the near side gives: fade out tissue deeper than the press
+		float side = 1.0 - smoothstep( 0.35 * a0.w, 1.1 * a0.w, dot( q, a1.xyz ) );
+		float s2 = min( s * s, 1.0 ), bell = ( 1.0 - s2 ) * ( 1.0 - s2 ), dbell = -4.0 * s * ( 1.0 - s2 );
+		float x = clamp( ( s - 1.15 ) / 0.45, -1.0, 1.0 ), rim = ( 1.0 - x * x ) * ( 1.0 - x * x ), drim = -4.0 * x * ( 1.0 - x * x ) / 0.45;
+		vec3 g = l > 1e-6 ? q / ( l * a0.w ) : vec3( 0.0 );
+		vec3 push = a1.xyz * ( a1.w * side );
+		d += push * ( bell - a2.w * rim ) + a2.xyz * ( bell * side );
+		J += outerProduct( push * ( dbell - a2.w * drim ) + a2.xyz * ( dbell * side ), g );
+	}
+}
+#endif`;
+
   // ---- 8-bone skinning: MakeHuman's face rig needs more than three's 4
-  const SKIN8_PARS = `#include <skinning_pars_vertex>
+  const SKIN8_PARS = () => `#include <skinning_pars_vertex>
 #ifdef USE_SKINNING
 attribute vec4 skinIndex2;
 attribute vec4 skinWeight2;
+${softGLSL()}
 #endif`;
   const SKIN8_BASE = `#ifdef USE_SKINNING
 	mat4 boneMatX = getBoneMatrix( skinIndex.x );
@@ -22,21 +83,28 @@ attribute vec4 skinWeight2;
 	mat4 boneMatW2 = getBoneMatrix( skinIndex2.w );
 	mat4 skinMatrix8 = skinWeight.x * boneMatX + skinWeight.y * boneMatY + skinWeight.z * boneMatZ + skinWeight.w * boneMatW
 		+ skinWeight2.x * boneMatX2 + skinWeight2.y * boneMatY2 + skinWeight2.z * boneMatZ2 + skinWeight2.w * boneMatW2;
+	vec3 bsD = vec3( 0.0 );
+	mat3 bsJ = mat3( 0.0 );
+	#ifndef BS_NO_SOFT
+		bsSoft( position, bsD, bsJ );
+	#endif
 #endif`;
   const SKIN8_NORMAL = `#ifdef USE_SKINNING
 	mat4 skinMatrix = bindMatrixInverse * skinMatrix8 * bindMatrix;
+	objectNormal -= transpose( bsJ ) * objectNormal;
 	objectNormal = vec4( skinMatrix * vec4( objectNormal, 0.0 ) ).xyz;
 	#ifdef USE_TANGENT
+		objectTangent += bsJ * objectTangent;
 		objectTangent = vec4( skinMatrix * vec4( objectTangent, 0.0 ) ).xyz;
 	#endif
 #endif`;
   const SKIN8_VERTEX = `#ifdef USE_SKINNING
-	vec4 skinVertex = bindMatrix * vec4( transformed, 1.0 );
+	vec4 skinVertex = bindMatrix * vec4( transformed + bsD, 1.0 );
 	transformed = ( bindMatrixInverse * ( skinMatrix8 * skinVertex ) ).xyz;
 #endif`;
   BS.skin8 = function (src) {
     return src
-      .replace('#include <skinning_pars_vertex>', SKIN8_PARS)
+      .replace('#include <skinning_pars_vertex>', SKIN8_PARS())
       .replace('#include <skinbase_vertex>', SKIN8_BASE)
       .replace('#include <skinnormal_vertex>', SKIN8_NORMAL)
       .replace('#include <skinning_vertex>', SKIN8_VERTEX);
