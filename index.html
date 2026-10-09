@@ -457,25 +457,28 @@ const CAST_V = 1; // bump to re-run migrateCast on old saves
 function castList() { return (window.BS && BS.CAST) || []; }
 function castMember(id) { return id && window.BS && BS.CAST_BY_ID ? BS.CAST_BY_ID[id] : null; }
 function castTaken() { // cast ids already in someone's life: known people, staff, candidates, the guard, anyone on screen
-  const t = new Set(), add = b => { if (b && b.castId) t.add(b.castId); };
-  for (const p of Object.values(S.people || {})) add(p.c && p.c.body);
-  for (const s of S.staff || []) add(s.c && s.c.body);
-  for (const c of S.cands || []) add(c.c && c.c.body);
-  if (S.guardC) add(S.guardC.body);
-  for (const e of ents) add(e.c && e.c.body);
-  if (typeof staffEnts !== 'undefined') for (const st of staffEnts) add(st.s && st.s.c && st.s.c.body);
+  const t = new Set(), add = c => { if (!c) return; if (c.body && c.body.castId) t.add(c.body.castId); if (c.name) t.names.add(c.name); };
+  t.names = new Set(); // names in use too, so nobody meets two different Camilas
+  for (const p of Object.values(S.people || {})) add(p.c);
+  for (const s of S.staff || []) add(s.c);
+  for (const c of S.cands || []) add(c.c);
+  add(S.guardC);
+  for (const e of ents) add(e.c);
+  if (typeof staffEnts !== 'undefined') for (const st of staffEnts) add(st.s && st.s.c);
   return t;
 }
-function castPick(idKey, filter, taken) { // a free cast member, preferring the wanted identity
+function castPick(idKey, filter, taken, name) { // a free cast member, preferring the wanted identity (and name, when migrating)
   taken = taken || castTaken();
-  const free = castList().filter(m => !taken.has(m.id) && (!filter || filter(m)));
+  const ok = m => !taken.has(m.id) && (!filter || filter(m));
+  const named = name && castList().find(m => m.name === name && ok(m)); if (named) return named;
+  const free = castList().filter(m => ok(m) && !(taken.names && taken.names.has(m.name)));
   const same = free.filter(m => m.game === idKey);
   return same.length ? pick(same) : free.length ? pick(free) : null;
 }
 function castBody(b, m) { // the game's own description of a cast member (2D drawing, portraits fallback, tags)
   const p = JSON.parse(JSON.stringify(m.params)), d = p.details || {}, g = p.gender ?? 0.5;
   studioLookInto({ body: b }, p);
-  b.castId = m.id; b.bio = m.bio; b.age = p.age;
+  b.castId = m.id; b.bio = m.bio; b.age = p.age; b.masc = m.game === 'man' || m.game === 'transman'; // femboys are drawn as in the rest of the game
   b.build = BUILDS[m.build] ? m.build : m.build === 'thick' ? 'curvy' : 'average'; b.buildLabel = m.buildLabel;
   b.soft = clamp((p.weight - 0.3) * 1.4, 0, 1); b.muscle = p.muscle > 0.65; b.Hk = 1;
   b.sw = clamp(76 + g * 16 + (p.muscle - 0.5) * 12 + (d.shoulders || 0) * 6, 72, 106);
@@ -495,7 +498,9 @@ function castInto(c, opts) { // turn a freshly generated client into a free cast
   c.feel = genFeel(c);
   return c;
 }
-function castBio(c, cls) { const b = c && c.body, m = b && castMember(b.castId); return m ? `<div class="${cls || 'd'}" style="opacity:.82;font-size:12.5px;margin:3px 0">${esc(m.bio)}</div>` : ''; }
+function castBio(c, cls) { // their story, when it fits who they are (old saves keep their own pronouns)
+  const b = c && c.body, m = b && castMember(b.castId), same = m && (!c.pron || c.pron.split('/')[0] === m.pronouns.split('/')[0]);
+  return same ? `<div class="${cls || 'd'}" style="opacity:.82;font-size:12.5px;margin:3px 0">${esc(m.bio)}</div>` : ''; }
 function castRefresh(b) { // saved cast people pick up the latest design of their character (name and story stay theirs)
   const m = b && castMember(b.castId); if (!m) return;
   const name = b.bsParams && b.bsParams.name; castBody(b, m); if (name) b.bsParams.name = name;
@@ -509,7 +514,7 @@ function migrateCast() { // once per CAST_V: people from older saves become cast
   for (const c of all) {
     const b = c.body; if (b.castId || b.bsParams) continue; // already a cast member, or someone from your own Body Studio
     const idKey = c.idKey || (IDS[Object.keys(IDS).find(k => IDS[k].label === c.idLabel)] ? Object.keys(IDS).find(k => IDS[k].label === c.idLabel) : b.masc ? 'man' : 'woman');
-    const m = castPick(idKey, c === S.guardC ? (x => x.role === 'guard') : null, taken) || (c === S.guardC ? castPick(idKey, null, taken) : null); if (!m) continue;
+    const m = castPick(idKey, c === S.guardC ? (x => x.role === 'guard') : null, taken, c.name) || (c === S.guardC ? castPick(idKey, null, taken) : null); if (!m) continue;
     taken.add(m.id); castBody(b, m); b.bsParams.name = c.name;
     if (c.look) { const mood = c.look.mood; c.look = lookFor(c); c.look.mood = mood || ''; }
   }
@@ -5005,7 +5010,7 @@ function humanFor(key, specFn) {
   if (!h) { h = buildHuman(specFn()); R3.scene.add(h.root); R3.humans.set(key, h); }
   h.seen = true; return h;
 }
-function staffSpec(st) { return specFor(Object.assign({}, st.look, { H: st.look.H || (st.s.c.body.masc ? 1.78 : 1.66), top3: { reception: 'polo', therapist: 'scrubs', cleaner: 'tee', manager: 'linen' }[st.s.role], bot3: 'pants' }), st.s.c.body); }
+function staffSpec(st) { return specFor(Object.assign({}, st.look, { H: st.look.H || (st.s.c.body.masc ? 1.78 : 1.66), top3: { reception: 'polo', therapist: 'scrubs', cleaner: 'tee', manager: 'linen' }[st.s.role], bot3: 'pants' }), st.s.c.body, 'staff'); }
 function syncHumans(third) {
   for (const h of R3.humans.values()) h.seen = false;
   for (const e of ents) {
@@ -5043,7 +5048,7 @@ function syncHumans(third) {
   }
   // you
   if (S.owned.guard && world.loc === 'spa') {
-    const gc = guardC(), gh = humanFor('guard', () => specFor({ top: '#1f2a44', bottom: '#1f2a44', top3: 'polo', bot3: 'pants', shoe: '#111111', H: 1.86, seed: gc.seed }, gc.body));
+    const gc = guardC(), gh = humanFor('guard', () => specFor({ top: '#1f2a44', bottom: '#1f2a44', top3: 'polo', bot3: 'pants', shoe: '#111111', H: 1.86, seed: gc.seed }, gc.body, 'guard'));
     const rb = robber(); gh.root.position.set(890 * U, 0, 1030 * U); gh.root.rotation.set(0, Math.PI / 2, 0);
     poseHuman(gh, { breath: 0.01 * (0.5 - 0.5 * Math.cos(time * 1.4)), cross: !rb, look: rb ? 0.5 : Math.sin(time * 0.3) * 0.5 });
     if (time - gh.faceT > 0.12) { gh.faceT = time; redrawFace(gh, 'neutral', time, false); } setHumanEmote(gh, '');

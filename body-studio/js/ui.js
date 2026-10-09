@@ -987,6 +987,27 @@
           h('b', { text: name }), h('span', { text: [p.name, id && id.label, p.heightCm && p.heightCm + ' cm'].filter(Boolean).join(' · ') })));
       }
       el.append(grid);
+      // the people of Serenity Hands, each a full Body Studio character
+      if (BS.CAST && BS.CAST.length) {
+        const find = h('input', { type: 'search', class: 'bs-text', placeholder: 'Search the cast: name, identity, build, age…', 'aria-label': 'Search the Serenity Hands cast', autocomplete: 'off', style: 'width:100%;box-sizing:border-box;margin:0 0 8px' });
+        const cast = h('div', { class: 'bs-preset-grid' });
+        const fill = () => {
+          const q = find.value.trim().toLowerCase();
+          cast.textContent = '';
+          for (const m of BS.CAST) {
+            const id = BS.IDENTITIES[m.identity], who = m.game === 'femboy' ? 'Femboy' : (id && id.label) || '';
+            const sub = who + ', ' + m.age + ' · ' + m.buildLabel, info = m.pronouns + ' · ' + m.heightCm + ' cm — ' + m.bio;
+            if (q && !(m.name + ' ' + sub + ' ' + info).toLowerCase().includes(q)) continue;
+            cast.append(h('button', { type: 'button', class: 'bs-preset', title: info, onclick: () => { this.adopt(m.params); this.closePop(); this.toast('Serenity Hands cast: ' + m.name + ' — ' + m.bio); } },
+              h('b', { text: m.name }), h('span', { text: sub })));
+          }
+          if (!cast.childNodes.length) cast.append(h('span', { class: 'hint', text: 'Nobody in the cast matches.' }));
+        };
+        find.addEventListener('input', fill);
+        fill();
+        el.append(h('h3', { text: 'Serenity Hands cast' }),
+          h('p', { class: 'hint', text: 'The people you meet in the game. Open anyone to see them up close or start your own version.', style: 'margin:0 0 8px;font-size:12px;color:var(--ink-3)' }), find, cast);
+      }
     }
     renderCharacters(el) {
       const saves = store.get(K.saves, []);

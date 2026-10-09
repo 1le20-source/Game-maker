@@ -66,7 +66,13 @@
       if (sp.botCol) p.outfitColor2 = sp.botCol;
       return p;
     };
-    if (b.bsParams) return Object.assign(BS.defaultParams(), JSON.parse(JSON.stringify(b.bsParams)));
+    if (b.bsParams) {
+      const p = Object.assign(BS.defaultParams(), JSON.parse(JSON.stringify(b.bsParams)));
+      // at work, cast members wear the spa's uniform (staff) or the guard's
+      if (sp.kind === 'staff') Object.assign(p, { outfit: 'scrubs', outfitColor: sp.topCol || '#2d6a6e', outfitColor2: sp.botCol || '#24494c' });
+      else if (sp.kind === 'guard') Object.assign(p, { outfit: 'formal', outfitColor: sp.topCol || '#1f2a44', outfitColor2: sp.botCol || '#1f2a44' });
+      return p;
+    }
     const seed = (sp.faceSrc && sp.faceSrc.seed) || 0;
     const r = rng(seed * 7.31 + (sp.kind === 'me' ? 3 : 0) + 0.5);
     const p = BS.defaultParams();

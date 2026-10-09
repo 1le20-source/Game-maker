@@ -219,17 +219,17 @@
       // the upper pole stays a slope (fuller with youth, firmness, support)
       const young = 1 - ageK;
       const kLow = F * clamp(0.62 + 0.18 * size + 0.12 * roundK, 0, 0.95);
-      const kUp = F * clamp(0.18 + 0.2 * firm * young + 0.25 * support - 0.12 * ageK + 0.25 * roundK, 0, 0.8);
+      const kUp = F * clamp(0.12 + 0.18 * firm * young + 0.2 * support - 0.1 * ageK + 0.25 * roundK, 0, 0.8);
       const kLat = F * clamp(0.45 + 0.15 * size + 0.2 * sideK + 0.1 * fat, 0, 0.9);
       const kMed = F * clamp(0.32 + 0.12 * support + 0.1 * roundK, 0, 0.8);
       const kTip = F * clamp(0.88 + 0.06 * roundK, 0, 0.97);
       // side fullness: the lateral flank also swells toward the armpit
-      const side = F * (0.12 + 0.12 * size + 0.15 * sideK);
+      const side = F * (0.08 + 0.08 * size + 0.12 * sideK);
       // gravity (fraction of the breast's projection) and support
       const sag = F * (0.06 + 0.16 * (1 - firm) + 0.14 * ageK) * (0.5 + 0.8 * size) * (1 - 0.6 * support);
       const lift = F * 0.1 * support * (0.6 + 0.4 * size);
       const toward = F * 0.05 * support;
-      const tN = 0.97; // base of the nipple in t
+      const tN = 0.95; // base of the nipple in t
 
       // ---- per vertex
       const T = sd.T;
@@ -249,12 +249,14 @@
         const near = smooth(0.05, 0.45, r);
         let k = (kLow * wLow + kUp * wUp + kLat * wLat + kMed * wMed) / ws;
         // every direction rounds into the same smooth dome near the top
-        k += (kTip - k) * smooth(0.45, 0.95, Math.min(t, 1));
+        const t0 = 0.45 + 0.25 * (wUp / ws);
+        k += (kTip - k) * smooth(t0, 0.95, Math.min(t, 1));
         // soft start at the chest wall except under the breast (the fold)
         const lowN = (wLow / ws) * near;
-        const base = lowN + (1 - lowN) * smooth(0, 0.5, t);
+        const base = lowN * smooth(0, 0.18, t) + (1 - lowN) * smooth(0, 0.5, t);
         // dome up to the nipple's base (tN); the nipple keeps its own relief on top
-        const g = t < tN ? tN * domeG(t / tN) * base : 0;
+        // (scaled down, so it reads as a soft point under fabric, not a peg)
+        const g = t < tN ? tN * domeG(t / tN) * base : -(t - tN) * 0.7 / Math.max(k, 0.05);
         const out = k * g * H * fade;
         // lateral swelling, strongest mid-flank
         const sw = side * H * fade * (wLat / ws) * near * 4 * t * (1 - Math.min(t, 1));
@@ -273,8 +275,59 @@
   }
 
   // ------------------------------------------------------------ glutes
-  function prepGlutes() { return null; }
-  function glutes() {}
+  // Static coordinates around each buttock on the base mesh: U lateral (+
+  // toward the hip), W up, both ~1 at the edge; the gluteal fold runs along
+  // W = foldW(U), level under the buttock and rising toward the hip.
+  const GL = { cx: 0.72, cy: 0.25, lat: 0.62, med: 0.6, up: 1.0, down: 0.8 };
+  const foldW = (u) => -0.98 + 0.3 * Math.max(0, u) * Math.max(0, u) + 0.05 * Math.min(0, u);
+  function prepGlutes(D, inBody) {
+    const B = D.base, idx = [], U = [], W = [], K = [];
+    for (let v = 0; v < D.nV; v++) {
+      if (!inBody[v]) continue;
+      const x = B[v * 3], y = B[v * 3 + 1], z = B[v * 3 + 2], ax = Math.abs(x);
+      const back = smooth(-0.05, -0.4, z);
+      if (back <= 0 || y < -2.2 || y > 1.9 || ax > 2.0) continue;
+      const u = (ax - GL.cx) / (ax > GL.cx ? GL.lat : GL.med), w = (y - GL.cy) / (y > GL.cy ? GL.up : GL.down);
+      if (u * u + w * w > 2.6) continue;
+      // keep the cleft between the buttocks as it is
+      const cleft = smooth(0.03, 0.28, ax);
+      idx.push(v); U.push(u); W.push(w); K.push(back * cleft * (x < 0 ? -1 : 1));
+    }
+    return { idx: Int32Array.from(idx), U: Float32Array.from(U), W: Float32Array.from(W), K: Float32Array.from(K) };
+  }
+  function glutes(S, D, p, P) {
+    const G = S.glutes;
+    if (!G) return;
+    const fem = smooth(0.15, 0.85, 1 - (p.gender ?? 0.5)), fat = clamp(p.weight ?? 0.5, 0, 1), mus = clamp(p.muscle ?? 0.5, 0, 1);
+    const gl = det(p, 'glutes'), lift = det(p, 'buttlift'), round = det(p, 'buttround');
+    const ageK = smooth(35, 80, p.age ?? 28);
+    // overall size of the buttock's correction scales with the body (dm)
+    const scale = 0.85 + 0.3 * fat + 0.15 * fem;
+    // fuller and rounder, the mass sitting in the lower half
+    const full = scale * clamp(0.05 + 0.05 * fem + 0.05 * gl + 0.04 * (fat - 0.5) + 0.03 * mus + 0.05 * round, 0, 0.22);
+    // where the fullest point sits (W): lower with age and softness, higher with lift
+    const peakW = -0.28 + 0.22 * lift - 0.15 * ageK;
+    // the fold under the buttock: deeper with fat, softness and size, softer with lift
+    const fold = scale * clamp((0.035 + 0.05 * fat + 0.025 * fem + 0.03 * ageK + 0.02 * Math.max(0, gl) - 0.015 * mus) * (1 - 0.35 * lift), 0, 0.14);
+    // a lifted buttock is also slightly shorter and tucks the fold up
+    const sagY = scale * (0.03 * ageK + 0.015 * fat - 0.03 * lift);
+    for (let i = 0; i < G.idx.length; i++) {
+      const o = G.idx[i] * 3, u = G.U[i], w = G.W[i], k = G.K[i], kk = Math.abs(k);
+      // fullness: a soft dome over the buttock, peak below centre
+      const wu = w - peakW, ru = u * u + (wu * wu) / (wu > 0 ? 1.25 * 1.25 : 0.85 * 0.85);
+      const dome = ru < 1 ? (1 - ru) * (1 - ru) : 0;
+      // the fold: the underside bulges back and down over it, the skin just
+      // below it (top of the thigh) tucks in a little
+      const fd = w - foldW(u);
+      const along = smooth(1.05, 0.55, u) * smooth(-1.05, -0.6, u);
+      const over = along * Math.max(0, 1 - ((fd - 0.24) / 0.3) ** 2);
+      const under = along * Math.max(0, 1 - ((fd + 0.1) / 0.22) ** 2);
+      const dz = -full * dome - fold * (0.55 * over - 0.45 * under);
+      const dy = -sagY * dome - fold * 0.35 * over;
+      P[o + 1] += dy * kk;
+      P[o + 2] += dz * kk;
+    }
+  }
 
   BS.shapeCorrect = function (D, p, P) {
     if (OFF) return;
