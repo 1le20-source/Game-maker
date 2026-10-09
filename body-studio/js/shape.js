@@ -1,6 +1,6 @@
 // Body Studio — procedural shape corrections on top of MakeHuman's morph
-// targets: natural breast shape and support, round glutes with a soft
-// gluteal fold, and a smooth waist-hip-thigh line.
+// targets: natural breast shape and support, and round glutes with a soft
+// gluteal fold.
 // core.js calls BS.shapeCorrect(D, p, P) inside BS.morph after the targets are
 // applied and before heightScale; P is the base-mesh position array (D.base
 // units, decimeters). ?noshape=1 turns it off for before/after comparisons.
@@ -20,7 +20,22 @@
 //
 // Glutes. A rounder, fuller buttock (scaled by the Butt detail, body fat and
 // the female macro) with its mass sitting in the lower half, a gluteal fold
-// under it that deepens with fat and softness, and a smooth hip-to-thigh line.
+// under it that deepens with fat and softness, blending smoothly from the
+// lower back over the buttock into the back of the thigh.
+//
+// Controls (params.js DETAILS with no MakeHuman targets, so they show up in
+// the Body tab's Chest and Figure groups and live in p.details, -1..1, 0 =
+// natural default):
+//   breastround    Breast shape: -1 teardrop (fuller below, flatter upper
+//                  pole, a little lower) .. +1 round (fuller upper pole)
+//   breastside     Side fullness: how much the outer side swells toward the arm
+//   breastsupport  Support: -1 none .. 0 an everyday bra .. +1 a firm lift
+//                  (p.breastSupport 0..1, if set, overrides it)
+//   buttround      Butt roundness: fuller, rounder glutes
+//   buttlift       Butt lift: fullest point higher, fold tighter (-1 lower)
+// They work with breastSize, breastFirmness, age, weight, muscle, gender and
+// the Butt (glutes) detail. BS.shapeInfo holds the last breast measurements
+// (apex, chest normal, projection H) for debugging.
 //
 // Everything is a smooth field over static per-vertex coordinates cached on
 // D (computed once), so after Catmull-Clark the skin stays smooth and a morph
@@ -219,16 +234,16 @@
       // the upper pole stays a slope (fuller with youth, firmness, support)
       const young = 1 - ageK;
       const kLow = F * clamp(0.62 + 0.18 * size + 0.12 * roundK, 0, 0.95);
-      const kUp = F * clamp(0.12 + 0.18 * firm * young + 0.2 * support - 0.1 * ageK + 0.25 * roundK, 0, 0.8);
-      const kLat = F * clamp(0.45 + 0.15 * size + 0.2 * sideK + 0.1 * fat, 0, 0.9);
+      const kUp = F * clamp(0.12 + 0.18 * firm * young + 0.2 * support - 0.1 * ageK + 0.35 * roundK, 0, 0.85);
+      const kLat = F * clamp(0.45 + 0.15 * size + 0.3 * sideK + 0.1 * fat, 0, 0.92);
       const kMed = F * clamp(0.32 + 0.12 * support + 0.1 * roundK, 0, 0.8);
       const kTip = F * clamp(0.88 + 0.06 * roundK, 0, 0.97);
       // side fullness: the lateral flank also swells toward the armpit
-      const side = F * (0.08 + 0.08 * size + 0.12 * sideK);
+      const side = F * clamp(0.08 + 0.08 * size + 0.2 * sideK, 0, 0.4);
       // gravity (fraction of the breast's projection) and support
-      const sag = F * (0.06 + 0.16 * (1 - firm) + 0.14 * ageK) * (0.5 + 0.8 * size) * (1 - 0.6 * support);
-      const lift = F * 0.1 * support * (0.6 + 0.4 * size);
-      const toward = F * 0.05 * support;
+      const sag = F * (0.06 + 0.16 * (1 - firm) + 0.14 * ageK) * (0.5 + 0.8 * size) * (1 - 0.7 * support) * (1 - 0.4 * roundK);
+      const lift = F * 0.16 * support * (0.6 + 0.4 * size);
+      const toward = F * 0.08 * support;
       const tN = 0.95; // base of the nipple in t
 
       // ---- per vertex
@@ -304,13 +319,13 @@
     // overall size of the buttock's correction scales with the body (dm)
     const scale = 0.85 + 0.3 * fat + 0.15 * fem;
     // fuller and rounder, the mass sitting in the lower half
-    const full = scale * clamp(0.05 + 0.05 * fem + 0.05 * gl + 0.04 * (fat - 0.5) + 0.03 * mus + 0.05 * round, 0, 0.22);
+    const full = scale * clamp(0.05 + 0.05 * fem + 0.05 * gl + 0.04 * (fat - 0.5) + 0.03 * mus + 0.08 * round, 0, 0.24);
     // where the fullest point sits (W): lower with age and softness, higher with lift
-    const peakW = -0.28 + 0.22 * lift - 0.15 * ageK;
+    const peakW = -0.28 + 0.25 * lift - 0.15 * ageK;
     // the fold under the buttock: deeper with fat, softness and size, softer with lift
-    const fold = scale * clamp((0.035 + 0.05 * fat + 0.025 * fem + 0.03 * ageK + 0.02 * Math.max(0, gl) - 0.015 * mus) * (1 - 0.35 * lift), 0, 0.14);
+    const fold = scale * clamp((0.035 + 0.05 * fat + 0.025 * fem + 0.03 * ageK + 0.02 * Math.max(0, gl) - 0.015 * mus) * (1 - 0.45 * lift), 0, 0.14);
     // a lifted buttock is also slightly shorter and tucks the fold up
-    const sagY = scale * (0.03 * ageK + 0.015 * fat - 0.03 * lift);
+    const sagY = scale * (0.03 * ageK + 0.015 * fat - 0.05 * lift);
     for (let i = 0; i < G.idx.length; i++) {
       const o = G.idx[i] * 3, u = G.U[i], w = G.W[i], k = G.K[i], kk = Math.abs(k);
       // fullness: a soft dome over the buttock, peak below centre
