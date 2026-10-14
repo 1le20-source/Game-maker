@@ -12,7 +12,7 @@ export const PRESETS = { full: 0, upper: 1, face: 2 };
 // Framing keyframes: [target height above floor (m), visible height (m), min width (m)]
 const FRAMES = [
   [0.84, 1.95, 0.9],
-  [1.2, 0.98, 0.62],
+  [1.23, 0.88, 0.52],
   [1.43, 0.42, 0.34],
 ];
 
@@ -212,12 +212,12 @@ export function createStage(app, canvas) {
     // World point under a screen position at the depth of `atPoint`.
     screenToWorld(clientX, clientY, atPoint) {
       const r = canvas.getBoundingClientRect();
-      const ndc = new THREE.Vector3(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1, 0.5);
-      ndc.unproject(camera);
-      const dir = ndc.sub(camera.position).normalize();
-      const dist = atPoint.clone().sub(camera.position).dot(camera.getWorldDirection(new THREE.Vector3()));
-      const cos = dir.dot(camera.getWorldDirection(new THREE.Vector3()));
-      return camera.position.clone().addScaledVector(dir, dist / Math.max(0.2, cos));
+      const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera(ndc, camera);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camera.getWorldDirection(new THREE.Vector3()), atPoint);
+      const out = new THREE.Vector3();
+      return rc.ray.intersectPlane(plane, out) ? out : atPoint.clone();
     },
     raycast(clientX, clientY, objects, recursive = true) {
       const r = canvas.getBoundingClientRect();
